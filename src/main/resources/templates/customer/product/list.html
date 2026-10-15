@@ -10,7 +10,7 @@
   </title>
 
   <link rel="stylesheet"
-        th:href="@{/css/app.css(v='product-image-square')}">
+        th:href="@{/css/app.css(v='showcase-refresh')}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer
           th:src="@{/js/customer-mockup.js}"></script>
@@ -23,12 +23,16 @@
 <header th:replace="~{fragments/common/header :: header}">
 </header>
 
-<main class="page-container">
+<main class="page-container page-container--catalog">
   <div th:replace="~{fragments/common/alert :: alert}"></div>
 
-  <h1 th:text="${productListTitle}">상품 목록</h1>
+  <header class="page-intro page-intro--catalog">
+    <p class="eyebrow">OUR CAKE COLLECTION</p>
+    <h1 th:text="${productListTitle}">상품 목록</h1>
+    <p>데일리 케이크부터 특별한 주문 제작까지, 오늘의 순간에 어울리는 케이크를 찾아보세요.</p>
+  </header>
 
-  <form method="get"
+  <form class="product-catalog" method="get"
         th:action="@{/products}"
         role="search">
 
@@ -39,7 +43,7 @@
            th:value="${condition.sort.name()}">
 
     <!-- 상품명 검색 -->
-    <div class="cluster section">
+    <div class="cluster section product-search-bar">
       <label class="visually-hidden"
              for="product-search">
         상품명 검색
@@ -49,7 +53,7 @@
              id="product-search"
              name="keyword"
              type="search"
-             placeholder="상품명 검색"
+             placeholder="어떤 케이크를 찾고 계세요?"
              th:value="${condition.keyword}"
              style="flex:1">
 
@@ -61,7 +65,7 @@
 
     <div class="layout-sidebar">
       <!-- 상품 필터 -->
-      <aside class="filter-panel">
+      <aside class="filter-panel catalog-filter">
         <h2 class="section-title">필터</h2>
 
         <!-- 상품 유형 -->

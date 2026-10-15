@@ -7,7 +7,7 @@
   <title>메인 | 케이크 쇼핑몰</title>
 
   <link rel="stylesheet"
-        th:href="@{/css/app.css(v='home-product-square')}">
+        th:href="@{/css/app.css(v='showcase-refresh')}">
   <link rel="stylesheet" th:href="@{/css/home.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/home-banner-rotation.js}"></script>
@@ -17,7 +17,7 @@
 <body>
   <header th:replace="~{fragments/common/header :: header}"></header>
 
-  <main class="page-container">
+  <main class="page-container page-container--home">
     <h1 class="visually-hidden">케이크 쇼핑몰 메인</h1>
     <div th:replace="~{fragments/common/alert :: alert}"></div>
 
@@ -63,12 +63,12 @@
       한다 — 없으면 4번째부터는 접근 경로가 사라진다.
     */-->
     <section id="notices"
-             class="section"
+             class="section home-section home-notices"
              aria-labelledby="notices-title">
 
       <div class="cluster cluster--between">
         <h2 id="notices-title" class="section-title">공지사항</h2>
-        <a class="btn" th:href="@{/community/notices}">전체보기</a>
+        <a class="btn btn--ghost" th:href="@{/community/notices}">전체보기 →</a>
       </div>
 
       <div class="stack"
@@ -91,8 +91,14 @@
       </div>
     </section>
 
-    <section class="section" aria-labelledby="category-title">
-      <h2 id="category-title" class="section-title">카테고리</h2>
+    <section class="section home-section" aria-labelledby="category-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CHOOSE YOUR MOMENT</p>
+          <h2 id="category-title" class="section-title">어떤 케이크를 찾으세요?</h2>
+        </div>
+        <p>필요한 방식에 맞춰 케이크를 골라보세요.</p>
+      </div>
 
       <div class="grid grid--2">
         <a class="category-card home-category-card"
@@ -113,12 +119,16 @@
     </section>
 
     <section id="recommended-products"
-             class="section"
+             class="section home-section"
              aria-labelledby="recommended-title">
 
-      <h2 id="recommended-title" class="section-title">
-        추천 · 인기 상품
-      </h2>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">BEST SELLERS</p>
+          <h2 id="recommended-title" class="section-title">지금 가장 사랑받는 케이크</h2>
+        </div>
+        <a class="btn btn--ghost" th:href="@{/products}">전체 상품 보기 →</a>
+      </div>
 
       <!-- HomeController가 전달한 추천 상품이 있을 때만 상품 목록을 출력한다. -->
       <div class="grid grid--4 product-grid"
@@ -201,10 +211,16 @@
       </div>
     </section>
 
-    <section class="section" aria-labelledby="store-title">
-      <h2 id="store-title" class="section-title">매장 정보</h2>
+    <section class="section home-section" aria-labelledby="store-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">VISIT OUR STORE</p>
+          <h2 id="store-title" class="section-title">픽업 전, 매장을 확인하세요</h2>
+        </div>
+        <p>예약한 시간에 맞춰 정성껏 준비해 둘게요.</p>
+      </div>
 
-      <div class="panel grid grid--2 store-panel">
+      <div class="panel grid grid--2 store-panel store-panel--showcase">
         <div>
           <div class="data-row">
             <span class="data-row__label">매장명</span>

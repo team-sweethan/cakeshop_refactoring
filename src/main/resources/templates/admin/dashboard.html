@@ -9,9 +9,12 @@
   <aside th:replace="~{fragments/admin/sidebar :: sidebar('dashboard')}"></aside>
   <div class="admin-main">
     <header th:replace="~{fragments/admin/header :: header('대시보드')}"></header>
-    <main class="admin-content">
-      <div class="admin-content__header">
-        <h1 class="admin-page-title">대시보드</h1>
+    <main class="admin-content dashboard-content">
+      <header class="admin-page-intro">
+        <div>
+          <p class="eyebrow">TODAY AT A GLANCE</p>
+          <h1 class="admin-page-title">대시보드</h1>
+        </div>
         <div class="cluster">
           <span class="text-muted">
             조회 기준
@@ -21,7 +24,7 @@
           </span>
           <a class="btn" th:href="@{/admin}">새로고침</a>
         </div>
-      </div>
+      </header>
       <section class="grid grid--4 section">
         <article class="metric-card"><p>오늘 주문</p><strong th:text="|${dashboard.todayOrderCount}건|">0건</strong></article>
         <article class="metric-card">

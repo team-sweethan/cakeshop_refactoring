@@ -19,7 +19,7 @@
       <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/mypage}" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}">
         <span sec:authentication="principal.displayName">회원</span>님
       </a>
-      <a class="btn" th:href="@{/products}">검색</a>
+      <a class="btn customer-header__search" th:href="@{/products}">상품 찾기</a>
       <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/notifications}">알림 <span class="badge" data-unread-count style="display: none;">0</span></a>
       <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/cart}" data-cart-count>장바구니</a>
       <a class="btn" sec:authorize="isAnonymous()" th:href="@{/login}">로그인</a>
