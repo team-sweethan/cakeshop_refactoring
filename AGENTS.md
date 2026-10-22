@@ -36,6 +36,8 @@
 - Thymeleaf 화면·프래그먼트·정적 자원을 작성·수정할 때 `docs/frontend-template-format.md`
 - 화면의 웹 접근성 동작을 설계·수정·검증할 때 `docs/web-accessibility.md`
 - 아직 합의되지 않은 연동 정책을 만났을 때 `docs/team-plan.md`
+- 자체 PG 연동 작업에서 되돌리기 어렵거나 대안 중 하나를 고르는 결정을 만났을 때
+  `docs/order/pg-decisions/README.md`
 
 기존 코드와 도메인 라우터가 이미 답을 주는 일반적인 Java·DTO 수정이나 테스트 추가에는 공통 문서를 다시
 읽지 않는다. 다른 도메인의 라우터는 해당 담당자가 필요할 때 추가한다.
