@@ -131,7 +131,7 @@ class OrderPaymentEntitySchemaTests {
         assertFields(Payment.class, Map.ofEntries(
                 Map.entry("id", Long.class),
                 Map.entry("orderId", Long.class),
-                Map.entry("tossOrderId", String.class),
+                Map.entry("gatewayOrderId", String.class),
                 Map.entry("paymentKey", String.class),
                 Map.entry("idempotencyKey", String.class),
                 Map.entry("method", String.class),

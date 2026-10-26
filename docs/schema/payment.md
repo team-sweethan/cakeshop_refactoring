@@ -12,7 +12,7 @@
 |---|---|---|---|---|---|
 | `id` | BIGINT | PK | X | AUTO_INCREMENT | 결제 식별자 |
 | `order_id` | BIGINT | FK | X | 없음 | 주문 식별자 |
-| `toss_order_id` | VARCHAR(100) | UK | X | 없음 | Toss 주문 식별자 |
+| `toss_order_id` | VARCHAR(100) | UK | X | 없음 | PG 주문 식별자 (기존 컬럼명 유지) |
 | `payment_key` | VARCHAR(200) | UK | O | NULL | 결제사 결제 키 |
 | `idempotency_key` | VARCHAR(100) | UK | X | 없음 | 결제 요청 멱등 키 |
 | `method` | VARCHAR(30) |  | O | NULL | 결제 수단 |
@@ -27,6 +27,8 @@
 | `created_at` | DATETIME(6) |  | X | `CURRENT_TIMESTAMP(6)` | 생성 시각 |
 | `updated_at` | DATETIME(6) | INDEX | X | `CURRENT_TIMESTAMP(6)` | 수정 시각, 수정 시 자동 갱신 |
 
+- Java에서는 PG 공통 이름인 `gatewayOrderId`를 사용한다. MyBatis 조회 별칭과 INSERT 바인딩으로
+  기존 `toss_order_id` 컬럼에 연결하며, 컬럼·인덱스와 기존 데이터는 변경하지 않는다.
 - UK: `toss_order_id`, `payment_key`, `idempotency_key` 각각 개별 유니크
 - UK: `uk_payments_active_order` (`active_payment_order_id`) — 주문별 진행/완료 결제 1건 제한
 - FK: `fk_payments_order` — `order_id` → `orders.id`

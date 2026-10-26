@@ -6,7 +6,7 @@ import com.cakeshop.domain.payment.infra.PaymentGateway;
 import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
-import com.cakeshop.domain.payment.service.TossPaymentApprovalResolver.ApprovalResolution;
+import com.cakeshop.domain.payment.service.PaymentApprovalResolver.ApprovalResolution;
 import com.cakeshop.global.error.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +23,12 @@ public class PaymentCompensationProcessor {
 
     private final PaymentRecoveryService paymentRecoveryService;
     private final PaymentGateway paymentGateway;
-    private final TossPaymentApprovalResolver approvalResolver;
+    private final PaymentApprovalResolver approvalResolver;
 
     public PaymentCompensationProcessor(
             PaymentRecoveryService paymentRecoveryService,
             PaymentGateway paymentGateway,
-            TossPaymentApprovalResolver approvalResolver
+            PaymentApprovalResolver approvalResolver
     ) {
         this.paymentRecoveryService = paymentRecoveryService;
         this.paymentGateway = paymentGateway;
@@ -69,7 +69,7 @@ public class PaymentCompensationProcessor {
     }
 
     public BusinessException reconcileCanceled(Payment payment, PaymentLookupResult lookup) {
-        CancellationResult result = TossCancellationResultResolver.findCompleted(lookup)
+        CancellationResult result = PaymentCancellationResultResolver.findCompleted(lookup)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
         CompensationRequest request = paymentRecoveryService.createRequest(payment, lookup.paymentKey());
         try {
@@ -117,7 +117,7 @@ public class PaymentCompensationProcessor {
         try {
             result = paymentGateway.cancel(request.paymentKey(), request.reason(), request.idempotencyKey());
         } catch (BusinessException cancelFailure) {
-            result = TossCancellationResultResolver.findCompleted(paymentGateway, request.paymentKey())
+            result = PaymentCancellationResultResolver.findCompleted(paymentGateway, request.paymentKey())
                     .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
         }
 

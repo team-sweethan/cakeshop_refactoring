@@ -9,10 +9,10 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/** Toss 성공 URL에 추가되는 인증 결과를 받는다. */
+/** PG 성공 URL에 추가되는 인증 결과를 받는다. */
 @Getter
 @Setter
-public class TossPaymentSuccessForm {
+public class PaymentSuccessForm {
 
     @NotBlank
     @Size(max = 200)

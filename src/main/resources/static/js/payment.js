@@ -54,7 +54,7 @@
             currency: "KRW",
             value: amount
           },
-          orderId: root.dataset.tossOrderId,
+          orderId: root.dataset.gatewayOrderId,
           orderName: root.dataset.orderName,
           customerName: root.dataset.customerName,
           successUrl: new URL(root.dataset.successUrl, location.origin).href,

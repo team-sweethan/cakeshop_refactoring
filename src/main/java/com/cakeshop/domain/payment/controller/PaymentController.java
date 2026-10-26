@@ -1,7 +1,7 @@
 package com.cakeshop.domain.payment.controller;
 
 import com.cakeshop.domain.payment.dto.form.PaymentConfirmForm;
-import com.cakeshop.domain.payment.dto.form.TossPaymentSuccessForm;
+import com.cakeshop.domain.payment.dto.form.PaymentSuccessForm;
 import com.cakeshop.domain.payment.service.PaymentFacade;
 import com.cakeshop.domain.payment.service.PaymentCheckoutService;
 import com.cakeshop.global.error.BusinessException;
@@ -26,7 +26,7 @@ public class PaymentController {
     private final PaymentFacade paymentFacade;
     private final PaymentCheckoutService paymentCheckoutService;
 
-    /** 회원 소유의 [결제 대기] 주문을 검증하고 Toss 결제 화면에 필요한 정보를 모델에 담음.**/
+    /** 회원 소유의 [결제 대기] 주문을 검증하고 PG 결제 화면에 필요한 정보를 모델에 담음.**/
     @GetMapping("/orders/{orderId:\\d+}/payment")
     public String payment(
             @PathVariable("orderId") long orderId,
@@ -41,11 +41,11 @@ public class PaymentController {
         return "customer/payment/form";
 
     }
-    /** Toss 인증 성공 값을 검증한 뒤 CSRF가 적용되는 내부 POST 화면을 반환한다. */
+    /** PG 인증 성공 값을 검증한 뒤 CSRF가 적용되는 내부 POST 화면을 반환한다. */
     @GetMapping("/orders/{orderId:\\d+}/payment/success")
     public String success(
             @PathVariable("orderId") long orderId,
-            @Valid @ModelAttribute("successForm") TossPaymentSuccessForm form,
+            @Valid @ModelAttribute("successForm") PaymentSuccessForm form,
             BindingResult bindingResult,
             @AuthenticationPrincipal MemberDetails member,
             Model model
@@ -61,7 +61,7 @@ public class PaymentController {
         return "customer/payment/success";
     }
 
-    /** Toss 인증 실패 원문 대신 안전한 안내와 재시도 경로를 제공한다. */
+    /** PG 인증 실패 원문 대신 안전한 안내와 재시도 경로를 제공한다. */
     @GetMapping("/orders/{orderId:\\d+}/payment/fail")
     public String fail(
             @PathVariable("orderId") long orderId,
@@ -81,7 +81,7 @@ public class PaymentController {
     }
 
     // 진짜 결제 승인.
-    /** Toss 결제 인증 성공 값을 검증하고 주문 유형에 맞게 결제를 완료한다. */
+    /** PG 결제 인증 성공 값을 검증하고 주문 유형에 맞게 결제를 완료한다. */
     @PostMapping("/orders/{orderId:\\d+}/payment/confirm")
     public String confirm(
             @PathVariable("orderId") long orderId,

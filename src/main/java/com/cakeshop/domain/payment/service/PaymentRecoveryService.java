@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Toss 승인 후 내부 완료 실패를 전액 취소하고 로컬 상태와 재고를 복구한다. */
+/** PG 승인 후 내부 완료 실패를 전액 취소하고 로컬 상태와 재고를 복구한다. */
 @Service
 @RequiredArgsConstructor
 public class PaymentRecoveryService {

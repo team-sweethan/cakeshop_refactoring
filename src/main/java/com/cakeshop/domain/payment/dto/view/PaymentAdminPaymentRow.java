@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public record PaymentAdminPaymentRow(
         long paymentId,
         long orderId,
-        String tossOrderId,
+        String gatewayOrderId,
         BigDecimal amount,
         String method,
         PaymentStatus status,

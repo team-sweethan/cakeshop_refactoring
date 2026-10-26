@@ -66,7 +66,7 @@ class TossPaymentGatewayTests {
 
     @Test
     void find_tossFailure_propagatesForExistingRecoveryHandling() {
-        BusinessException failure = new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+        BusinessException failure = new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         when(client.find("payment-key")).thenThrow(failure);
 
         assertThatThrownBy(() -> gateway.find("payment-key")).isSameAs(failure);

@@ -38,7 +38,7 @@ class PaymentCompensationProcessorTests {
         compensationProcessor = new PaymentCompensationProcessor(
                 paymentRecoveryService,
                 new TossPaymentGateway(tossPaymentClient, null),
-                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
         );
     }
 

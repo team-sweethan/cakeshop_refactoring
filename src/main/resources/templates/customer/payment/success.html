@@ -18,7 +18,7 @@
             th:action="@{/orders/{id}/payment/confirm(id=${orderId})}"
             th:object="${paymentForm}">
         <input type="hidden" th:field="*{paymentKey}">
-        <input type="hidden" th:field="*{tossOrderId}">
+        <input type="hidden" th:field="*{gatewayOrderId}">
         <input type="hidden" th:field="*{amount}">
         <noscript>
           <button class="btn btn--primary" type="submit">결제 승인 계속하기</button>

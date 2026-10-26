@@ -13,7 +13,7 @@ public class Payment {
 
     private Long id;
     private Long orderId;
-    private String tossOrderId;
+    private String gatewayOrderId;
     private String paymentKey;
     private String idempotencyKey;
     private String method;

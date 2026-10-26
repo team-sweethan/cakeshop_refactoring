@@ -8,7 +8,7 @@
         SELECT
             payment.id AS payment_id,
             payment.order_id,
-            payment.toss_order_id,
+            payment.toss_order_id AS gateway_order_id,
             payment.amount,
             payment.method,
             payment.status,
@@ -79,7 +79,7 @@
         )
         VALUES (
             #{orderId},
-            #{tossOrderId},
+            #{gatewayOrderId},
             #{paymentKey},
             #{idempotencyKey},
             #{method},
@@ -94,7 +94,7 @@
         SELECT
             id,
             order_id,
-            toss_order_id,
+            toss_order_id AS gateway_order_id,
             payment_key,
             idempotency_key,
             method,
@@ -118,7 +118,7 @@
         SELECT
             id,
             order_id,
-            toss_order_id,
+            toss_order_id AS gateway_order_id,
             payment_key,
             idempotency_key,
             method,
@@ -140,7 +140,7 @@
         SELECT
             id,
             order_id,
-            toss_order_id,
+            toss_order_id AS gateway_order_id,
             payment_key,
             idempotency_key,
             method,

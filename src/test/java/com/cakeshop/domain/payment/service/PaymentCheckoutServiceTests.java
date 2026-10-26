@@ -5,7 +5,7 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.Paymen
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrderItem;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrderOption;
 import com.cakeshop.domain.member.service.MemberService;
-import com.cakeshop.domain.payment.dto.form.TossPaymentSuccessForm;
+import com.cakeshop.domain.payment.dto.form.PaymentSuccessForm;
 import com.cakeshop.domain.payment.dto.view.PaymentCheckoutView;
 import com.cakeshop.domain.payment.dto.view.PaymentCompletionView;
 import com.cakeshop.domain.payment.entity.Payment;
@@ -92,7 +92,7 @@ class PaymentCheckoutServiceTests {
         );
 
         assertThat(checkout.orderNumber()).isEqualTo("ORD-100");
-        assertThat(checkout.tossOrderId()).isEqualTo("ORD-100");
+        assertThat(checkout.gatewayOrderId()).isEqualTo("ORD-100");
         assertThat(checkout.orderName()).isEqualTo("딸기 생크림 케이크");
         assertThat(checkout.amount()).isEqualByComparingTo("30000");
         assertThat(checkout.customerEmail()).isEqualTo("member@example.com");
@@ -243,7 +243,7 @@ class PaymentCheckoutServiceTests {
         Payment payment = new Payment();
         payment.setId(20L);
         payment.setOrderId(1L);
-        payment.setTossOrderId("ORD-100");
+        payment.setGatewayOrderId("ORD-100");
         payment.setPaymentKey(paymentKey);
         payment.setIdempotencyKey("PAY-1");
         payment.setMethod("카드");
@@ -252,8 +252,8 @@ class PaymentCheckoutServiceTests {
         return payment;
     }
 
-    private TossPaymentSuccessForm successForm() {
-        TossPaymentSuccessForm form = new TossPaymentSuccessForm();
+    private PaymentSuccessForm successForm() {
+        PaymentSuccessForm form = new PaymentSuccessForm();
         form.setPaymentKey("payment-key");
         form.setOrderId("ORD-100");
         form.setAmount(BigDecimal.valueOf(30_000));

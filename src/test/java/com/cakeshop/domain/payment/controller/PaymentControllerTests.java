@@ -85,7 +85,7 @@ class PaymentControllerTests {
     void confirm_validRequest_usesAuthenticatedMemberAndRedirects() throws Exception {
         mockMvc.perform(post("/orders/1/payment/confirm")
                         .param("paymentKey", "payment-key")
-                        .param("tossOrderId", "ORD-100")
+                        .param("gatewayOrderId", "ORD-100")
                         .param("amount", "30000"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl(
@@ -97,7 +97,7 @@ class PaymentControllerTests {
                 eq(1L),
                 argThat(form ->
                         form.getPaymentKey().equals("payment-key")
-                                && form.getTossOrderId().equals("ORD-100")
+                                && form.getGatewayOrderId().equals("ORD-100")
                                 && form.getAmount().compareTo(
                                         BigDecimal.valueOf(30_000)
                                 ) == 0

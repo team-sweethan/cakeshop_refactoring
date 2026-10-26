@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
-/** 외부 Toss 취소와 내부 환불 완료 트랜잭션을 조정한다. */
+/** 외부 PG 취소와 내부 환불 완료 트랜잭션을 조정한다. */
 @Service
 @RequiredArgsConstructor
 public class RefundFacade {
@@ -90,7 +90,7 @@ public class RefundFacade {
 
     private Optional<CancellationResult> findCanceledResult(String paymentKey) {
         try {
-            return TossCancellationResultResolver.findCompleted(paymentGateway, paymentKey);
+            return PaymentCancellationResultResolver.findCompleted(paymentGateway, paymentKey);
         } catch (BusinessException lookupFailure) {
             return Optional.empty();
         }

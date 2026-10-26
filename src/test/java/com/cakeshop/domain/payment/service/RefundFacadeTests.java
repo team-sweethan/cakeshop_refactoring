@@ -70,7 +70,7 @@ class RefundFacadeTests {
         RefundRequest request = request();
         when(refundService.prepareCustomerCancellation(3L, 10L, "단순 변심")).thenReturn(request);
         when(tossPaymentClient.cancel("payment-key", "단순 변심", "idempotency-key"))
-                .thenThrow(new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED));
+                .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED));
         when(tossPaymentClient.find("payment-key"))
                 .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_STATUS_LOOKUP_FAILED));
 
@@ -104,7 +104,7 @@ class RefundFacadeTests {
         when(refundService.prepareCustomerCancellation(3L, 10L, "단순 변심"))
                 .thenReturn(request);
         when(tossPaymentClient.cancel("payment-key", "단순 변심", "idempotency-key"))
-                .thenThrow(new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED));
+                .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED));
         when(tossPaymentClient.find("payment-key")).thenReturn(Optional.of(lookup));
 
         refundFacade.cancelCustomerOrder(3L, 10L, "단순 변심");
