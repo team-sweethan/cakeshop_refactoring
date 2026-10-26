@@ -93,6 +93,8 @@ app:
     # 저장 파일에 접근하는 웹 경로 접두. WebConfig 리소스 핸들러와 짝을 이룬다.
     url-prefix: /uploads
   payment:
+    # 미지정 시 기존 Toss 동작을 유지한다. 자체 PG 구현 전 own 선택은 앱 시작을 중단한다.
+    gateway: ${PAYMENT_GATEWAY:toss}
     toss:
       base-url: https://api.tosspayments.com
       # API 키는 로컬 .env 또는 배포 환경변수로만 주입하며 저장소에 커밋하지 않는다.
@@ -100,6 +102,13 @@ app:
       secret-key: ${TOSS_SECRET_KEY:}
       connect-timeout: ${TOSS_CONNECT_TIMEOUT:3s}
       read-timeout: ${TOSS_READ_TIMEOUT:5s}
+    own:
+      # 후속 자체 PG 구현용 예비 설정. 아직 외부 API 호출에 사용하지 않는다.
+      # api-key의 실제 인증 헤더·전달 방식은 PG 계약 확정 후 구현한다.
+      base-url: ${OWN_PG_BASE_URL:}
+      api-key: ${OWN_PG_API_KEY:}
+      connect-timeout: ${OWN_PG_CONNECT_TIMEOUT:3s}
+      read-timeout: ${OWN_PG_READ_TIMEOUT:5s}
     recovery:
       fixed-delay: ${PAYMENT_RECOVERY_FIXED_DELAY:60s}
       initial-delay: ${PAYMENT_RECOVERY_INITIAL_DELAY:60s}

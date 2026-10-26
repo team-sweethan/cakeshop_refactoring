@@ -5,3 +5,7 @@ spring:
     validate-on-migrate: true
     clean-disabled: true
     out-of-order: true
+
+app:
+  payment:
+    gateway: toss

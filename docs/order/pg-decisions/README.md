@@ -61,3 +61,4 @@
 | 번호 | 제목 | 상태 |
 |---|---|---|
 | 001 | [결제창 PG 규칙의 Gateway 책임](001-payment-gateway-abstraction.md) | 채택 |
+| 002 | [자체 PG 구현 전 선택 설정의 동작](002-payment-gateway-selection.md) | 채택 |
