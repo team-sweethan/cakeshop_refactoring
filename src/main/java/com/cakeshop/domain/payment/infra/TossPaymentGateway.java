@@ -1,12 +1,14 @@
 package com.cakeshop.domain.payment.infra;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 /** 기존 Toss 클라이언트와 설정을 공통 PG 경계에 연결한다. */
 @Component
+@ConditionalOnProperty(prefix = "app.payment", name = "gateway", havingValue = "toss", matchIfMissing = true)
 @RequiredArgsConstructor
 public class TossPaymentGateway implements PaymentGateway {
 
