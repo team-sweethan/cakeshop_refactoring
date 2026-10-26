@@ -15,7 +15,6 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -90,7 +89,7 @@ public class TossPaymentClient {
                     response.paymentKey(),
                     response.orderId(),
                     response.method(),
-                    response.status(),
+                    toGatewayStatus(response.status()),
                     response.totalAmount(),
                     response.approvedAt().toLocalDateTime()
             );
@@ -137,7 +136,7 @@ public class TossPaymentClient {
                 throw new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED);
             }
             return new CancellationResult(
-                    response.status(),
+                    toGatewayStatus(response.status()),
                     cancellation.transactionKey(),
                     cancellation.canceledAt().toLocalDateTime()
             );
@@ -178,7 +177,7 @@ public class TossPaymentClient {
             TossCancellationResponse lastCancellation = response.cancels().getLast();
             if (lastCancellation.canceledAt() != null) {
                 cancellation = new CancellationResult(
-                        response.status(),
+                        toGatewayStatus(response.status()),
                         lastCancellation.transactionKey(),
                         lastCancellation.canceledAt().toLocalDateTime()
                 );
@@ -189,13 +188,26 @@ public class TossPaymentClient {
                 response.paymentKey(),
                 response.orderId(),
                 response.method(),
-                response.status(),
+                toGatewayStatus(response.status()),
                 response.totalAmount(),
                 response.approvedAt() == null
                         ? null
                         : response.approvedAt().toLocalDateTime(),
                 cancellation
         );
+    }
+
+    private PaymentGatewayStatus toGatewayStatus(String status) {
+        return switch (status) {
+            case null -> null;
+            case "READY" -> PaymentGatewayStatus.READY;
+            case "IN_PROGRESS" -> PaymentGatewayStatus.IN_PROGRESS;
+            case "DONE" -> PaymentGatewayStatus.DONE;
+            case "CANCELED" -> PaymentGatewayStatus.CANCELED;
+            case "ABORTED" -> PaymentGatewayStatus.ABORTED;
+            case "EXPIRED" -> PaymentGatewayStatus.EXPIRED;
+            default -> PaymentGatewayStatus.UNKNOWN;
+        };
     }
 
     private Duration requirePositive(Duration timeout) {
@@ -241,44 +253,5 @@ public class TossPaymentClient {
             String transactionKey,
             OffsetDateTime canceledAt
     ) {
-    }
-
-    public record ApprovalResult(
-            String paymentKey,
-            String orderId,
-            String method,
-            String status,
-            long totalAmount,
-            LocalDateTime approvedAt
-    ) {
-    }
-
-    public record CancellationResult(
-            String status,
-            String transactionKey,
-            LocalDateTime canceledAt
-    ) {
-    }
-
-    public record PaymentLookupResult(
-            String paymentKey,
-            String orderId,
-            String method,
-            String status,
-            long totalAmount,
-            LocalDateTime approvedAt,
-            CancellationResult cancellation
-    ) {
-
-        public ApprovalResult toApprovalResult() {
-            return new ApprovalResult(
-                    paymentKey,
-                    orderId,
-                    method,
-                    status,
-                    totalAmount,
-                    approvedAt
-            );
-        }
     }
 }

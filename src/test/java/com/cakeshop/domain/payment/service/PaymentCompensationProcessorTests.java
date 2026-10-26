@@ -1,8 +1,10 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
 import com.cakeshop.domain.payment.infra.TossPaymentClient;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.PaymentLookupResult;
+import com.cakeshop.domain.payment.infra.TossPaymentGateway;
+import com.cakeshop.domain.payment.infra.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,8 +37,8 @@ class PaymentCompensationProcessorTests {
     void setUp() {
         compensationProcessor = new PaymentCompensationProcessor(
                 paymentRecoveryService,
-                tossPaymentClient,
-                new TossPaymentApprovalResolver(tossPaymentClient)
+                new TossPaymentGateway(tossPaymentClient, null),
+                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
         );
     }
 
@@ -47,7 +49,7 @@ class PaymentCompensationProcessorTests {
         when(paymentRecoveryService.getPreparedCompensations(50)).thenReturn(List.of(request));
         when(tossPaymentClient.find(request.paymentKey())).thenReturn(Optional.of(
                 new PaymentLookupResult(
-                        request.paymentKey(), "ORD-100", "카드", "DONE", 30_000L, NOW, null
+                        request.paymentKey(), "ORD-100", "카드", PaymentGatewayStatus.DONE, 30_000L, NOW, null
                 )
         ));
         when(tossPaymentClient.cancel(request.paymentKey(), request.reason(), request.idempotencyKey()))
@@ -78,7 +80,7 @@ class PaymentCompensationProcessorTests {
         when(paymentRecoveryService.getPreparedCompensations(50)).thenReturn(List.of(request));
         when(tossPaymentClient.find(request.paymentKey())).thenReturn(Optional.of(
                 new PaymentLookupResult(
-                        request.paymentKey(), "ORD-100", null, "EXPIRED", 30_000L, null, null
+                        request.paymentKey(), "ORD-100", null, PaymentGatewayStatus.EXPIRED, 30_000L, null, null
                 )
         ));
 
@@ -96,7 +98,7 @@ class PaymentCompensationProcessorTests {
         when(paymentRecoveryService.getPreparedCompensations(50)).thenReturn(List.of(request));
         when(tossPaymentClient.find(request.paymentKey())).thenReturn(Optional.of(
                 new PaymentLookupResult(
-                        request.paymentKey(), "ORD-100", "카드", "IN_PROGRESS", 30_000L, null, null
+                        request.paymentKey(), "ORD-100", "카드", PaymentGatewayStatus.IN_PROGRESS, 30_000L, null, null
                 )
         ));
 
@@ -120,6 +122,6 @@ class PaymentCompensationProcessorTests {
     }
 
     private CancellationResult cancellation() {
-        return new CancellationResult("CANCELED", "cancel-transaction", NOW.plusSeconds(20));
+        return new CancellationResult(PaymentGatewayStatus.CANCELED, "cancel-transaction", NOW.plusSeconds(20));
     }
 }

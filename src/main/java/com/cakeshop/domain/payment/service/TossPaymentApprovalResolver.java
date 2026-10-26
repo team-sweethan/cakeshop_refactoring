@@ -3,9 +3,10 @@ package com.cakeshop.domain.payment.service;
 import com.cakeshop.domain.payment.dto.form.PaymentConfirmForm;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.PaymentLookupResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
+import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.ApprovalResult;
+import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
 import com.cakeshop.global.error.BusinessException;
 import org.springframework.stereotype.Component;
@@ -17,17 +18,14 @@ import java.util.Optional;
 @Component
 public class TossPaymentApprovalResolver {
 
-    private static final String TOSS_DONE = "DONE";
-    private static final String TOSS_CANCELED = "CANCELED";
+    private final PaymentGateway paymentGateway;
 
-    private final TossPaymentClient tossPaymentClient;
-
-    public TossPaymentApprovalResolver(TossPaymentClient tossPaymentClient) {
-        this.tossPaymentClient = tossPaymentClient;
+    public TossPaymentApprovalResolver(PaymentGateway paymentGateway) {
+        this.paymentGateway = paymentGateway;
     }
 
     public ApprovalResolution resolveCurrent(Payment payment, PaymentConfirmForm form) {
-        Optional<PaymentLookupResult> lookup = tossPaymentClient.find(form.getPaymentKey());
+        Optional<PaymentLookupResult> lookup = paymentGateway.find(form.getPaymentKey());
         if (lookup.isEmpty()) {
             return ApprovalResolution.notApproved();
         }
@@ -37,7 +35,7 @@ public class TossPaymentApprovalResolver {
     public ApprovalResolution approve(Payment payment, PaymentConfirmForm form) {
         ApprovalResult approval;
         try {
-            approval = tossPaymentClient.approve(
+            approval = paymentGateway.approve(
                     form.getPaymentKey(),
                     form.getTossOrderId(),
                     form.getAmount().longValueExact(),
@@ -56,16 +54,16 @@ public class TossPaymentApprovalResolver {
 
     public ApprovalResolution resolveCompensationState(CompensationRequest request) {
         try {
-            Optional<PaymentLookupResult> lookup = tossPaymentClient.find(request.paymentKey());
+            Optional<PaymentLookupResult> lookup = paymentGateway.find(request.paymentKey());
             if (lookup.isEmpty()) {
                 return ApprovalResolution.notApproved();
             }
             PaymentLookupResult paymentLookup = lookup.get();
             return switch (paymentLookup.status()) {
-                case "READY", "ABORTED", "EXPIRED" -> ApprovalResolution.notApproved();
-                case "IN_PROGRESS" -> ApprovalResolution.inProgress();
-                case TOSS_DONE -> ApprovalResolution.done(paymentLookup.toApprovalResult(), paymentLookup);
-                case TOSS_CANCELED -> ApprovalResolution.canceled(paymentLookup);
+                case READY, ABORTED, EXPIRED -> ApprovalResolution.notApproved();
+                case IN_PROGRESS -> ApprovalResolution.inProgress();
+                case DONE -> ApprovalResolution.done(paymentLookup.toApprovalResult(), paymentLookup);
+                case CANCELED -> ApprovalResolution.canceled(paymentLookup);
                 default -> ApprovalResolution.finalOrUnknown();
             };
         } catch (BusinessException lookupFailure) {
@@ -76,7 +74,7 @@ public class TossPaymentApprovalResolver {
     private void validateApproval(Payment payment, PaymentConfirmForm form, ApprovalResult approval) {
         if (approval == null
                 || !payment.getTossOrderId().equals(approval.orderId())
-                || !TOSS_DONE.equals(approval.status())
+                || approval.status() != PaymentGatewayStatus.DONE
                 || payment.getAmount().compareTo(BigDecimal.valueOf(approval.totalAmount())) != 0
                 || approval.paymentKey() == null
                 || !form.getPaymentKey().equals(approval.paymentKey())
@@ -92,10 +90,10 @@ public class TossPaymentApprovalResolver {
     ) {
         validateLookup(payment, form, lookup);
         return switch (lookup.status()) {
-            case TOSS_DONE -> ApprovalResolution.done(lookup.toApprovalResult(), lookup);
-            case TOSS_CANCELED -> ApprovalResolution.canceled(lookup);
-            case "READY" -> ApprovalResolution.notApproved();
-            case "IN_PROGRESS" -> ApprovalResolution.inProgress();
+            case DONE -> ApprovalResolution.done(lookup.toApprovalResult(), lookup);
+            case CANCELED -> ApprovalResolution.canceled(lookup);
+            case READY -> ApprovalResolution.notApproved();
+            case IN_PROGRESS -> ApprovalResolution.inProgress();
             default -> throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
         };
     }

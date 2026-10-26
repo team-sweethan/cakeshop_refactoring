@@ -20,8 +20,9 @@ import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
+import com.cakeshop.domain.payment.infra.ApprovalResult;
+import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.product.service.ProductQueryService;
@@ -148,7 +149,7 @@ class PaymentCompletionIntegrationTests {
                 "PAYMENT-KEY-" + suffix,
                 readyPayment.getTossOrderId(),
                 "CARD",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 40_000,
                 APPROVED_AT
         );
@@ -205,7 +206,7 @@ class PaymentCompletionIntegrationTests {
                 "CUSTOM-PAYMENT-KEY-" + suffix,
                 readyPayment.getTossOrderId(),
                 "CARD",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 40_000,
                 APPROVED_AT
         );
@@ -254,7 +255,7 @@ class PaymentCompletionIntegrationTests {
                 "CUSTOM-ROLLBACK-KEY-" + suffix,
                 readyPayment.getTossOrderId(),
                 "CARD",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 40_000,
                 APPROVED_AT
         );
@@ -296,7 +297,7 @@ class PaymentCompletionIntegrationTests {
                 "PAYMENT-KEY-" + suffix,
                 readyPayment.getTossOrderId(),
                 "CARD",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 40_000,
                 APPROVED_AT
         );
@@ -308,7 +309,7 @@ class PaymentCompletionIntegrationTests {
                 approval.paymentKey()
         );
         CancellationResult cancellation = new CancellationResult(
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 "COMPENSATION-TRANSACTION-" + suffix,
                 APPROVED_AT.plusMinutes(1)
         );
@@ -364,7 +365,7 @@ class PaymentCompletionIntegrationTests {
                 paymentKey
         );
         CancellationResult cancellation = new CancellationResult(
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 "READY-COMPENSATION-" + suffix,
                 APPROVED_AT.plusMinutes(1)
         );

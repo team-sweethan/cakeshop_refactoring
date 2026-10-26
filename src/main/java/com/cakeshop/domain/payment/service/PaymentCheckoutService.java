@@ -9,7 +9,7 @@ import com.cakeshop.domain.payment.dto.view.PaymentCompletionView;
 import com.cakeshop.domain.payment.dto.view.PaymentFailureView;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentAvailability;
+import com.cakeshop.domain.payment.infra.PaymentGateway;
 import com.cakeshop.domain.store.service.StoreService;
 import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
@@ -27,14 +27,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentCheckoutService {
 
-    private static final int TOSS_ORDER_NAME_MAX_LENGTH = 100;
-
     private final OrderPaymentQueryService orderPaymentQueryService;
     private final MemberService memberService;
     private final PaymentService paymentService;
     private final StoreService storeService;
     private final Clock clock;
-    private final TossPaymentAvailability tossPaymentAvailability;
+    private final PaymentGateway paymentGateway;
 
     /** 결제 기한과 결제 정보를 검증해 결제 대상 주문용 Toss 결제 화면 데이터를 구성한다. */
     @Transactional(readOnly = true)
@@ -77,8 +75,8 @@ public class PaymentCheckoutService {
                 order.ordererName(),
                 memberEmail,
                 order.ordererPhone(),
-                tossPaymentAvailability.clientKey(),
-                tossPaymentAvailability.isEnabled(),
+                paymentGateway.clientKey(),
+                paymentGateway.isAvailable(),
                 items
         );
     }
@@ -211,17 +209,14 @@ public class PaymentCheckoutService {
         String orderName = order.items().size() == 1
                 ? firstProductName
                 : firstProductName + " 외 " + (order.items().size() - 1) + "건";
-        if (orderName.length() <= TOSS_ORDER_NAME_MAX_LENGTH) {
-            return orderName;
-        }
-        return orderName.substring(0, TOSS_ORDER_NAME_MAX_LENGTH);
+        return paymentGateway.formatOrderName(orderName);
     }
 
     private String failureMessage(String failureCode) {
-        if ("PAY_PROCESS_CANCELED".equals(failureCode)) {
+        if (paymentGateway.isUserCanceled(failureCode)) {
             return "결제가 취소되었습니다. 결제 제한 시간 안에 다시 시도할 수 있습니다.";
         }
-        if ("REJECT_CARD_COMPANY".equals(failureCode)) {
+        if (paymentGateway.isCardRejected(failureCode)) {
             return "카드사에서 결제를 승인하지 않았습니다. 다른 결제수단을 이용해 주세요.";
         }
         return "결제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.";

@@ -2,9 +2,9 @@ package com.cakeshop.domain.payment.service;
 
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.PaymentLookupResult;
+import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
 import com.cakeshop.domain.payment.service.TossPaymentApprovalResolver.ApprovalResolution;
 import com.cakeshop.global.error.BusinessException;
@@ -22,16 +22,16 @@ public class PaymentCompensationProcessor {
     private static final Logger log = LoggerFactory.getLogger(PaymentCompensationProcessor.class);
 
     private final PaymentRecoveryService paymentRecoveryService;
-    private final TossPaymentClient tossPaymentClient;
+    private final PaymentGateway paymentGateway;
     private final TossPaymentApprovalResolver approvalResolver;
 
     public PaymentCompensationProcessor(
             PaymentRecoveryService paymentRecoveryService,
-            TossPaymentClient tossPaymentClient,
+            PaymentGateway paymentGateway,
             TossPaymentApprovalResolver approvalResolver
     ) {
         this.paymentRecoveryService = paymentRecoveryService;
-        this.tossPaymentClient = tossPaymentClient;
+        this.paymentGateway = paymentGateway;
         this.approvalResolver = approvalResolver;
     }
 
@@ -115,9 +115,9 @@ public class PaymentCompensationProcessor {
     private void execute(CompensationRequest request) {
         CancellationResult result;
         try {
-            result = tossPaymentClient.cancel(request.paymentKey(), request.reason(), request.idempotencyKey());
+            result = paymentGateway.cancel(request.paymentKey(), request.reason(), request.idempotencyKey());
         } catch (BusinessException cancelFailure) {
-            result = TossCancellationResultResolver.findCompleted(tossPaymentClient, request.paymentKey())
+            result = TossCancellationResultResolver.findCompleted(paymentGateway, request.paymentKey())
                     .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
         }
 
