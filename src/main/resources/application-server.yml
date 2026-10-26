@@ -1,0 +1,24 @@
+# 학원 서버: 외부 MariaDB + 서버 디스크. local/s3/rds와 함께 활성화하지 않는다.
+spring:
+  datasource:
+    url: "jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_DATABASE}?connectionTimeZone=+09:00&forceConnectionTimeZoneToSession=true"
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+  flyway:
+    # 공용 DB는 기동만으로 변경하지 않는다. 빈 전용 DB의 최초 구축 시 명시적으로 활성화한다.
+    enabled: ${SERVER_FLYWAY_ENABLED:false}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  file:
+    # JAR 교체/재배포 후에도 유지되는 서버의 절대 경로를 지정한다.
+    upload-dir: ${FILE_UPLOAD_DIR}
+  mockup:
+    public-preview: false
+  monitoring:
+    metrics-public: false

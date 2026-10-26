@@ -26,8 +26,9 @@
 
 | 활성 프로필 | 저장소 | 용도 |
 |---|---|---|
-| `local,s3` | `S3StorageService` | 기본 개발 환경: 로컬 DB와 공용 S3 사용 |
-| `local` | `LocalFileStorageClient` | 필요할 때 로컬 DB와 PC 외부 디렉터리 사용 |
+| `local,s3` | `S3StorageService` | AWS를 별도로 준비한 경우 로컬 DB와 S3 사용 |
+| `local` (기본) | `LocalFileStorageClient` | 로컬 DB와 PC 외부 디렉터리 사용 |
+| `server` | `LocalFileStorageClient` | 학원 서버 DB와 영구 디렉터리 사용 |
 | `rds` | `LocalFileStorageClient` | RDS와 실행 PC의 로컬 저장소 사용 |
 | `rds,s3` | `S3StorageService` | RDS와 S3를 함께 사용하는 배포 환경 |
 
@@ -36,8 +37,9 @@ RDS의 행이나 이미지 URL이 자동으로 동기화되지 않는다.
 
 ## 로컬 디스크 사용
 
-공용 S3를 사용하지 않는 예외적인 경우에만 `.env`의 `FILE_UPLOAD_DIR`에 프로젝트 밖의 저장 경로를
-지정하고 `local` 프로필을 명시해 실행한다. 값을 생략하면 `<user home>/cakeshop-uploads`가 사용된다.
+기본 개발 환경은 로컬 디스크를 사용한다. `.env`의 `FILE_UPLOAD_DIR`에 프로젝트 밖의 저장 경로를
+지정할 수 있으며, 생략하면 `<user home>/cakeshop-uploads`가 사용된다. 학원 서버용 `server` 프로필은
+영구 디렉터리인 `FILE_UPLOAD_DIR`을 필수로 요구한다. [서버 배포 가이드](server-deployment.md)를 따른다.
 
 ```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
@@ -47,7 +49,7 @@ RDS의 행이나 이미지 URL이 자동으로 동기화되지 않는다.
 저장한다. [`WebConfig`](../src/main/java/com/cakeshop/global/config/WebConfig.java)가 외부 디렉터리의 파일을
 해당 URL 경로로 제공한다.
 
-## 기본 개발 환경: 로컬 DB와 S3
+## 선택 환경: 로컬 DB와 S3
 
 `.env_sample`을 복사한 로컬 `.env`에서 다음 설정을 확인한다. 공용 버킷명과 URL은 비밀 값이 아니지만,
 실제 Access Key와 Secret Key는 Git에 추적되지 않는 로컬 `.env`에만 입력한다.
@@ -73,10 +75,10 @@ AWS_S3_KEY_PREFIX=local-your-name
 prefix 도입 전에 생성한 S3 객체는 새 환경에서 자동 삭제하지 않는다. 필요하면 참조 여부를 확인한 뒤
 버킷에서 별도로 정리한다.
 
-기본 프로필이 `local,s3`이므로 별도 실행 인수 없이 관리자 상품·매장 이미지 업로드로 확인한다.
+AWS를 다시 준비한 경우에만 `local,s3`를 명시하고 관리자 상품·매장 이미지 업로드로 확인한다.
 
 ```powershell
-.\gradlew.bat bootRun
+.\gradlew.bat bootRun --args="--spring.profiles.active=local,s3"
 ```
 
 ## RDS와 S3 함께 사용
@@ -94,6 +96,9 @@ CloudFront와 비공개 S3 조합을 우선 검토한다.
 ## 데이터와 파일 이관
 
 현재 이미지 URL 컬럼은 `VARCHAR(500)`이므로 S3 URL 저장만을 위한 migration은 필요하지 않다.
+기존 S3 URL도 로컬 경로로 자동 변환되지 않는다. 내려간 S3의 파일은 별도 백업이 없으면 복구할 수 없다.
+로컬 디스크로 옮길 때는 파일 복사와 해당 DB URL 갱신을 함께 계획한다.
+
 기존 `/uploads/...` 파일은 자동 이전되지 않으므로 S3 복사와 DB URL 변경을 별도 이관 작업으로 진행해야
 하며, 공유 RDS 데이터 변경은 백업과 팀 승인 후 수행한다.
 
