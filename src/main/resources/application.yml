@@ -2,11 +2,11 @@ spring:
   config:
     import: optional:file:.env[.properties]
   profiles:
-    default: rds,s3,oauth
+    default: local
   application:
     name: cakeshop
   thymeleaf:
-    # 배포(rds 등)에서는 템플릿을 캐싱한다. 로컬 개발용 핫리로드는 local 프로필에서 끈다.
+    # 서버에서는 템플릿을 캐싱한다. 로컬 개발용 핫리로드는 local 프로필에서 끈다.
     cache: true
   servlet:
     multipart:
