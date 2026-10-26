@@ -15,7 +15,8 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.Paymen
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
+import com.cakeshop.domain.payment.infra.ApprovalResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.payment.service.PaymentOrderPreparationCommandService;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService;
@@ -169,7 +170,7 @@ class OrderPaymentExpirationConcurrencyTests {
                                 "RACE-PAYMENT-KEY-" + suffix,
                                 readyPayment.getTossOrderId(),
                                 "CARD",
-                                "DONE",
+                                PaymentGatewayStatus.DONE,
                                 40_000,
                                 NOW
                         )

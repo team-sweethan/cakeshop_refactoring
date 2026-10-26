@@ -11,6 +11,7 @@ import com.cakeshop.domain.payment.dto.view.PaymentCompletionView;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.infra.TossPaymentAvailability;
+import com.cakeshop.domain.payment.infra.TossPaymentGateway;
 import com.cakeshop.domain.store.dto.view.StoreView;
 import com.cakeshop.domain.store.service.StoreService;
 import com.cakeshop.global.error.BusinessException;
@@ -70,7 +71,7 @@ class PaymentCheckoutServiceTests {
                 paymentService,
                 storeService,
                 CLOCK,
-                tossPaymentAvailability
+                new TossPaymentGateway(null, tossPaymentAvailability)
         );
         lenient().when(memberService.isActiveMember(10L)).thenReturn(true);
         lenient().when(tossPaymentAvailability.clientKey()).thenReturn("test-client-key");

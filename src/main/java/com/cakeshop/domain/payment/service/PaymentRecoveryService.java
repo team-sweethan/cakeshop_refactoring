@@ -5,7 +5,8 @@ import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
+import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -235,7 +236,7 @@ public class PaymentRecoveryService {
 
     private void validateResult(CancellationResult result) {
         if (result == null
-                || !"CANCELED".equals(result.status())
+                || result.status() != PaymentGatewayStatus.CANCELED
                 || result.transactionKey() == null
                 || result.transactionKey().isBlank()
                 || result.canceledAt() == null) {

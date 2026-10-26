@@ -1,8 +1,8 @@
 package com.cakeshop.domain.payment.service;
 
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.service.RefundService.RefundRequest;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ public class RefundFacade {
     private static final Logger log = LoggerFactory.getLogger(RefundFacade.class);
 
     private final RefundService refundService;
-    private final TossPaymentClient tossPaymentClient;
+    private final PaymentGateway paymentGateway;
 
     public void cancelCustomerOrder(long memberId, long orderId, String reason) {
         if (refundService.cancelCustomerZeroAmountOrder(memberId, orderId, reason)) {
@@ -73,7 +73,7 @@ public class RefundFacade {
     private void cancel(RefundRequest request) {
         CancellationResult result;
         try {
-            result = tossPaymentClient.cancel(
+            result = paymentGateway.cancel(
                     request.paymentKey(),
                     request.reason(),
                     request.idempotencyKey()
@@ -90,7 +90,7 @@ public class RefundFacade {
 
     private Optional<CancellationResult> findCanceledResult(String paymentKey) {
         try {
-            return TossCancellationResultResolver.findCompleted(tossPaymentClient, paymentKey);
+            return TossCancellationResultResolver.findCompleted(paymentGateway, paymentKey);
         } catch (BusinessException lookupFailure) {
             return Optional.empty();
         }

@@ -18,7 +18,8 @@ import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
+import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.payment.service.RefundService.RefundRequest;
 import com.cakeshop.global.error.BusinessException;
@@ -197,7 +198,7 @@ class RefundServiceTests {
     @Test
     void completeCancellation_providerSuccess_completesPaymentThenOrder() {
         PaymentCancellation cancellation = cancellation();
-        CancellationResult result = new CancellationResult("CANCELED", "transaction-key", NOW.plusSeconds(2));
+        CancellationResult result = new CancellationResult(PaymentGatewayStatus.CANCELED, "transaction-key", NOW.plusSeconds(2));
         when(paymentMapper.findPaymentCancellationByIdForUpdate(30L)).thenReturn(Optional.of(cancellation));
         when(paymentMapper.findPaymentById(20L)).thenReturn(Optional.of(payment()));
         when(paymentMapper.completeCancellationIfRequested(30L, "transaction-key", NOW.plusSeconds(2)))
@@ -230,7 +231,7 @@ class RefundServiceTests {
 
         refundService.completeCancellation(
                 request(),
-                new CancellationResult("CANCELED", "transaction-key", NOW.plusSeconds(2))
+                new CancellationResult(PaymentGatewayStatus.CANCELED, "transaction-key", NOW.plusSeconds(2))
         );
 
         verify(paymentMapper, never()).completeCancellationIfRequested(anyLong(), any(), any());

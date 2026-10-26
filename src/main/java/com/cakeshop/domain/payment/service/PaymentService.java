@@ -7,7 +7,7 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.Paymen
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
+import com.cakeshop.domain.payment.infra.ApprovalResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.payment.event.CustomPaymentChatCompletedEvent;
 import com.cakeshop.domain.payment.event.GeneralPaymentCompletedEvent;

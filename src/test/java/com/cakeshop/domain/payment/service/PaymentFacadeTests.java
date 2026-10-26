@@ -9,10 +9,12 @@ import com.cakeshop.domain.payment.dto.form.PaymentConfirmForm;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
 import com.cakeshop.domain.payment.infra.TossPaymentClient;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.PaymentLookupResult;
+import com.cakeshop.domain.payment.infra.TossPaymentGateway;
+import com.cakeshop.domain.payment.infra.ApprovalResult;
+import com.cakeshop.domain.payment.infra.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
 import com.cakeshop.global.error.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,10 +72,10 @@ class PaymentFacadeTests {
                 paymentService,
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
-                        tossPaymentClient,
-                        new TossPaymentApprovalResolver(tossPaymentClient)
+                        new TossPaymentGateway(tossPaymentClient, null),
+                        new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
                 ),
-                new TossPaymentApprovalResolver(tossPaymentClient),
+                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
                 CLOCK
         );
         ownedOrder = new PaymentOrder(
@@ -270,7 +272,7 @@ class PaymentFacadeTests {
                 "other-payment-key",
                 "ORD-100",
                 "카드",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 30_000L,
                 NOW.plusSeconds(10)
         );
@@ -310,7 +312,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 "카드",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 30_000L,
                 NOW.plusSeconds(10),
                 null
@@ -346,7 +348,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 "카드",
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 30_000L,
                 NOW.plusSeconds(10),
                 cancellation
@@ -380,7 +382,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 "카드",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 30_000L,
                 NOW.plusSeconds(10),
                 null
@@ -479,7 +481,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 null,
-                "IN_PROGRESS",
+                PaymentGatewayStatus.IN_PROGRESS,
                 30_000L,
                 null,
                 null
@@ -519,7 +521,7 @@ class PaymentFacadeTests {
                 "내부 주문 처리 실패로 인한 자동 결제 취소"
         );
         CancellationResult cancellation = new CancellationResult(
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 "cancel-transaction",
                 NOW.plusSeconds(20)
         );
@@ -559,10 +561,10 @@ class PaymentFacadeTests {
                 paymentService,
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
-                        tossPaymentClient,
-                        new TossPaymentApprovalResolver(tossPaymentClient)
+                        new TossPaymentGateway(tossPaymentClient, null),
+                        new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
                 ),
-                new TossPaymentApprovalResolver(tossPaymentClient),
+                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
                 clock
         );
         PaymentExecutionOrder order = order(NOW.plusSeconds(1));
@@ -671,7 +673,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 "카드",
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 30_000L,
                 NOW.plusSeconds(10),
                 cancellation
@@ -719,7 +721,7 @@ class PaymentFacadeTests {
                 request.paymentKey(),
                 "ORD-100",
                 "카드",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 30_000L,
                 NOW
         );
@@ -732,7 +734,7 @@ class PaymentFacadeTests {
                         request.paymentKey(),
                         "ORD-100",
                         "카드",
-                        "DONE",
+                        PaymentGatewayStatus.DONE,
                         30_000L,
                         NOW,
                         null
@@ -816,7 +818,7 @@ class PaymentFacadeTests {
                         "stale-payment-key",
                         "ORD-100",
                         "카드",
-                        "IN_PROGRESS",
+                        PaymentGatewayStatus.IN_PROGRESS,
                         30_000L,
                         null,
                         null
@@ -874,7 +876,7 @@ class PaymentFacadeTests {
                 "payment-key",
                 "ORD-100",
                 "카드",
-                "DONE",
+                PaymentGatewayStatus.DONE,
                 30_000L,
                 NOW.plusSeconds(10)
         );
@@ -893,7 +895,7 @@ class PaymentFacadeTests {
 
     private CancellationResult cancellation() {
         return new CancellationResult(
-                "CANCELED",
+                PaymentGatewayStatus.CANCELED,
                 "cancel-transaction",
                 NOW.plusSeconds(20)
         );

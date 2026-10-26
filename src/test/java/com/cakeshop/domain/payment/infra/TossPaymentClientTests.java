@@ -9,8 +9,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.PaymentLookupResult;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.ApprovalResult;
 import com.cakeshop.global.error.BusinessException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -54,7 +52,7 @@ class TossPaymentClientTests {
 
         PaymentLookupResult result = client.find("payment-key").orElseThrow();
 
-        assertThat(result.status()).isEqualTo("CANCELED");
+        assertThat(result.status()).isEqualTo(PaymentGatewayStatus.CANCELED);
         assertThat(result.orderId()).isEqualTo("ORD-100");
         assertThat(result.totalAmount()).isEqualTo(30_000L);
         assertThat(result.cancellation().transactionKey())
@@ -92,7 +90,7 @@ class TossPaymentClientTests {
                 "PAY-1"
         );
 
-        assertThat(result.status()).isEqualTo("DONE");
+        assertThat(result.status()).isEqualTo(PaymentGatewayStatus.DONE);
         assertThat(result.totalAmount()).isEqualTo(30_000L);
         server.verify();
     }

@@ -9,7 +9,8 @@ import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.infra.TossPaymentClient.CancellationResult;
+import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
+import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
@@ -214,7 +215,7 @@ public class RefundService {
     public void completeCancellation(RefundRequest request, CancellationResult result) {
         if (request == null
                 || result == null
-                || !"CANCELED".equals(result.status())
+                || result.status() != PaymentGatewayStatus.CANCELED
                 || result.transactionKey() == null
                 || result.transactionKey().isBlank()
                 || result.canceledAt() == null) {
