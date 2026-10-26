@@ -71,7 +71,7 @@ public class PaymentAdminService {
                 payment.paymentId(),
                 payment.orderId(),
                 order.orderNumber(),
-                payment.tossOrderId(),
+                payment.gatewayOrderId(),
                 order.ordererName(),
                 order.orderTypeLabel(),
                 payment.amount(),

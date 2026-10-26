@@ -28,7 +28,7 @@ public class PaymentOrderPreparationCommandServiceImpl implements PaymentOrderPr
     ) {
         Payment payment = new Payment();
         payment.setOrderId(orderId);
-        payment.setTossOrderId(orderNumber);
+        payment.setGatewayOrderId(orderNumber);
         payment.setIdempotencyKey("PAY-" + UUID.randomUUID());
         payment.setAmount(amount);
         payment.setStatus(PaymentStatus.READY);

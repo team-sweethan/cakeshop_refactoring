@@ -1,6 +1,6 @@
 package com.cakeshop.domain.payment.infra;
 
-import com.cakeshop.domain.payment.service.TossPaymentApprovalResolver;
+import com.cakeshop.domain.payment.service.PaymentApprovalResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -83,7 +83,7 @@ class PaymentGatewayConfigurationTests {
     void gateway_ownWithoutImplementation_stopsApplicationWithRequiredGatewayMissing() {
         // 실제 서비스의 필수 의존성까지 로딩해 own 선택 시 앱이 시작되지 않는지 확인한다.
         configDataRunner()
-                .withUserConfiguration(TossPaymentApprovalResolver.class)
+                .withUserConfiguration(PaymentApprovalResolver.class)
                 .withPropertyValues(
                         "spring.profiles.active=gateway-config-test",
                         "PAYMENT_GATEWAY=own")

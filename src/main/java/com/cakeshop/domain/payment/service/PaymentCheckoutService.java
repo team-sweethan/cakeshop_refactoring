@@ -3,7 +3,7 @@ package com.cakeshop.domain.payment.service;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrder;
 import com.cakeshop.domain.member.service.MemberService;
-import com.cakeshop.domain.payment.dto.form.TossPaymentSuccessForm;
+import com.cakeshop.domain.payment.dto.form.PaymentSuccessForm;
 import com.cakeshop.domain.payment.dto.view.PaymentCheckoutView;
 import com.cakeshop.domain.payment.dto.view.PaymentCompletionView;
 import com.cakeshop.domain.payment.dto.view.PaymentFailureView;
@@ -34,7 +34,7 @@ public class PaymentCheckoutService {
     private final Clock clock;
     private final PaymentGateway paymentGateway;
 
-    /** 결제 기한과 결제 정보를 검증해 결제 대상 주문용 Toss 결제 화면 데이터를 구성한다. */
+    /** 결제 기한과 결제 정보를 검증해 결제 대상 주문용 PG 결제 화면 데이터를 구성한다. */
     @Transactional(readOnly = true)
     public PaymentCheckoutView getCheckout(long memberId, String memberEmail, long orderId) {
         if (!memberService.isActiveMember(memberId)) {
@@ -65,7 +65,7 @@ public class PaymentCheckoutService {
         return new PaymentCheckoutView(
                 order.orderId(),
                 order.orderNumber(),
-                payment.getTossOrderId(),
+                payment.getGatewayOrderId(),
                 createOrderName(order),
                 order.originalAmount(),
                 order.discountAmount(),
@@ -82,11 +82,11 @@ public class PaymentCheckoutService {
     }
 
     /**
-     * Toss 성공 리다이렉트 요청이 회원 소유의 주문·결제 정보와 일치하는지 검증한다.
+     * PG 성공 리다이렉트 요청이 회원 소유의 주문·결제 정보와 일치하는지 검증한다.
      * 완료 결제는 동일 요청의 재시도 여부를, 미완료 결제는 승인 전 조건을 확인한다.
      */
     @Transactional(readOnly = true)
-    public void validateSuccessCallback(long memberId, long orderId, TossPaymentSuccessForm form) {
+    public void validateSuccessCallback(long memberId, long orderId, PaymentSuccessForm form) {
 
         PaymentOrder order = orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
         validatePaymentOrder(order);
@@ -167,18 +167,18 @@ public class PaymentCheckoutService {
         }
     }
     private void validateReadyPayment(PaymentOrder order, Payment payment) {
-        if (payment.getTossOrderId() == null || !payment.getTossOrderId().equals(order.orderNumber())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+        if (payment.getGatewayOrderId() == null || !payment.getGatewayOrderId().equals(order.orderNumber())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (!sameAmount(order.finalAmount(), payment.getAmount())) {
             throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
         }
     }
 
-    private void validateSuccessRedirectOrder(PaymentOrder order, TossPaymentSuccessForm form) {
+    private void validateSuccessRedirectOrder(PaymentOrder order, PaymentSuccessForm form) {
 
         if (form == null || !order.orderNumber().equals(form.getOrderId())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (!sameAmount(order.finalAmount(), form.getAmount())) {
             throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
@@ -187,17 +187,17 @@ public class PaymentCheckoutService {
 
     private void validateCompletedPayment(
             Payment payment,
-            TossPaymentSuccessForm form
+            PaymentSuccessForm form
     ) {
-        if (!payment.getTossOrderId().equals(form.getOrderId())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+        if (!payment.getGatewayOrderId().equals(form.getOrderId())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (!sameAmount(payment.getAmount(), form.getAmount())) {
             throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
         }
         if (payment.getPaymentKey() == null
                 || !payment.getPaymentKey().equals(form.getPaymentKey())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
     }
 

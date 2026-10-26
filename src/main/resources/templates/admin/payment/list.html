@@ -94,8 +94,8 @@
                 th:attr="data-payment-id=${payment.paymentId}">
               <td>
                 <strong th:text="${payment.paymentNumber}">PAY-000001</strong>
-                <small class="payment-reference" th:text="${payment.tossOrderId}">
-                  Toss 주문번호
+                <small class="payment-reference" th:text="${payment.gatewayOrderId}">
+                  PG 주문번호
                 </small>
               </td>
               <td>

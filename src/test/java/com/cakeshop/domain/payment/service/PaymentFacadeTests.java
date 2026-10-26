@@ -73,9 +73,9 @@ class PaymentFacadeTests {
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
                         new TossPaymentGateway(tossPaymentClient, null),
-                        new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                        new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
                 ),
-                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
+                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
                 CLOCK
         );
         ownedOrder = new PaymentOrder(
@@ -236,11 +236,11 @@ class PaymentFacadeTests {
     }
 
     @Test
-    void confirmPayment_tossOrderIdMismatch_doesNotCallToss() {
+    void confirmPayment_gatewayOrderIdMismatch_doesNotCallToss() {
         PaymentExecutionOrder order = order(NOW.plusMinutes(5));
         Payment payment = payment();
         PaymentConfirmForm form = form(BigDecimal.valueOf(30_000));
-        form.setTossOrderId("ORD-OTHER");
+        form.setGatewayOrderId("ORD-OTHER");
 
         when(orderPaymentQueryService.getMemberPaymentExecutionOrder(10L, 1L))
                 .thenReturn(order);
@@ -252,7 +252,7 @@ class PaymentFacadeTests {
                         1L,
                         form
                 ),
-                PaymentErrorCode.TOSS_ORDER_ID_MISMATCH
+                PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH
         );
 
         verify(tossPaymentClient, never()).approve(
@@ -293,7 +293,7 @@ class PaymentFacadeTests {
                         1L,
                         form
                 ),
-                PaymentErrorCode.TOSS_APPROVAL_FAILED
+                PaymentErrorCode.PAYMENT_APPROVAL_FAILED
         );
 
         verify(paymentService, never()).completePayment(
@@ -397,7 +397,7 @@ class PaymentFacadeTests {
                 "ORD-100",
                 30_000L,
                 "PAY-1"
-        )).thenThrow(new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED));
+        )).thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED));
 
         paymentFacade.confirmPayment(10L, 1L, form);
 
@@ -426,7 +426,7 @@ class PaymentFacadeTests {
                 "ORD-100",
                 30_000L,
                 "PAY-1"
-        )).thenThrow(new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED));
+        )).thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED));
         when(paymentRecoveryService.createRequest(payment, "payment-key"))
                 .thenReturn(request);
 
@@ -456,7 +456,7 @@ class PaymentFacadeTests {
                 "ORD-100",
                 30_000L,
                 "PAY-1"
-        )).thenThrow(new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED));
+        )).thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED));
         when(paymentRecoveryService.createRequest(payment, "payment-key"))
                 .thenReturn(request);
 
@@ -562,9 +562,9 @@ class PaymentFacadeTests {
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
                         new TossPaymentGateway(tossPaymentClient, null),
-                        new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                        new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
                 ),
-                new TossPaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
+                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
                 clock
         );
         PaymentExecutionOrder order = order(NOW.plusSeconds(1));
@@ -698,7 +698,7 @@ class PaymentFacadeTests {
                 request.paymentKey(),
                 request.reason(),
                 request.idempotencyKey()
-        )).thenThrow(new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED));
+        )).thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED));
 
         assertPaymentError(
                 () -> paymentFacade.confirmPayment(
@@ -856,7 +856,7 @@ class PaymentFacadeTests {
         Payment payment = new Payment();
         payment.setId(20L);
         payment.setOrderId(1L);
-        payment.setTossOrderId("ORD-100");
+        payment.setGatewayOrderId("ORD-100");
         payment.setIdempotencyKey("PAY-1");
         payment.setAmount(BigDecimal.valueOf(30_000));
         payment.setStatus(PaymentStatus.READY);
@@ -866,7 +866,7 @@ class PaymentFacadeTests {
     private PaymentConfirmForm form(BigDecimal amount) {
         PaymentConfirmForm form = new PaymentConfirmForm();
         form.setPaymentKey("payment-key");
-        form.setTossOrderId("ORD-100");
+        form.setGatewayOrderId("ORD-100");
         form.setAmount(amount);
         return form;
     }

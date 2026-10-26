@@ -7,10 +7,10 @@ import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 
 import java.util.Optional;
 
-/** Toss 조회 결과에서 완료된 전체 취소 결과만 추린다. */
-final class TossCancellationResultResolver {
+/** PG 조회 결과에서 완료된 전체 취소 결과만 추린다. */
+final class PaymentCancellationResultResolver {
 
-    private TossCancellationResultResolver() {
+    private PaymentCancellationResultResolver() {
     }
 
     static Optional<CancellationResult> findCompleted(
@@ -18,14 +18,14 @@ final class TossCancellationResultResolver {
             String paymentKey
     ) {
         return paymentGateway.find(paymentKey)
-                .flatMap(TossCancellationResultResolver::findCompleted);
+                .flatMap(PaymentCancellationResultResolver::findCompleted);
     }
 
     static Optional<CancellationResult> findCompleted(PaymentLookupResult lookup) {
         return Optional.ofNullable(lookup)
                 .filter(payment -> payment.status() == PaymentGatewayStatus.CANCELED)
                 .map(PaymentLookupResult::cancellation)
-                .filter(TossCancellationResultResolver::isCompleted);
+                .filter(PaymentCancellationResultResolver::isCompleted);
     }
 
     private static boolean isCompleted(CancellationResult result) {

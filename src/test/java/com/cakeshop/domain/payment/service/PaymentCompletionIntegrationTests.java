@@ -147,7 +147,7 @@ class PaymentCompletionIntegrationTests {
         );
         ApprovalResult approval = new ApprovalResult(
                 "PAYMENT-KEY-" + suffix,
-                readyPayment.getTossOrderId(),
+                readyPayment.getGatewayOrderId(),
                 "CARD",
                 PaymentGatewayStatus.DONE,
                 40_000,
@@ -204,7 +204,7 @@ class PaymentCompletionIntegrationTests {
         );
         ApprovalResult approval = new ApprovalResult(
                 "CUSTOM-PAYMENT-KEY-" + suffix,
-                readyPayment.getTossOrderId(),
+                readyPayment.getGatewayOrderId(),
                 "CARD",
                 PaymentGatewayStatus.DONE,
                 40_000,
@@ -253,7 +253,7 @@ class PaymentCompletionIntegrationTests {
         );
         ApprovalResult approval = new ApprovalResult(
                 "CUSTOM-ROLLBACK-KEY-" + suffix,
-                readyPayment.getTossOrderId(),
+                readyPayment.getGatewayOrderId(),
                 "CARD",
                 PaymentGatewayStatus.DONE,
                 40_000,
@@ -295,7 +295,7 @@ class PaymentCompletionIntegrationTests {
         );
         ApprovalResult approval = new ApprovalResult(
                 "PAYMENT-KEY-" + suffix,
-                readyPayment.getTossOrderId(),
+                readyPayment.getGatewayOrderId(),
                 "CARD",
                 PaymentGatewayStatus.DONE,
                 40_000,
@@ -604,7 +604,7 @@ class PaymentCompletionIntegrationTests {
     private void insertReadyPayment() {
         Payment payment = new Payment();
         payment.setOrderId(orderId);
-        payment.setTossOrderId("TOSS-PAYMENT-" + suffix);
+        payment.setGatewayOrderId("TOSS-PAYMENT-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-PAYMENT-" + suffix);
         payment.setAmount(BigDecimal.valueOf(40_000));
 

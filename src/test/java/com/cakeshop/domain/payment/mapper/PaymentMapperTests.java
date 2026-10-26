@@ -74,7 +74,7 @@ class PaymentMapperTests {
 
         assertThat(readyPayment.getId()).isEqualTo(payment.getId());
         assertThat(readyPayment.getStatus()).isEqualTo(PaymentStatus.READY);
-        assertThat(readyPayment.getTossOrderId()).isEqualTo(payment.getTossOrderId());
+        assertThat(readyPayment.getGatewayOrderId()).isEqualTo(payment.getGatewayOrderId());
         assertThat(readyPayment.getActivePaymentOrderId()).isEqualTo(orderId);
     }
 
@@ -563,7 +563,7 @@ class PaymentMapperTests {
     private Payment newPayment(String label) {
         Payment payment = new Payment();
         payment.setOrderId(orderId);
-        payment.setTossOrderId("TOSS-" + label + "-" + suffix);
+        payment.setGatewayOrderId("TOSS-" + label + "-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-" + label + "-" + suffix);
         payment.setAmount(BigDecimal.valueOf(40_000));
         return payment;

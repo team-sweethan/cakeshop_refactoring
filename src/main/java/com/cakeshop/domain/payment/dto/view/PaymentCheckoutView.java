@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Toss 결제창 요청에 필요한 서버 기준 주문·결제 정보다. */
+/** PG 결제창 요청에 필요한 서버 기준 주문·결제 정보다. */
 public record PaymentCheckoutView(
         long orderId,
         String orderNumber,
-        String tossOrderId,
+        String gatewayOrderId,
         String orderName,
         BigDecimal originalAmount,
         BigDecimal discountAmount,

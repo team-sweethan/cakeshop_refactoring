@@ -166,7 +166,7 @@ class OrderServiceIntegrationTests {
         Payment payment = paymentMapper.findReadyPaymentByOrderId(orderId).orElseThrow();
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.READY);
         assertThat(payment.getAmount()).isEqualByComparingTo("70000");
-        assertThat(payment.getTossOrderId()).isEqualTo(order.getOrderNumber());
+        assertThat(payment.getGatewayOrderId()).isEqualTo(order.getOrderNumber());
         assertThat(payment.getIdempotencyKey()).startsWith("PAY-");
     }
 

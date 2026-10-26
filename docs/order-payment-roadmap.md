@@ -7,6 +7,11 @@
 > 이 문서의 상태값은 기능 목록 스냅샷이며 실제 코드 상태를 자동 판정하지 않는다.
 > 현재 Issue·PR·브랜치·커밋 상태를 답하거나 문서 상태를 갱신할 때는 이 문서만 믿지 않고 GitHub와 로컬 브랜치를 먼저 다시 확인한다.
 
+자체 PG 추가 작업은 [로드맵 이슈 #1](https://github.com/team-sweethan/cakeshop_refactoring/issues/1)에서
+추적한다. 결제 서비스는 `PaymentGateway` 경계를 사용하고 기본 구현은 Toss다.
+코드의 PG 주문 식별자는 `gatewayOrderId`이며 기존 DB 컬럼 `toss_order_id`는 유지한다.
+아래 완료 이력의 Toss 표기는 당시 구현을 가리킨다.
+
 ## 1. 작업 경계
 
 - 기능 목록의 **`F-xx` 한 행을 기본적으로 하나의 독립 Issue 후보**로 취급한다.

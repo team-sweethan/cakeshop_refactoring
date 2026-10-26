@@ -6,8 +6,8 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.Paymen
 import com.cakeshop.domain.payment.dto.form.PaymentConfirmForm;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
-import com.cakeshop.domain.payment.service.TossPaymentApprovalResolver.ApprovalResolution;
-import com.cakeshop.domain.payment.service.TossPaymentApprovalResolver.ApprovalState;
+import com.cakeshop.domain.payment.service.PaymentApprovalResolver.ApprovalResolution;
+import com.cakeshop.domain.payment.service.PaymentApprovalResolver.ApprovalState;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
-/** Toss 결제 confirm의 실행 순서를 조정한다. */
+/** PG 결제 confirm의 실행 순서를 조정한다. */
 @Service
 @RequiredArgsConstructor
 public class PaymentFacade {
@@ -24,10 +24,10 @@ public class PaymentFacade {
     private final OrderPaymentQueryService orderPaymentQueryService;
     private final PaymentService paymentService;
     private final PaymentCompensationProcessor compensationProcessor;
-    private final TossPaymentApprovalResolver approvalResolver;
+    private final PaymentApprovalResolver approvalResolver;
     private final Clock clock;
 
-    /** 일반·수제 주문의 Toss 결제를 승인하고 내부 상태를 완료한다. */
+    /** 일반·수제 주문의 PG 결제를 승인하고 내부 상태를 완료한다. */
     public void confirmPayment(long memberId, long orderId, PaymentConfirmForm form) {
         // 1. 내부 DB
         PaymentOrder ownedOrder = orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
@@ -42,7 +42,7 @@ public class PaymentFacade {
         Payment payment = paymentService.getReadyPayment(orderId);
         validateRequest(order, payment, form);
 
-        // Toss 승인 영역 진입
+        // PG 승인 영역 진입
         ResolvedApproval resolved = resolvePreparedOrNewApproval(payment, form, orderId);
 
         completeOrCompensate(ownedOrder, order, resolved, form);
@@ -69,7 +69,7 @@ public class PaymentFacade {
             PaymentConfirmForm form
     ) {
         try {
-            // Toss 승인 응답을 받은 뒤에도 내부 완료 직전에 만료 경계를 다시 확인한다.
+            // PG 승인 응답을 받은 뒤에도 내부 완료 직전에 만료 경계를 다시 확인한다.
             validatePaymentExpiration(order.paymentExpiresAt());
             paymentService.completePayment(order, resolved.payment(), resolved.approval().approval());
         } catch (RuntimeException exception) {
@@ -81,7 +81,7 @@ public class PaymentFacade {
         }
     }
 
-    /** 0원 주문은 Toss 승인 요청 없이 서버가 READY 결제를 완료한다. */
+    /** 0원 주문은 PG 승인 요청 없이 서버가 READY 결제를 완료한다. */
     public void completeZeroAmountGeneralPayment(long memberId, long orderId) {
         // 브라우저 재전송은 이미 완료된 0원 결제를 성공으로 간주하되, 회원 소유권은 먼저 확인한다.
         orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
@@ -184,11 +184,11 @@ public class PaymentFacade {
         if (form == null
                 || payment.getPaymentKey() == null
                 || !payment.getPaymentKey().equals(form.getPaymentKey())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
-        if (!payment.getTossOrderId().equals(form.getTossOrderId())
-                || !order.orderNumber().equals(form.getTossOrderId())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+        if (!payment.getGatewayOrderId().equals(form.getGatewayOrderId())
+                || !order.orderNumber().equals(form.getGatewayOrderId())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (!sameAmount(order.finalAmount(), form.getAmount())
                 || !sameAmount(payment.getAmount(), form.getAmount())) {
@@ -212,10 +212,10 @@ public class PaymentFacade {
 
     private void validateRequest(PaymentExecutionOrder order, Payment payment, PaymentConfirmForm form) {
         if (form == null || form.getPaymentKey() == null || form.getPaymentKey().isBlank()) {
-            throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
-        if (!payment.getTossOrderId().equals(form.getTossOrderId())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+        if (!payment.getGatewayOrderId().equals(form.getGatewayOrderId())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (!sameAmount(order.amount(), form.getAmount())
                 || !sameAmount(payment.getAmount(), form.getAmount())) {

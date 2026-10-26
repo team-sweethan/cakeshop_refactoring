@@ -63,7 +63,7 @@ public class TossPaymentClient {
     ) {
         if (authorization == null) {
             throw new BusinessException(
-                    PaymentErrorCode.TOSS_APPROVAL_FAILED
+                    PaymentErrorCode.PAYMENT_APPROVAL_FAILED
             );
         }
 
@@ -83,7 +83,7 @@ public class TossPaymentClient {
 
             if (response == null || response.approvedAt() == null) {
                 throw new BusinessException(
-                        PaymentErrorCode.TOSS_APPROVAL_FAILED
+                        PaymentErrorCode.PAYMENT_APPROVAL_FAILED
                 );
             }
 
@@ -98,7 +98,7 @@ public class TossPaymentClient {
         } catch (RestClientException exception) {
             // PG 오류 응답의 상세 메시지나 인증 정보를 사용자에게 노출하지 않는다.
             throw new BusinessException(
-                    PaymentErrorCode.TOSS_APPROVAL_FAILED
+                    PaymentErrorCode.PAYMENT_APPROVAL_FAILED
             );
         }
     }
@@ -112,7 +112,7 @@ public class TossPaymentClient {
                 || reason.isBlank()
                 || idempotencyKey == null
                 || idempotencyKey.isBlank()) {
-            throw new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
         }
 
         try {
@@ -129,13 +129,13 @@ public class TossPaymentClient {
                     || !"CANCELED".equals(response.status())
                     || response.cancels() == null
                     || response.cancels().isEmpty()) {
-                throw new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED);
+                throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
             }
             TossCancellationResponse cancellation = response.cancels().getLast();
             if (cancellation.transactionKey() == null
                     || cancellation.transactionKey().isBlank()
                     || cancellation.canceledAt() == null) {
-                throw new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED);
+                throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
             }
             return new CancellationResult(
                     toGatewayStatus(response.status()),
@@ -143,7 +143,7 @@ public class TossPaymentClient {
                     cancellation.canceledAt().toLocalDateTime()
             );
         } catch (RestClientException exception) {
-            throw new BusinessException(PaymentErrorCode.TOSS_CANCEL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
         }
     }
 

@@ -168,7 +168,7 @@ class OrderPaymentExpirationConcurrencyTests {
                         readyPayment,
                         new ApprovalResult(
                                 "RACE-PAYMENT-KEY-" + suffix,
-                                readyPayment.getTossOrderId(),
+                                readyPayment.getGatewayOrderId(),
                                 "CARD",
                                 PaymentGatewayStatus.DONE,
                                 40_000,
@@ -311,7 +311,7 @@ class OrderPaymentExpirationConcurrencyTests {
     private Payment insertReadyPayment() {
         Payment payment = new Payment();
         payment.setOrderId(orderId);
-        payment.setTossOrderId("TOSS-RACE-" + suffix);
+        payment.setGatewayOrderId("TOSS-RACE-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-RACE-" + suffix);
         payment.setAmount(BigDecimal.valueOf(40_000));
         assertThat(paymentMapper.insertReadyPayment(payment)).isEqualTo(1);

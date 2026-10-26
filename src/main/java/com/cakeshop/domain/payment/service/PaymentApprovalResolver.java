@@ -14,13 +14,13 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.Optional;
 
-/** Toss 결제 조회·승인 결과를 로컬 결제 정보와 대조해 해석한다. */
+/** PG 결제 조회·승인 결과를 로컬 결제 정보와 대조해 해석한다. */
 @Component
-public class TossPaymentApprovalResolver {
+public class PaymentApprovalResolver {
 
     private final PaymentGateway paymentGateway;
 
-    public TossPaymentApprovalResolver(PaymentGateway paymentGateway) {
+    public PaymentApprovalResolver(PaymentGateway paymentGateway) {
         this.paymentGateway = paymentGateway;
     }
 
@@ -37,7 +37,7 @@ public class TossPaymentApprovalResolver {
         try {
             approval = paymentGateway.approve(
                     form.getPaymentKey(),
-                    form.getTossOrderId(),
+                    form.getGatewayOrderId(),
                     form.getAmount().longValueExact(),
                     payment.getIdempotencyKey()
             );
@@ -73,13 +73,13 @@ public class TossPaymentApprovalResolver {
 
     private void validateApproval(Payment payment, PaymentConfirmForm form, ApprovalResult approval) {
         if (approval == null
-                || !payment.getTossOrderId().equals(approval.orderId())
+                || !payment.getGatewayOrderId().equals(approval.orderId())
                 || approval.status() != PaymentGatewayStatus.DONE
                 || payment.getAmount().compareTo(BigDecimal.valueOf(approval.totalAmount())) != 0
                 || approval.paymentKey() == null
                 || !form.getPaymentKey().equals(approval.paymentKey())
                 || approval.approvedAt() == null) {
-            throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
     }
 
@@ -94,16 +94,16 @@ public class TossPaymentApprovalResolver {
             case CANCELED -> ApprovalResolution.canceled(lookup);
             case READY -> ApprovalResolution.notApproved();
             case IN_PROGRESS -> ApprovalResolution.inProgress();
-            default -> throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            default -> throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         };
     }
 
     private void validateLookup(Payment payment, PaymentConfirmForm form, PaymentLookupResult lookup) {
         if (lookup == null || !form.getPaymentKey().equals(lookup.paymentKey())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_APPROVAL_FAILED);
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
-        if (!payment.getTossOrderId().equals(lookup.orderId())) {
-            throw new BusinessException(PaymentErrorCode.TOSS_ORDER_ID_MISMATCH);
+        if (!payment.getGatewayOrderId().equals(lookup.orderId())) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
         }
         if (payment.getAmount().compareTo(BigDecimal.valueOf(lookup.totalAmount())) != 0) {
             throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);

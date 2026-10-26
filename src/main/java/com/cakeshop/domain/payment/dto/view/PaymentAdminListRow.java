@@ -11,7 +11,7 @@ public record PaymentAdminListRow(
         long paymentId,
         long orderId,
         String orderNumber,
-        String tossOrderId,
+        String gatewayOrderId,
         String ordererName,
         String orderTypeLabel,
         BigDecimal amount,

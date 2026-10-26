@@ -11,7 +11,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/** Toss 결제 인증 성공 후 서버 승인에 필요한 값을 전달한다. */
+/** PG 결제 인증 성공 후 서버 승인에 필요한 값을 전달한다. */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,7 +24,7 @@ public class PaymentConfirmForm {
 
     @NotBlank
     @Size(min = 6, max = 64)
-    private String tossOrderId;
+    private String gatewayOrderId;
 
     @NotNull
     @Positive

@@ -45,7 +45,7 @@ class PaymentOrderPreparationCommandServiceTests {
         verify(paymentMapper).insertReadyPayment(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue()).satisfies(payment -> {
             assertThat(payment.getOrderId()).isEqualTo(10L);
-            assertThat(payment.getTossOrderId()).isEqualTo("ORD-001");
+            assertThat(payment.getGatewayOrderId()).isEqualTo("ORD-001");
             assertThat(payment.getIdempotencyKey()).startsWith("PAY-");
             assertThat(payment.getAmount()).isEqualByComparingTo("35000");
             assertThat(payment.getStatus()).isEqualTo(PaymentStatus.READY);

@@ -580,7 +580,7 @@ class ScreenRenderingTests {
     void paymentCallbacks_createdOrder_renderCsrfBridgeAndSafeFailure()
             throws Exception {
         long orderId = createGeneralOrder();
-        String tossOrderId = jdbcTemplate.queryForObject(
+        String gatewayOrderId = jdbcTemplate.queryForObject(
             "SELECT toss_order_id FROM payments WHERE order_id = ?",
             String.class,
             orderId
@@ -588,7 +588,7 @@ class ScreenRenderingTests {
 
         mockMvc.perform(get("/orders/{orderId}/payment/success", orderId)
                 .param("paymentKey", "test-payment-key")
-                .param("orderId", tossOrderId)
+                .param("orderId", gatewayOrderId)
                 .param("amount", "35000"))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("payment-confirm-form")))
