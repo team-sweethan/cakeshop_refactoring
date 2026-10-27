@@ -14,6 +14,7 @@ import com.cakeshop.domain.member.service.MemberService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentCancellationCommandService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentRecoveryService;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.CancellationResult;
@@ -36,6 +37,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
@@ -141,12 +143,78 @@ class PaymentProviderRecoveryIntegrationTests {
                 .cancel(own.payment().getPaymentKey(), own.reason(), own.idempotencyKey());
     }
 
+    @ParameterizedTest
+    @EnumSource(Operation.class)
+    void recovery_failedProviderFillsBatch_otherProviderGetsTurnWithinTwoCycles(Operation operation) {
+        List<PendingPayment> failed = List.of(
+                prepare(PaymentProvider.OWN, operation),
+                prepare(PaymentProvider.OWN, operation),
+                prepare(PaymentProvider.OWN, operation)
+        );
+        PendingPayment toss = prepare(PaymentProvider.TOSS, operation);
+        PaymentGateway tossGateway = gateway(PaymentProvider.TOSS, toss);
+        PaymentGatewayRouter router = new PaymentGatewayRouter("toss", List.of(tossGateway));
+
+        process(operation, router, 1);
+        process(operation, router, 1);
+
+        assertState(toss, "CANCELED", "CANCELED", "DONE", 5);
+        for (PendingPayment own : failed) {
+            assertState(own, "READY_FOR_PICKUP", "DONE", "REQUESTED", 4);
+            verify(tossGateway, never()).cancel(org.mockito.ArgumentMatchers.eq(own.payment().getPaymentKey()), anyString(), anyString());
+        }
+        verify(tossGateway, times(1)).cancel(toss.payment().getPaymentKey(), toss.reason(), toss.idempotencyKey());
+    }
+
+    @ParameterizedTest
+    @EnumSource(Operation.class)
+    void selectBatch_oddLimitAndUnevenQueues_keepsTotalLimitAndOldestOrderWithinEachProvider(Operation operation) {
+        List<PendingPayment> own = List.of(
+                prepare(PaymentProvider.OWN, operation),
+                prepare(PaymentProvider.OWN, operation),
+                prepare(PaymentProvider.OWN, operation)
+        );
+        List<PendingPayment> toss = List.of(
+                prepare(PaymentProvider.TOSS, operation),
+                prepare(PaymentProvider.TOSS, operation)
+        );
+        // 같은 PG 안에서는 요청 시각을 우선하고 동률이면 ID 순서를 사용한다.
+        for (PendingPayment fixture : fixtures) {
+            jdbc.update("UPDATE payment_cancellations SET requested_at = ? WHERE payment_id = ?",
+                    now.minusMinutes(5), fixture.payment().getId());
+        }
+        jdbc.update("UPDATE payment_cancellations SET requested_at = ? WHERE payment_id = ?",
+                now.minusMinutes(6), own.get(2).payment().getId());
+
+        assertThat(selectBatch(operation, 3, PaymentProvider.TOSS))
+                .extracting(PaymentCancellation::getPaymentId)
+                .containsExactly(toss.get(0).payment().getId(), own.get(2).payment().getId(), toss.get(1).payment().getId());
+        assertThat(selectBatch(operation, 3, PaymentProvider.OWN))
+                .extracting(PaymentCancellation::getPaymentId)
+                .containsExactly(own.get(2).payment().getId(), toss.get(0).payment().getId(), own.get(0).payment().getId());
+        // Toss가 세 번째 몫을 쓰지 못해도 OWN의 남은 요청으로 전체 용량을 채운다.
+        assertThat(selectBatch(operation, 5, PaymentProvider.TOSS))
+                .extracting(PaymentCancellation::getPaymentId)
+                .containsExactly(toss.get(0).payment().getId(), own.get(2).payment().getId(),
+                        toss.get(1).payment().getId(), own.get(0).payment().getId(), own.get(1).payment().getId());
+    }
+
+    private List<PaymentCancellation> selectBatch(Operation operation, int limit, PaymentProvider priority) {
+        return operation == Operation.REFUND
+                ? payments.findRequestedRefundCancellations(limit, priority)
+                : payments.findRequestedCompensations(limit, priority);
+    }
+
     private void process(Operation operation, PaymentGatewayRouter router) {
+        process(operation, router, 10);
+    }
+
+    private void process(Operation operation, PaymentGatewayRouter router, int limit) {
         if (operation == Operation.REFUND) {
-            new RefundFacade(refunds, router).recoverPendingCancellations(10);
+            new RefundFacade(refunds, router).recoverPendingCancellations(limit);
         } else {
             new PaymentCompensationProcessor(recovery, router, new PaymentApprovalResolver(router))
-                    .recoverPendingCompensations(10);
+                    .recoverPendingCompensations(limit);
         }
     }
 

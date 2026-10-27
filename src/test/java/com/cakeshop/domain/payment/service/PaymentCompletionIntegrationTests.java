@@ -427,7 +427,7 @@ class PaymentCompletionIntegrationTests {
                 .findPaymentCancellationByIdempotencyKey(request.idempotencyKey())
                 .orElseThrow();
         assertThat(cancellation.getStatus()).isEqualTo(PaymentCancellationStatus.REQUESTED);
-        assertThat(paymentMapper.findRequestedCompensations(10)).isEmpty();
+        assertThat(paymentMapper.findRequestedCompensations(10, PaymentProvider.TOSS)).isEmpty();
         assertThat(paymentMapper.findPaymentById(readyPayment.getId()).orElseThrow().getPaymentKey())
                 .isEqualTo(paymentKey);
     }

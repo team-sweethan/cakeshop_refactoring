@@ -26,4 +26,9 @@
   결제별 PG를 모르는 이전 바이너리로 되돌리지 않는다.
 - 기존 식별자 UNIQUE 제약은 유지한다. 자체 PG 구현 전에 결제 키·멱등 키·환불 거래 키의 충돌 가능성을
   외부 계약과 함께 확인한다.
-결정 근거와 제약은 [ADR 003](pg-decisions/003-payment-provider-routing.md)에 기록한다.
+- 환불·보상 복구 배치는 각각 기존 batch-size 전체 상한을 유지하면서 PG별 요청을 번갈아 선택한다.
+  각 PG 안에서는 requested_at·id 순서다. 다른 PG에 요청이 없으면 남은 용량을 사용한다.
+- 상한 1과 홀수 몫의 우선 PG는 각 조회 회차마다 순환한다. 환불·보상 커서는 독립적이며 재시작하면
+  TOSS부터 다시 시작한다. 인스턴스 간 커서는 공유하지 않는다.
+
+결정 근거와 제약은 [ADR 003](pg-decisions/003-payment-provider-routing.md)과 [ADR 004](pg-decisions/004-payment-recovery-batch-fairness.md)에 기록한다.
