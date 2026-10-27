@@ -1,5 +1,8 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
+
 import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
 import com.cakeshop.domain.payment.infra.TossPaymentClient;
 import com.cakeshop.domain.payment.infra.TossPaymentGateway;
@@ -37,8 +40,8 @@ class PaymentCompensationProcessorTests {
     void setUp() {
         compensationProcessor = new PaymentCompensationProcessor(
                 paymentRecoveryService,
-                new TossPaymentGateway(tossPaymentClient, null),
-                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))),
+                new PaymentApprovalResolver(new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))))
         );
     }
 
@@ -112,6 +115,7 @@ class PaymentCompensationProcessorTests {
 
     private CompensationRequest request() {
         return new CompensationRequest(
+                PaymentProvider.TOSS,
                 20L,
                 1L,
                 "payment-key",

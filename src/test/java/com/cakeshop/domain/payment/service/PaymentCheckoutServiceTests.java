@@ -1,5 +1,9 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
+import com.cakeshop.domain.payment.infra.PaymentGateway;
+
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrderItem;
@@ -18,6 +22,8 @@ import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -71,7 +77,7 @@ class PaymentCheckoutServiceTests {
                 paymentService,
                 storeService,
                 CLOCK,
-                new TossPaymentGateway(null, tossPaymentAvailability)
+                new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(null, tossPaymentAvailability)))
         );
         lenient().when(memberService.isActiveMember(10L)).thenReturn(true);
         lenient().when(tossPaymentAvailability.clientKey()).thenReturn("test-client-key");
@@ -178,6 +184,7 @@ class PaymentCheckoutServiceTests {
 
     @Test
     void getFailure_providerMessage_returnsOnlyMappedSafeMessage() {
+        when(paymentService.getLatestPayment(1L)).thenReturn(payment(PaymentStatus.READY, null));
         when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L))
                 .thenReturn(order(true, true));
 
@@ -208,6 +215,36 @@ class PaymentCheckoutServiceTests {
         assertThat(completion.items()).singleElement().satisfies(item ->
                 assertThat(item.productName()).isEqualTo("딸기 생크림 케이크")
         );
+    }
+
+    @ParameterizedTest
+    @EnumSource(PaymentProvider.class)
+    void checkoutAndFailure_selectionChanged_usePaymentProvider(PaymentProvider recorded) {
+        PaymentGateway own = org.mockito.Mockito.mock(PaymentGateway.class);
+        when(own.provider()).thenReturn(PaymentProvider.OWN);
+        if (recorded == PaymentProvider.OWN) {
+            when(own.clientKey()).thenReturn("own-client-key");
+            when(own.isAvailable()).thenReturn(true);
+            when(own.formatOrderName("딸기 생크림 케이크")).thenReturn("own-order-name");
+            when(own.isUserCanceled("OWN_CANCELED")).thenReturn(true);
+        }
+        PaymentGatewayRouter router = new PaymentGatewayRouter(recorded == PaymentProvider.TOSS ? "own" : "toss",
+                List.of(new TossPaymentGateway(null, tossPaymentAvailability), own));
+        PaymentCheckoutService service = new PaymentCheckoutService(orderPaymentQueryService, memberService,
+                paymentService, storeService, CLOCK, router);
+        Payment payment = payment(PaymentStatus.READY, null);
+        payment.setProvider(recorded);
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(order(true, true));
+        when(paymentService.getReadyPayment(1L)).thenReturn(payment);
+        PaymentCheckoutView checkout = service.getCheckout(10L, "member@example.com", 1L);
+        assertThat(checkout.clientKey()).isEqualTo(recorded == PaymentProvider.TOSS ? "test-client-key" : "own-client-key");
+        assertThat(checkout.orderName()).isEqualTo(recorded == PaymentProvider.TOSS ? "딸기 생크림 케이크" : "own-order-name");
+        payment.setStatus(PaymentStatus.EXPIRED);
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(order(true, false));
+        when(paymentService.getLatestPayment(1L)).thenReturn(payment);
+        var failure = service.getFailure(10L, 1L, recorded == PaymentProvider.TOSS ? "PAY_PROCESS_CANCELED" : "OWN_CANCELED");
+        assertThat(failure.message()).contains("결제가 취소되었습니다");
+        assertThat(failure.retryAvailable()).isFalse();
     }
 
     private PaymentOrder order(boolean generalOrder, boolean pendingPayment) {
@@ -241,6 +278,7 @@ class PaymentCheckoutServiceTests {
 
     private Payment payment(PaymentStatus status, String paymentKey) {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setId(20L);
         payment.setOrderId(1L);
         payment.setGatewayOrderId("ORD-100");

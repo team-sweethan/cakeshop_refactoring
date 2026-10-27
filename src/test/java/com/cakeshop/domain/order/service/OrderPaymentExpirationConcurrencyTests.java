@@ -13,6 +13,7 @@ import com.cakeshop.domain.order.service.payment.OrderExpirationService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentCommandService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.infra.ApprovalResult;
@@ -310,6 +311,7 @@ class OrderPaymentExpirationConcurrencyTests {
 
     private Payment insertReadyPayment() {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setOrderId(orderId);
         payment.setGatewayOrderId("TOSS-RACE-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-RACE-" + suffix);

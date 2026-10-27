@@ -1,5 +1,8 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,7 +41,7 @@ class RefundFacadeTests {
 
     @BeforeEach
     void setUp() {
-        refundFacade = new RefundFacade(refundService, new TossPaymentGateway(tossPaymentClient, null));
+        refundFacade = new RefundFacade(refundService, new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))));
     }
 
     @Test
@@ -165,6 +168,7 @@ class RefundFacadeTests {
 
     private RefundRequest request(String canceledBy, String reason) {
         return new RefundRequest(
+                PaymentProvider.TOSS,
                 30L,
                 10L,
                 "payment-key",

@@ -5,6 +5,7 @@ import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
 import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
 import com.cakeshop.domain.payment.infra.ApprovalResult;
 import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
@@ -18,14 +19,14 @@ import java.util.Optional;
 @Component
 public class PaymentApprovalResolver {
 
-    private final PaymentGateway paymentGateway;
+    private final PaymentGatewayRouter gatewayRouter;
 
-    public PaymentApprovalResolver(PaymentGateway paymentGateway) {
-        this.paymentGateway = paymentGateway;
+    public PaymentApprovalResolver(PaymentGatewayRouter gatewayRouter) {
+        this.gatewayRouter = gatewayRouter;
     }
 
     public ApprovalResolution resolveCurrent(Payment payment, PaymentConfirmForm form) {
-        Optional<PaymentLookupResult> lookup = paymentGateway.find(form.getPaymentKey());
+        Optional<PaymentLookupResult> lookup = gatewayRouter.forProvider(payment.getProvider()).find(form.getPaymentKey());
         if (lookup.isEmpty()) {
             return ApprovalResolution.notApproved();
         }
@@ -35,7 +36,7 @@ public class PaymentApprovalResolver {
     public ApprovalResolution approve(Payment payment, PaymentConfirmForm form) {
         ApprovalResult approval;
         try {
-            approval = paymentGateway.approve(
+            approval = gatewayRouter.forProvider(payment.getProvider()).approve(
                     form.getPaymentKey(),
                     form.getGatewayOrderId(),
                     form.getAmount().longValueExact(),
@@ -54,7 +55,7 @@ public class PaymentApprovalResolver {
 
     public ApprovalResolution resolveCompensationState(CompensationRequest request) {
         try {
-            Optional<PaymentLookupResult> lookup = paymentGateway.find(request.paymentKey());
+            Optional<PaymentLookupResult> lookup = gatewayRouter.forProvider(request.provider()).find(request.paymentKey());
             if (lookup.isEmpty()) {
                 return ApprovalResolution.notApproved();
             }

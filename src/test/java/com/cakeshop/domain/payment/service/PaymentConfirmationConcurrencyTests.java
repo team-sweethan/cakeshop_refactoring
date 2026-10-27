@@ -1,5 +1,7 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -78,6 +80,7 @@ class PaymentConfirmationConcurrencyTests {
     @MockitoBean private CouponOrderCommandService couponService;
     @MockitoBean private Clock clock;
     @MockitoBean private PaymentGateway gateway;
+    @MockitoBean private PaymentGatewayRouter gatewayRouter;
     @MockitoSpyBean private OrderPaymentQueryService orderQuery;
     @MockitoSpyBean private PaymentService paymentService;
 
@@ -92,6 +95,7 @@ class PaymentConfirmationConcurrencyTests {
 
     @BeforeEach
     void setUp() {
+        when(gatewayRouter.forProvider(PaymentProvider.TOSS)).thenReturn(gateway);
         when(clock.instant()).thenReturn(NOW.atZone(SEOUL).toInstant());
         when(clock.getZone()).thenReturn(SEOUL);
         String suffix = UUID.randomUUID().toString().replace("-", "");
@@ -125,6 +129,7 @@ class PaymentConfirmationConcurrencyTests {
                 VALUES (?, ?, '결제 경합', 'GENERAL', 1, 30000, 0, 30000, 0)
                 """, orderId, productId);
         payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setOrderId(orderId);
         payment.setGatewayOrderId(orderNumber);
         payment.setIdempotencyKey("PAY-" + suffix);

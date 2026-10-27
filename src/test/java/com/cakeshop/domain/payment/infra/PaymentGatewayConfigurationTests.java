@@ -1,8 +1,8 @@
 package com.cakeshop.domain.payment.infra;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.service.PaymentApprovalResolver;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -18,7 +18,7 @@ class PaymentGatewayConfigurationTests {
             .withInitializer(context -> context.getBeanFactory()
                     .setConversionService(ApplicationConversionService.getSharedInstance()))
             .withUserConfiguration(
-                    TossPaymentGateway.class, TossPaymentClient.class, TossPaymentAvailability.class)
+                    TossPaymentGateway.class, TossPaymentClient.class, TossPaymentAvailability.class, PaymentGatewayRouter.class)
             .withPropertyValues(
                     "app.payment.toss.base-url=https://payments.test",
                     "app.payment.toss.client-key=test-client-key",
@@ -64,34 +64,30 @@ class PaymentGatewayConfigurationTests {
     }
 
     @Test
-    void gateway_ownSelection_doesNotInitializeTossComponents() {
+    void gateway_ownSelection_keepsTossForExistingPayments() {
+        PaymentGateway own = org.mockito.Mockito.mock(PaymentGateway.class);
+        org.mockito.Mockito.when(own.provider()).thenReturn(PaymentProvider.OWN);
         configDataRunner()
-                .withPropertyValues(
-                        "spring.profiles.active=gateway-config-test",
-                        "PAYMENT_GATEWAY=own",
-                        "app.payment.toss.connect-timeout=invalid-toss-timeout")
+                .withBean("ownPaymentGateway", PaymentGateway.class, () -> own)
+                .withPropertyValues("spring.profiles.active=gateway-config-test", "PAYMENT_GATEWAY=own")
                 .run(context -> {
-                    assertThat(context).hasNotFailed();
-                    assertThat(context.getEnvironment().getProperty("app.payment.gateway")).isEqualTo("own");
-                    assertThat(context).doesNotHaveBean(TossPaymentGateway.class);
-                    assertThat(context).doesNotHaveBean(TossPaymentClient.class);
-                    assertThat(context).doesNotHaveBean(TossPaymentAvailability.class);
+                    assertThat(context).hasNotFailed().hasSingleBean(TossPaymentGateway.class);
+                    PaymentGatewayRouter router = context.getBean(PaymentGatewayRouter.class);
+                    assertThat(router.forProvider(PaymentProvider.TOSS))
+                            .isSameAs(context.getBean(TossPaymentGateway.class));
+                    assertThat(router.forProvider(PaymentProvider.OWN)).isSameAs(own);
                 });
     }
 
     @Test
-    void gateway_ownWithoutImplementation_stopsApplicationWithRequiredGatewayMissing() {
-        // 실제 서비스의 필수 의존성까지 로딩해 own 선택 시 앱이 시작되지 않는지 확인한다.
+    void gateway_ownWithoutImplementation_stopsApplicationDespiteExistingToss() {
         configDataRunner()
                 .withUserConfiguration(PaymentApprovalResolver.class)
-                .withPropertyValues(
-                        "spring.profiles.active=gateway-config-test",
-                        "PAYMENT_GATEWAY=own")
+                .withPropertyValues("spring.profiles.active=gateway-config-test", "PAYMENT_GATEWAY=own")
                 .run(context -> {
                     assertThat(context).hasFailed();
-                    assertThat(context.getStartupFailure())
-                            .hasRootCauseInstanceOf(NoSuchBeanDefinitionException.class)
-                            .hasStackTraceContaining(PaymentGateway.class.getName());
+                    assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(IllegalStateException.class)
+                            .hasStackTraceContaining("Selected payment gateway implementation is unavailable");
                 });
     }
 

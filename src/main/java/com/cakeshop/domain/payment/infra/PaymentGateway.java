@@ -1,9 +1,12 @@
 package com.cakeshop.domain.payment.infra;
 
 import java.util.Optional;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 
 /** 결제 승인·조회·취소와 결제창 설정을 제공하는 PG 경계다. */
 public interface PaymentGateway {
+
+    PaymentProvider provider();
 
     boolean isAvailable();
 

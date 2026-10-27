@@ -5,6 +5,7 @@ import com.cakeshop.domain.coupon.service.CouponOrderCommandService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
 import com.cakeshop.domain.order.entity.OrderType;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGatewayStatus;
@@ -283,6 +284,7 @@ class PaymentServiceTests {
 
     private Payment payment() {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setId(20L);
         payment.setOrderId(1L);
         return payment;

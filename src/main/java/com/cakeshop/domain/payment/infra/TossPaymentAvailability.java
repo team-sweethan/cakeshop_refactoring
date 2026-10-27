@@ -1,12 +1,10 @@
 package com.cakeshop.domain.payment.infra;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** Toss 결제 설정의 활성 여부와 브라우저에 제공할 공개 키를 제공한다. */
 @Component
-@ConditionalOnProperty(prefix = "app.payment", name = "gateway", havingValue = "toss", matchIfMissing = true)
 public class TossPaymentAvailability {
 
     private final String clientKey;

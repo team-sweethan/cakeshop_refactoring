@@ -12,6 +12,7 @@
 |---|---|---|---|---|---|
 | `id` | BIGINT | PK | X | AUTO_INCREMENT | 결제 식별자 |
 | `order_id` | BIGINT | FK | X | 없음 | 주문 식별자 |
+| `provider` | VARCHAR(20) | CHECK | X | `TOSS` | 생성 시 고정한 PG (`TOSS`, `OWN`) |
 | `toss_order_id` | VARCHAR(100) | UK | X | 없음 | PG 주문 식별자 (기존 컬럼명 유지) |
 | `payment_key` | VARCHAR(200) | UK | O | NULL | 결제사 결제 키 |
 | `idempotency_key` | VARCHAR(100) | UK | X | 없음 | 결제 요청 멱등 키 |
@@ -34,6 +35,8 @@
 - FK: `fk_payments_order` — `order_id` → `orders.id`
 - CHECK: `status IN ('READY', 'DONE', 'CANCELED', 'PARTIAL_CANCELED', 'ABORTED', 'EXPIRED')`
 - CHECK: `amount >= 0`
+- CHECK: `provider IN ('TOSS', 'OWN')`
+- 기존 결제는 상태와 무관하게 `TOSS`로 보존한다. 새 코드는 생성 당시 설정을 명시하며 이후 변경하지 않는다.
 - INDEX: `idx_payments_status` (`status`)
 - INDEX: `idx_payments_status_approved_at` (`status`, `approved_at`)
 - INDEX: `idx_payments_updated_at_approved_at` (`updated_at`, `approved_at`)
@@ -83,3 +86,4 @@
 - `V20260813_104053__add_payment_expiration_check.sql`
 - `V20260818_005803__remove_unused_payment_columns.sql`
 - `V20260818_104810__remove_unused_payment_cancellation_failure_message.sql`
+- `V20261026_195117__add_payment_provider.sql`

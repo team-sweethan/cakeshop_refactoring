@@ -10,6 +10,7 @@ import com.cakeshop.domain.payment.dto.view.PaymentFailureView;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
 import com.cakeshop.domain.store.service.StoreService;
 import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
@@ -32,7 +33,7 @@ public class PaymentCheckoutService {
     private final PaymentService paymentService;
     private final StoreService storeService;
     private final Clock clock;
-    private final PaymentGateway paymentGateway;
+    private final PaymentGatewayRouter gatewayRouter;
 
     /** 결제 기한과 결제 정보를 검증해 결제 대상 주문용 PG 결제 화면 데이터를 구성한다. */
     @Transactional(readOnly = true)
@@ -47,6 +48,7 @@ public class PaymentCheckoutService {
 
         Payment payment = paymentService.getReadyPayment(orderId);
         validateReadyPayment(order, payment);
+        PaymentGateway paymentGateway = gatewayRouter.forProvider(payment.getProvider());
 
         List<PaymentCheckoutView.ItemView> items = order.items().stream()
                 .map(item -> new PaymentCheckoutView.ItemView(
@@ -66,7 +68,7 @@ public class PaymentCheckoutService {
                 order.orderId(),
                 order.orderNumber(),
                 payment.getGatewayOrderId(),
-                createOrderName(order),
+                createOrderName(order, paymentGateway),
                 order.originalAmount(),
                 order.discountAmount(),
                 order.finalAmount(),
@@ -111,13 +113,14 @@ public class PaymentCheckoutService {
         PaymentOrder order = orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
         validatePaymentOrder(order);
 
+        PaymentGateway paymentGateway = gatewayRouter.forProvider(paymentService.getLatestPayment(orderId).getProvider());
         boolean retryAvailable = order.pendingPayment()
                 && order.paymentExpiresAt() != null
                 && LocalDateTime.now(clock).isBefore(order.paymentExpiresAt());
 
         return new PaymentFailureView(
                 orderId,
-                failureMessage(failureCode),
+                failureMessage(failureCode, paymentGateway),
                 retryAvailable
         );
     }
@@ -201,7 +204,7 @@ public class PaymentCheckoutService {
         }
     }
 
-    private String createOrderName(PaymentOrder order) {
+    private String createOrderName(PaymentOrder order, PaymentGateway paymentGateway) {
         if (order.items().isEmpty()) {
             throw new BusinessException(CommonErrorCode.INTERNAL_ERROR);
         }
@@ -212,7 +215,7 @@ public class PaymentCheckoutService {
         return paymentGateway.formatOrderName(orderName);
     }
 
-    private String failureMessage(String failureCode) {
+    private String failureMessage(String failureCode, PaymentGateway paymentGateway) {
         if (paymentGateway.isUserCanceled(failureCode)) {
             return "결제가 취소되었습니다. 결제 제한 시간 안에 다시 시도할 수 있습니다.";
         }

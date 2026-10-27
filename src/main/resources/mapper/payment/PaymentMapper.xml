@@ -69,6 +69,7 @@
             keyProperty="id">
         INSERT INTO payments (
             order_id,
+            provider,
             toss_order_id,
             payment_key,
             idempotency_key,
@@ -79,6 +80,7 @@
         )
         VALUES (
             #{orderId},
+            #{provider},
             #{gatewayOrderId},
             #{paymentKey},
             #{idempotencyKey},
@@ -95,6 +97,7 @@
             id,
             order_id,
             toss_order_id AS gateway_order_id,
+            provider,
             payment_key,
             idempotency_key,
             method,
@@ -119,6 +122,7 @@
             id,
             order_id,
             toss_order_id AS gateway_order_id,
+            provider,
             payment_key,
             idempotency_key,
             method,
@@ -135,12 +139,38 @@
         WHERE id = #{paymentId}
     </select>
 
+    <select id="findLatestPaymentByOrderId"
+            resultType="com.cakeshop.domain.payment.entity.Payment">
+        SELECT
+            id,
+            order_id,
+            toss_order_id AS gateway_order_id,
+            provider,
+            payment_key,
+            idempotency_key,
+            method,
+            amount,
+            status,
+            active_payment_order_id,
+            failure_code,
+            requested_at,
+            approved_at,
+            canceled_at,
+            created_at,
+            updated_at
+        FROM payments
+        WHERE order_id = #{orderId}
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
     <select id="findDonePaymentByOrderId"
             resultType="com.cakeshop.domain.payment.entity.Payment">
         SELECT
             id,
             order_id,
             toss_order_id AS gateway_order_id,
+            provider,
             payment_key,
             idempotency_key,
             method,

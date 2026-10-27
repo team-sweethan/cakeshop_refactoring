@@ -2,6 +2,7 @@ package com.cakeshop.domain.payment.service;
 
 import com.cakeshop.domain.order.service.payment.OrderPaymentRecoveryService;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
@@ -39,6 +40,7 @@ public class PaymentRecoveryService {
             throw new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING);
         }
         return new CompensationRequest(
+                payment.getProvider(),
                 payment.getId(),
                 payment.getOrderId(),
                 paymentKey,
@@ -249,6 +251,7 @@ public class PaymentRecoveryService {
     }
 
     public record CompensationRequest(
+            PaymentProvider provider,
             long paymentId,
             long orderId,
             String paymentKey,
