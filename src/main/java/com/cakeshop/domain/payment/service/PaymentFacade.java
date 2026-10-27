@@ -35,12 +35,20 @@ public class PaymentFacade {
             return;
         }
 
-
-        PaymentExecutionOrder order = orderPaymentQueryService.getMemberPaymentExecutionOrder(memberId, orderId);
-        validatePaymentExpiration(order.paymentExpiresAt());
-
-        Payment payment = paymentService.getReadyPayment(orderId);
-        validateRequest(order, payment, form);
+        PaymentExecutionOrder order;
+        Payment payment;
+        try {
+            order = orderPaymentQueryService.getMemberPaymentExecutionOrder(memberId, orderId);
+            validatePaymentExpiration(order.paymentExpiresAt());
+            payment = paymentService.getReadyPayment(orderId);
+            validateRequest(order, payment, form);
+        } catch (BusinessException exception) {
+            // 최초 DONE 확인 뒤 다른 콜백이 완료했으면 같은 결제 요청인지 다시 검증한다.
+            if (isAlreadyCompleted(ownedOrder, orderId, form)) {
+                return;
+            }
+            throw exception;
+        }
 
         // PG 승인 영역 진입
         ResolvedApproval resolved = resolvePreparedOrNewApproval(payment, form, orderId);
@@ -85,21 +93,35 @@ public class PaymentFacade {
     public void completeZeroAmountGeneralPayment(long memberId, long orderId) {
         // 브라우저 재전송은 이미 완료된 0원 결제를 성공으로 간주하되, 회원 소유권은 먼저 확인한다.
         orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
-        Payment completedPayment = paymentService.findDonePayment(orderId).orElse(null);
-        if (completedPayment != null) {
-            if (completedPayment.getAmount() == null || completedPayment.getAmount().signum() != 0) {
-                throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
-            }
+        if (isAlreadyCompletedZeroAmountPayment(orderId)) {
             return;
         }
-        PaymentExecutionOrder order = orderPaymentQueryService.getMemberGeneralPaymentOrder(memberId, orderId);
-        if (order.amount().signum() != 0) {
+        try {
+            PaymentExecutionOrder order = orderPaymentQueryService.getMemberGeneralPaymentOrder(memberId, orderId);
+            if (order.amount().signum() != 0) {
+                throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
+            }
+            // 일반 PG 승인 경로와 동일하게 완료 직전에도 결제 가능 시간을 다시 확인한다.
+            validatePaymentExpiration(order.paymentExpiresAt());
+            Payment payment = paymentService.getReadyPayment(orderId);
+            paymentService.completeZeroAmountGeneralPayment(order, payment, LocalDateTime.now(clock));
+        } catch (BusinessException exception) {
+            // 잠금을 기다리던 중 동일 주문의 0원 결제가 완료됐으면 중복 요청도 성공이다.
+            if (!isAlreadyCompletedZeroAmountPayment(orderId)) {
+                throw exception;
+            }
+        }
+    }
+
+    private boolean isAlreadyCompletedZeroAmountPayment(long orderId) {
+        Payment completedPayment = paymentService.findDonePayment(orderId).orElse(null);
+        if (completedPayment == null) {
+            return false;
+        }
+        if (completedPayment.getAmount() == null || completedPayment.getAmount().signum() != 0) {
             throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
         }
-        // 일반 PG 승인 경로와 동일하게 완료 직전에도 결제 가능 시간을 다시 확인한다.
-        validatePaymentExpiration(order.paymentExpiresAt());
-        Payment payment = paymentService.getReadyPayment(orderId);
-        paymentService.completeZeroAmountGeneralPayment(order, payment, LocalDateTime.now(clock));
+        return true;
     }
 
     private ResolvedApproval resolvePreparedOrNewApproval(
