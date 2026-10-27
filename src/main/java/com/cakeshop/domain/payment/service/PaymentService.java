@@ -45,6 +45,13 @@ public class PaymentService {
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.READY_PAYMENT_NOT_FOUND));
     }
 
+    /** 실패·만료를 포함한 주문의 마지막 결제 기록을 조회한다. */
+    @Transactional(readOnly = true)
+    public Payment getLatestPayment(long orderId) {
+        return paymentMapper.findLatestPaymentByOrderId(orderId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.READY_PAYMENT_NOT_FOUND));
+    }
+
     /** 중복 성공 콜백과 완료 화면 검증을 위해 완료 결제를 조회한다. */
     @Transactional(readOnly = true)
     public Optional<Payment> findDonePayment(long orderId) {

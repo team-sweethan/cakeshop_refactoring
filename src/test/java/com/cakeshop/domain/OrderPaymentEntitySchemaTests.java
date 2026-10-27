@@ -7,6 +7,7 @@ import com.cakeshop.domain.order.entity.OrderItemOption;
 import com.cakeshop.domain.order.entity.OrderStatus;
 import com.cakeshop.domain.order.entity.OrderType;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
@@ -129,6 +130,7 @@ class OrderPaymentEntitySchemaTests {
     @Test
     void paymentFieldsMatchV2PaymentTables() {
         assertFields(Payment.class, Map.ofEntries(
+                Map.entry("provider", PaymentProvider.class),
                 Map.entry("id", Long.class),
                 Map.entry("orderId", Long.class),
                 Map.entry("gatewayOrderId", String.class),

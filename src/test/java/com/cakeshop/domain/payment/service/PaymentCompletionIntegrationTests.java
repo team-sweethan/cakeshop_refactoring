@@ -15,6 +15,7 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentRecoveryService;
 import com.cakeshop.domain.order.service.OrderService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
@@ -603,6 +604,7 @@ class PaymentCompletionIntegrationTests {
 
     private void insertReadyPayment() {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setOrderId(orderId);
         payment.setGatewayOrderId("TOSS-PAYMENT-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-PAYMENT-" + suffix);

@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -23,7 +22,6 @@ import java.util.Optional;
 
 // 토스 승인·취소·조회 API 클라이언트 — 작업별 UUID를 Idempotency-Key로 사용
 @Component
-@ConditionalOnProperty(prefix = "app.payment", name = "gateway", havingValue = "toss", matchIfMissing = true)
 public class TossPaymentClient {
 
     private static final String IDEMPOTENCY_KEY = "Idempotency-Key";

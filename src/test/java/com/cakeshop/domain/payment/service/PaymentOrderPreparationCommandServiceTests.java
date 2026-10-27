@@ -1,14 +1,16 @@
 package com.cakeshop.domain.payment.service;
 
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.global.error.BusinessException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -26,11 +28,17 @@ class PaymentOrderPreparationCommandServiceTests {
     @Mock
     private PaymentMapper paymentMapper;
 
-    @InjectMocks
     private PaymentOrderPreparationCommandServiceImpl paymentPreparationService;
 
-    @Test
-    void prepareReadyPayment_validOrder_savesReadyPayment() {
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        paymentPreparationService = new PaymentOrderPreparationCommandServiceImpl(paymentMapper, "toss");
+    }
+
+    @ParameterizedTest
+    @CsvSource({"toss, TOSS", "own, OWN"})
+    void prepareReadyPayment_validOrder_savesSelectedProvider(String selected, PaymentProvider expected) {
+        paymentPreparationService = new PaymentOrderPreparationCommandServiceImpl(paymentMapper, selected);
         when(paymentMapper.insertReadyPayment(any(Payment.class)))
                 .thenReturn(1);
 
@@ -45,6 +53,7 @@ class PaymentOrderPreparationCommandServiceTests {
         verify(paymentMapper).insertReadyPayment(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue()).satisfies(payment -> {
             assertThat(payment.getOrderId()).isEqualTo(10L);
+            assertThat(payment.getProvider()).isEqualTo(expected);
             assertThat(payment.getGatewayOrderId()).isEqualTo("ORD-001");
             assertThat(payment.getIdempotencyKey()).startsWith("PAY-");
             assertThat(payment.getAmount()).isEqualByComparingTo("35000");

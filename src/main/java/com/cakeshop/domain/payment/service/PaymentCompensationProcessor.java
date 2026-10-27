@@ -3,6 +3,7 @@ package com.cakeshop.domain.payment.service;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
 import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.infra.PaymentLookupResult;
 import com.cakeshop.domain.payment.service.PaymentRecoveryService.CompensationRequest;
@@ -22,16 +23,16 @@ public class PaymentCompensationProcessor {
     private static final Logger log = LoggerFactory.getLogger(PaymentCompensationProcessor.class);
 
     private final PaymentRecoveryService paymentRecoveryService;
-    private final PaymentGateway paymentGateway;
+    private final PaymentGatewayRouter gatewayRouter;
     private final PaymentApprovalResolver approvalResolver;
 
     public PaymentCompensationProcessor(
             PaymentRecoveryService paymentRecoveryService,
-            PaymentGateway paymentGateway,
+            PaymentGatewayRouter gatewayRouter,
             PaymentApprovalResolver approvalResolver
     ) {
         this.paymentRecoveryService = paymentRecoveryService;
-        this.paymentGateway = paymentGateway;
+        this.gatewayRouter = gatewayRouter;
         this.approvalResolver = approvalResolver;
     }
 
@@ -96,7 +97,8 @@ public class PaymentCompensationProcessor {
             try {
                 recover(request);
             } catch (RuntimeException recoveryFailure) {
-                log.warn("Pending payment compensation could not be completed.");
+                log.warn("Pending payment compensation could not be completed. provider={}, orderId={}, paymentId={}",
+                        request.provider(), request.orderId(), request.paymentId());
             }
         }
     }
@@ -113,6 +115,7 @@ public class PaymentCompensationProcessor {
     }
 
     private void execute(CompensationRequest request) {
+        PaymentGateway paymentGateway = gatewayRouter.forProvider(request.provider());
         CancellationResult result;
         try {
             result = paymentGateway.cancel(request.paymentKey(), request.reason(), request.idempotencyKey());

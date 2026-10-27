@@ -25,6 +25,9 @@ public interface PaymentMapper {
     // 결제 ID로 한 건을 조회한다.
     Optional<Payment> findPaymentById(@Param("paymentId") long paymentId);
 
+    /** 실패·만료 안내도 결제를 생성한 PG의 규칙으로 해석한다. */
+    Optional<Payment> findLatestPaymentByOrderId(@Param("orderId") long orderId);
+
     // 주문의 현재 DONE 결제를 조회한다. DB 제약에 따라 최대 한 건이다.
     Optional<Payment> findDonePaymentByOrderId(@Param("orderId") long orderId);
 

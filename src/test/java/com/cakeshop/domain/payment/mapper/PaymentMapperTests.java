@@ -1,5 +1,6 @@
 package com.cakeshop.domain.payment.mapper;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
@@ -562,6 +563,7 @@ class PaymentMapperTests {
 
     private Payment newPayment(String label) {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setOrderId(orderId);
         payment.setGatewayOrderId("TOSS-" + label + "-" + suffix);
         payment.setIdempotencyKey("IDEMPOTENCY-" + label + "-" + suffix);

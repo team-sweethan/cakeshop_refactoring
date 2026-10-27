@@ -2,6 +2,7 @@ package com.cakeshop.domain.payment.service;
 
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGateway;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
 import com.cakeshop.domain.payment.infra.CancellationResult;
 import com.cakeshop.domain.payment.service.RefundService.RefundRequest;
 import com.cakeshop.global.error.BusinessException;
@@ -20,7 +21,7 @@ public class RefundFacade {
     private static final Logger log = LoggerFactory.getLogger(RefundFacade.class);
 
     private final RefundService refundService;
-    private final PaymentGateway paymentGateway;
+    private final PaymentGatewayRouter gatewayRouter;
 
     public void cancelCustomerOrder(long memberId, long orderId, String reason) {
         if (refundService.cancelCustomerZeroAmountOrder(memberId, orderId, reason)) {
@@ -65,12 +66,14 @@ public class RefundFacade {
             try {
                 cancel(request);
             } catch (RuntimeException recoveryFailure) {
-                log.warn("Pending refund cancellation could not be completed.");
+                log.warn("Pending refund cancellation could not be completed. provider={}, orderId={}, cancellationId={}",
+                        request.provider(), request.orderId(), request.cancellationId());
             }
         }
     }
 
     private void cancel(RefundRequest request) {
+        PaymentGateway paymentGateway = gatewayRouter.forProvider(request.provider());
         CancellationResult result;
         try {
             result = paymentGateway.cancel(
@@ -79,7 +82,7 @@ public class RefundFacade {
                     request.idempotencyKey()
             );
         } catch (BusinessException exception) {
-            result = findCanceledResult(request.paymentKey())
+            result = findCanceledResult(paymentGateway, request.paymentKey())
                     .orElseThrow(() -> new BusinessException(
                             PaymentErrorCode.PAYMENT_RECOVERY_PENDING
                     ));
@@ -88,7 +91,7 @@ public class RefundFacade {
         refundService.completeCancellation(request, result);
     }
 
-    private Optional<CancellationResult> findCanceledResult(String paymentKey) {
+    private Optional<CancellationResult> findCanceledResult(PaymentGateway paymentGateway, String paymentKey) {
         try {
             return PaymentCancellationResultResolver.findCompleted(paymentGateway, paymentKey);
         } catch (BusinessException lookupFailure) {

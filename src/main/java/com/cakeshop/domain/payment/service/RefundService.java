@@ -5,6 +5,7 @@ import com.cakeshop.domain.member.service.MemberOrderQueryService;
 import com.cakeshop.domain.order.error.OrderErrorCode;
 import com.cakeshop.domain.order.service.payment.OrderPaymentCancellationCommandService;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentCancellationStatus;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
@@ -151,6 +152,7 @@ public class RefundService {
         }
 
         return new RefundRequest(
+                payment.getProvider(),
                 cancellation.getId(),
                 orderId,
                 payment.getPaymentKey(),
@@ -200,6 +202,7 @@ public class RefundService {
         }
         requirePaymentCancellationAvailable(orderId, requestType, cancellation.getRequestedAt());
         return new RefundRequest(
+                payment.getProvider(),
                 cancellation.getId(),
                 orderId,
                 payment.getPaymentKey(),
@@ -228,7 +231,8 @@ public class RefundService {
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_COMPLETE_FAILED));
         Payment payment = paymentMapper.findPaymentById(cancellation.getPaymentId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_COMPLETE_FAILED));
-        if (!Long.valueOf(request.orderId()).equals(payment.getOrderId())
+        if (request.provider() != payment.getProvider()
+                || !Long.valueOf(request.orderId()).equals(payment.getOrderId())
                 || !Objects.equals(request.paymentKey(), payment.getPaymentKey())
                 || !Objects.equals(request.idempotencyKey(), cancellation.getIdempotencyKey())
                 || !Objects.equals(request.reason(), cancellation.getCancelReason())
@@ -361,6 +365,7 @@ public class RefundService {
     }
 
     public record RefundRequest(
+            PaymentProvider provider,
             long cancellationId,
             long orderId,
             String paymentKey,

@@ -95,3 +95,9 @@ PG 결제 승인 또는 0원 결제 완료
   별도 합의한다.
 - 이 문서는 장바구니 선택 주문과 결제 완료 후 정리만 다룬다. 쿠폰 할인 검증·예약·사용 확정 정책은
   `docs/coupon/coupon_conventions.md`를 정본으로 한다.
+
+## 자체 PG 전환 준비
+
+신규 선택과 기존 결제 라우팅은 [기능 명세](pg-integration-spec.md), 결정 근거는
+[ADR 003](pg-decisions/003-payment-provider-routing.md), API 계약 전후의 작업 구분과 배포·장애·설정 복귀
+절차는 [PG 전환 배포와 장애 대응](pg-rollout.md)을 따른다.

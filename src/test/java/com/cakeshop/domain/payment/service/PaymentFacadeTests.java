@@ -1,5 +1,8 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
+
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
@@ -72,10 +75,10 @@ class PaymentFacadeTests {
                 paymentService,
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
-                        new TossPaymentGateway(tossPaymentClient, null),
-                        new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                        new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))),
+                        new PaymentApprovalResolver(new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))))
                 ),
-                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
+                new PaymentApprovalResolver(new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null)))),
                 CLOCK
         );
         ownedOrder = new PaymentOrder(
@@ -513,6 +516,7 @@ class PaymentFacadeTests {
         PaymentConfirmForm form = form(BigDecimal.valueOf(30_000));
         ApprovalResult approval = approval();
         CompensationRequest request = new CompensationRequest(
+                PaymentProvider.TOSS,
                 20L,
                 1L,
                 "payment-key",
@@ -561,10 +565,10 @@ class PaymentFacadeTests {
                 paymentService,
                 new PaymentCompensationProcessor(
                         paymentRecoveryService,
-                        new TossPaymentGateway(tossPaymentClient, null),
-                        new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null))
+                        new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))),
+                        new PaymentApprovalResolver(new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null))))
                 ),
-                new PaymentApprovalResolver(new TossPaymentGateway(tossPaymentClient, null)),
+                new PaymentApprovalResolver(new PaymentGatewayRouter("toss", List.of(new TossPaymentGateway(tossPaymentClient, null)))),
                 clock
         );
         PaymentExecutionOrder order = order(NOW.plusSeconds(1));
@@ -769,6 +773,7 @@ class PaymentFacadeTests {
         Payment refreshedPayment = payment();
         refreshedPayment.setIdempotencyKey("PAY-RETRY");
         CompensationRequest request = new CompensationRequest(
+                PaymentProvider.TOSS,
                 20L,
                 1L,
                 "stale-payment-key",
@@ -802,6 +807,7 @@ class PaymentFacadeTests {
         Payment payment = payment();
         payment.setPaymentKey("stale-payment-key");
         CompensationRequest request = new CompensationRequest(
+                PaymentProvider.TOSS,
                 20L,
                 1L,
                 "stale-payment-key",
@@ -854,6 +860,7 @@ class PaymentFacadeTests {
 
     private Payment payment() {
         Payment payment = new Payment();
+        payment.setProvider(PaymentProvider.TOSS);
         payment.setId(20L);
         payment.setOrderId(1L);
         payment.setGatewayOrderId("ORD-100");
@@ -884,6 +891,7 @@ class PaymentFacadeTests {
 
     private CompensationRequest compensationRequest() {
         return new CompensationRequest(
+                PaymentProvider.TOSS,
                 20L,
                 1L,
                 "payment-key",
