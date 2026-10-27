@@ -298,6 +298,7 @@
             updated_at
         FROM payment_cancellations
         WHERE active_requested_payment_id = #{paymentId}
+        FOR UPDATE
     </select>
 
     <select id="findRequestedRefundCancellations"
