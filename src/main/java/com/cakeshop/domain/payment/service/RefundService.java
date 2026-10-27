@@ -221,6 +221,8 @@ public class RefundService {
                 || result.canceledAt() == null) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_COMPLETE_FAILED);
         }
+        // 준비와 완료 모두 주문 → 취소 요청 순서로 잠가 서로의 잠금을 역순으로 기다리지 않는다.
+        orderPaymentCancellationCommandService.lockOrderForPaymentCancellation(request.orderId());
         PaymentCancellation cancellation = paymentMapper
                 .findPaymentCancellationByIdForUpdate(request.cancellationId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_COMPLETE_FAILED));

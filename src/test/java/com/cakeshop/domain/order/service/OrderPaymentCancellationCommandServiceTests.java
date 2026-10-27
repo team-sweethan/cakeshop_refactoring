@@ -66,7 +66,7 @@ class OrderPaymentCancellationCommandServiceTests {
 
     @Test
     void isGeneralPaymentCancellationAvailable_readyOrderBeforePickup_returnsTrue() {
-        when(orderMapper.findOrderById(10L)).thenReturn(Optional.of(order(3L)));
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(order(3L)));
 
         assertThat(service.isGeneralPaymentCancellationAvailable(10L, REQUESTED_AT)).isTrue();
     }
@@ -76,7 +76,7 @@ class OrderPaymentCancellationCommandServiceTests {
         Order order = order(3L);
         order.setOrderType(OrderType.CUSTOM);
         order.setStatus(OrderStatus.UNDER_REVIEW);
-        when(orderMapper.findOrderById(10L)).thenReturn(Optional.of(order));
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(order));
 
         assertThat(service.isPaymentCancellationAvailable(10L, "CUSTOMER", REQUESTED_AT)).isTrue();
         assertThat(service.isPaymentCancellationAvailable(10L, "ADMIN_REJECTION", REQUESTED_AT)).isTrue();
@@ -88,7 +88,7 @@ class OrderPaymentCancellationCommandServiceTests {
         Order order = order(3L);
         order.setOrderType(OrderType.CUSTOM);
         order.setStatus(OrderStatus.IN_PRODUCTION);
-        when(orderMapper.findOrderById(10L)).thenReturn(Optional.of(order));
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(order));
 
         assertThat(service.isPaymentCancellationAvailable(10L, "CUSTOMER", REQUESTED_AT)).isFalse();
         assertThat(service.isPaymentCancellationAvailable(10L, "ADMIN_REJECTION", REQUESTED_AT)).isFalse();

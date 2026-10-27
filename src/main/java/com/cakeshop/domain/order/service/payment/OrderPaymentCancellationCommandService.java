@@ -74,16 +74,16 @@ public class OrderPaymentCancellationCommandService {
      * 담당자 : 주환
      * 작성일 : 2026-08-11
      * 기능 : 결제 취소 가능 여부 확인
-     * 설명 : 고객 취소·관리자 일반 취소·수제 주문 반려별 주문 유형과 상태를 검증한다.
+     * 설명 : 잠금 대기 전 스냅샷 대신 현재 주문을 잠금 조회해 요청 유형별 취소 가능 상태를 검증한다.
      * ******************************
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public boolean isPaymentCancellationAvailable(
             long orderId,
             String requestType,
             LocalDateTime requestedAt
     ) {
-        return orderMapper.findOrderById(orderId)
+        return orderMapper.findOrderByIdForUpdate(orderId)
                 .map(order -> isPaymentCancellationAvailable(order, requestType, requestedAt))
                 .orElse(false);
     }
@@ -202,7 +202,7 @@ public class OrderPaymentCancellationCommandService {
      * 설명 : 기존 일반 주문 취소 계약과의 호환성을 유지한다.
      * ******************************
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public boolean isGeneralPaymentCancellationAvailable(long orderId, LocalDateTime requestedAt) {
         return isPaymentCancellationAvailable(orderId, CUSTOMER, requestedAt);
     }

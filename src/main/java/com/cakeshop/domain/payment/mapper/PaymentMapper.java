@@ -70,7 +70,7 @@ public interface PaymentMapper {
             @Param("idempotencyKey") String idempotencyKey
     );
 
-    // 결제에 이미 진행 중인 취소 요청이 있으면 재시도에서 같은 멱등 키를 재사용한다.
+    // 주문 잠금 후 현재 취소 요청을 잠금 조회해, 오래된 스냅샷에 따른 중복 요청 생성을 막는다.
     Optional<PaymentCancellation> findRequestedCancellationByPaymentId(
             @Param("paymentId") long paymentId
     );
