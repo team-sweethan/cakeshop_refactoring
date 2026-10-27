@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class RefundService {
 
     private final PaymentMapper paymentMapper;
+    private final PaymentRecoveryBatchCursor batchCursor = new PaymentRecoveryBatchCursor();
     private final OrderPaymentCancellationCommandService orderPaymentCancellationCommandService;
     private final MemberService memberService;
     private final MemberOrderQueryService memberOrderQueryService;
@@ -284,7 +285,7 @@ public class RefundService {
         if (limit <= 0) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING);
         }
-        return paymentMapper.findRequestedRefundCancellations(limit).stream()
+        return paymentMapper.findRequestedRefundCancellations(limit, batchCursor.nextProvider()).stream()
                 .map(this::toRefundRequest)
                 .toList();
     }

@@ -161,7 +161,7 @@ class PaymentMapperTests {
                     assertThat(reopened.getFailureCode()).isNull();
                     assertThat(reopened.getRequestedAt()).isAfter(oldRequestedAt);
                 });
-        assertThat(paymentMapper.findRequestedCompensations(10)).isEmpty();
+        assertThat(paymentMapper.findRequestedCompensations(10, PaymentProvider.TOSS)).isEmpty();
     }
 
     @Test
@@ -173,7 +173,7 @@ class PaymentMapperTests {
         guard.setCancelAmount(payment.getAmount());
         guard.setCancelReason("승인 보호");
         assertThat(paymentMapper.insertCompensationCancellation(guard)).isEqualTo(1);
-        assertThat(paymentMapper.findRequestedCompensations(10)).isEmpty();
+        assertThat(paymentMapper.findRequestedCompensations(10, PaymentProvider.TOSS)).isEmpty();
         assertThat(paymentMapper.failUnapprovedCompensationIfRequested(
                 guard.getId()
         )).isZero();
@@ -186,7 +186,7 @@ class PaymentMapperTests {
                 guard.getId()
         );
 
-        assertThat(paymentMapper.findRequestedCompensations(10))
+        assertThat(paymentMapper.findRequestedCompensations(10, PaymentProvider.TOSS))
                 .extracting(PaymentCancellation::getId)
                 .containsExactly(guard.getId());
         assertThat(paymentMapper.failUnapprovedCompensationIfRequested(
@@ -202,7 +202,7 @@ class PaymentMapperTests {
                 newPaymentCancellation(payment.getId(), "REFUND-GRACE-PERIOD");
         cancellation.setRequestType("CUSTOMER");
         assertThat(paymentMapper.insertPaymentCancellation(cancellation)).isEqualTo(1);
-        assertThat(paymentMapper.findRequestedRefundCancellations(10)).isEmpty();
+        assertThat(paymentMapper.findRequestedRefundCancellations(10, PaymentProvider.TOSS)).isEmpty();
         jdbcTemplate.update(
                 """
                 UPDATE payment_cancellations
@@ -213,7 +213,7 @@ class PaymentMapperTests {
         );
         // JdbcTemplate 변경 뒤 같은 Mapper 조회가 실제 DB를 다시 읽게 한다.
         sqlSession.clearCache();
-        assertThat(paymentMapper.findRequestedRefundCancellations(10))
+        assertThat(paymentMapper.findRequestedRefundCancellations(10, PaymentProvider.TOSS))
                 .extracting(PaymentCancellation::getId)
                 .containsExactly(cancellation.getId());
     }

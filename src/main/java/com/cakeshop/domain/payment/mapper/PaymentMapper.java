@@ -1,6 +1,7 @@
 package com.cakeshop.domain.payment.mapper;
 
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentCancellation;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
 import com.cakeshop.domain.payment.dto.view.PaymentAdminPaymentRow;
@@ -78,8 +79,11 @@ public interface PaymentMapper {
             @Param("paymentId") long paymentId
     );
 
-    // 원래 웹 요청과 경쟁하지 않도록 DB 현재 시각보다 1분 이상 오래된 취소만 조회한다.
-    List<PaymentCancellation> findRequestedRefundCancellations(@Param("limit") int limit);
+    // 1분 이상 오래된 환불을 PG별 순번·회차 우선 PG 순서로 전체 limit 이내에서 조회한다.
+    List<PaymentCancellation> findRequestedRefundCancellations(
+            @Param("limit") int limit,
+            @Param("priorityProvider") PaymentProvider priorityProvider
+    );
 
     // READY 또는 DONE 결제에 시스템 보상 취소 요청을 한 건만 생성한다.
     int insertCompensationCancellation(PaymentCancellation cancellation);
@@ -109,8 +113,11 @@ public interface PaymentMapper {
             @Param("idempotencyKey") String idempotencyKey
     );
 
-    // 정상 결제 완료와 경쟁하지 않도록 DB 현재 시각보다 1분 이상 오래된 보상만 조회한다.
-    List<PaymentCancellation> findRequestedCompensations(@Param("limit") int limit);
+    // 1분 이상 오래된 보상을 PG별 순번·회차 우선 PG 순서로 전체 limit 이내에서 조회한다.
+    List<PaymentCancellation> findRequestedCompensations(
+            @Param("limit") int limit,
+            @Param("priorityProvider") PaymentProvider priorityProvider
+    );
 
     // REQUESTED 환불과 부모 DONE 결제를 함께 완료·취소 처리한다.
     int completeCancellationIfRequested(

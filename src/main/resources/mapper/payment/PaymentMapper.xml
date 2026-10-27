@@ -334,15 +334,52 @@
     <select id="findRequestedRefundCancellations"
             resultType="com.cakeshop.domain.payment.entity.PaymentCancellation">
         SELECT
-            id, payment_id, idempotency_key, cancel_amount, cancel_reason,
-            request_type, requested_by, status, active_requested_payment_id,
-            transaction_key, failure_code, requested_at,
-            canceled_at, created_at, updated_at
-        FROM payment_cancellations
-        WHERE status = 'REQUESTED'
-          AND request_type IN ('CUSTOMER', 'ADMIN', 'ADMIN_REJECTION')
-          AND requested_at &lt;= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)
-        ORDER BY requested_at, id
+            id,
+            payment_id,
+            idempotency_key,
+            cancel_amount,
+            cancel_reason,
+            request_type,
+            requested_by,
+            status,
+            active_requested_payment_id,
+            transaction_key,
+            failure_code,
+            requested_at,
+            canceled_at,
+            created_at,
+            updated_at
+        FROM (
+            SELECT
+                cancellation.id,
+                cancellation.payment_id,
+                cancellation.idempotency_key,
+                cancellation.cancel_amount,
+                cancellation.cancel_reason,
+                cancellation.request_type,
+                cancellation.requested_by,
+                cancellation.status,
+                cancellation.active_requested_payment_id,
+                cancellation.transaction_key,
+                cancellation.failure_code,
+                cancellation.requested_at,
+                cancellation.canceled_at,
+                cancellation.created_at,
+                cancellation.updated_at,
+                payment.provider,
+                ROW_NUMBER() OVER (
+                    PARTITION BY payment.provider
+                    ORDER BY cancellation.requested_at, cancellation.id
+                ) AS provider_position
+            FROM payment_cancellations AS cancellation
+            INNER JOIN payments AS payment ON payment.id = cancellation.payment_id
+            WHERE cancellation.status = 'REQUESTED'
+              AND cancellation.request_type IN ('CUSTOMER', 'ADMIN', 'ADMIN_REJECTION')
+              AND cancellation.requested_at &lt;= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)
+        ) AS batch
+        ORDER BY provider_position,
+                 CASE WHEN provider = #{priorityProvider} THEN 0 ELSE 1 END,
+                 requested_at, id
         LIMIT #{limit}
     </select>
 
@@ -431,11 +468,37 @@
             canceled_at,
             created_at,
             updated_at
-        FROM payment_cancellations
-        WHERE status = 'REQUESTED'
-          AND request_type = 'SYSTEM_COMPENSATION'
-          AND requested_at &lt;= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)
-        ORDER BY requested_at, id
+        FROM (
+            SELECT
+                cancellation.id,
+                cancellation.payment_id,
+                cancellation.idempotency_key,
+                cancellation.cancel_amount,
+                cancellation.cancel_reason,
+                cancellation.request_type,
+                cancellation.requested_by,
+                cancellation.status,
+                cancellation.active_requested_payment_id,
+                cancellation.transaction_key,
+                cancellation.failure_code,
+                cancellation.requested_at,
+                cancellation.canceled_at,
+                cancellation.created_at,
+                cancellation.updated_at,
+                payment.provider,
+                ROW_NUMBER() OVER (
+                    PARTITION BY payment.provider
+                    ORDER BY cancellation.requested_at, cancellation.id
+                ) AS provider_position
+            FROM payment_cancellations AS cancellation
+            INNER JOIN payments AS payment ON payment.id = cancellation.payment_id
+            WHERE cancellation.status = 'REQUESTED'
+              AND cancellation.request_type = 'SYSTEM_COMPENSATION'
+              AND cancellation.requested_at &lt;= DATE_SUB(CURRENT_TIMESTAMP(6), INTERVAL 1 MINUTE)
+        ) AS batch
+        ORDER BY provider_position,
+                 CASE WHEN provider = #{priorityProvider} THEN 0 ELSE 1 END,
+                 requested_at, id
         LIMIT #{limit}
     </select>
 

@@ -28,6 +28,7 @@ public class PaymentRecoveryService {
             "내부 주문 처리 실패로 인한 자동 결제 취소";
 
     private final PaymentMapper paymentMapper;
+    private final PaymentRecoveryBatchCursor batchCursor = new PaymentRecoveryBatchCursor();
     private final OrderPaymentRecoveryService orderPaymentRecoveryService;
 
     public CompensationRequest createRequest(Payment payment, String paymentKey) {
@@ -136,7 +137,7 @@ public class PaymentRecoveryService {
         if (limit <= 0) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING);
         }
-        return paymentMapper.findRequestedCompensations(limit)
+        return paymentMapper.findRequestedCompensations(limit, batchCursor.nextProvider())
                 .stream()
                 .map(this::toCompensationRequest)
                 .toList();

@@ -245,7 +245,7 @@ class RefundServiceTests {
     void getRequestedCancellations_availableOrder_mapsRecoveryRequest() {
         PaymentCancellation cancellation = cancellation();
         cancellation.setRequestedAt(NOW.minusMinutes(2));
-        when(paymentMapper.findRequestedRefundCancellations(10)).thenReturn(List.of(cancellation));
+        when(paymentMapper.findRequestedRefundCancellations(10, PaymentProvider.TOSS)).thenReturn(List.of(cancellation));
         when(paymentMapper.findPaymentById(20L)).thenReturn(Optional.of(payment()));
         when(orderPaymentCancellationCommandService.isPaymentCancellationAvailable(
                 10L, "CUSTOMER", NOW.minusMinutes(2)
