@@ -15,6 +15,9 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import java.time.LocalDateTime;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpMethod;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -24,6 +27,36 @@ class TossPaymentClientTests {
 
     private static final String BASE_URL = "https://api.tosspayments.test";
     private static final String SECRET_KEY = "test-secret-key";
+
+    @ParameterizedTest
+    @ValueSource(strings = {"approve", "cancel", "find"})
+    void utcProviderResponseIsNormalizedToSeoul(String operation) {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE_URL);
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentClient client = new TossPaymentClient(builder.build(), SECRET_KEY);
+        String path = switch (operation) {
+            case "approve" -> "/v1/payments/confirm";
+            case "cancel" -> "/v1/payments/payment-key/cancel";
+            default -> "/v1/payments/payment-key";
+        };
+        server.expect(requestTo(BASE_URL + path)).andRespond(withSuccess("""
+                {"paymentKey":"payment-key","orderId":"ORD-100","method":"카드",
+                 "status":"CANCELED","totalAmount":30000,"approvedAt":"2026-08-01T01:00:00Z",
+                 "cancels":[{"transactionKey":"cancel-transaction","canceledAt":"2026-08-01T01:01:00Z"}]}
+                """, MediaType.APPLICATION_JSON));
+        LocalDateTime actual = switch (operation) {
+            case "approve" -> client.approve("payment-key", "ORD-100", 30000L, "PAY-1").approvedAt();
+            case "cancel" -> client.cancel("payment-key", "test", "CANCEL-1").canceledAt();
+            default -> {
+                var result = client.find("payment-key").orElseThrow();
+                assertThat(result.approvedAt()).isEqualTo(LocalDateTime.parse("2026-08-01T10:00:00"));
+                yield result.cancellation().canceledAt();
+            }
+        };
+        assertThat(actual).isEqualTo(LocalDateTime.parse(operation.equals("approve")
+                ? "2026-08-01T10:00:00" : "2026-08-01T10:01:00"));
+        server.verify();
+    }
 
     @Test
     void find_donePayment_mapsApprovalAndCancellationData() {

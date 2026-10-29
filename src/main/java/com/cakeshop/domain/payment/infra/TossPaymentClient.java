@@ -16,6 +16,8 @@ import org.springframework.web.client.RestClientResponseException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
@@ -91,7 +93,7 @@ public class TossPaymentClient {
                     response.method(),
                     toGatewayStatus(response.status()),
                     response.totalAmount(),
-                    response.approvedAt().toLocalDateTime()
+                    toSeoul(response.approvedAt())
             );
         } catch (RestClientException exception) {
             // PG 오류 응답의 상세 메시지나 인증 정보를 사용자에게 노출하지 않는다.
@@ -138,7 +140,7 @@ public class TossPaymentClient {
             return new CancellationResult(
                     toGatewayStatus(response.status()),
                     cancellation.transactionKey(),
-                    cancellation.canceledAt().toLocalDateTime()
+                    toSeoul(cancellation.canceledAt())
             );
         } catch (RestClientException exception) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
@@ -179,7 +181,7 @@ public class TossPaymentClient {
                 cancellation = new CancellationResult(
                         toGatewayStatus(response.status()),
                         lastCancellation.transactionKey(),
-                        lastCancellation.canceledAt().toLocalDateTime()
+                        toSeoul(lastCancellation.canceledAt())
                 );
             }
         }
@@ -192,9 +194,14 @@ public class TossPaymentClient {
                 response.totalAmount(),
                 response.approvedAt() == null
                         ? null
-                        : response.approvedAt().toLocalDateTime(),
+                        : toSeoul(response.approvedAt()),
                 cancellation
         );
+    }
+
+    // OffsetDateTime의 offset을 버리기 전에 같은 순간의 한국 시각으로 맞춘다.
+    private LocalDateTime toSeoul(OffsetDateTime time) {
+        return time.atZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDateTime();
     }
 
     private PaymentGatewayStatus toGatewayStatus(String status) {

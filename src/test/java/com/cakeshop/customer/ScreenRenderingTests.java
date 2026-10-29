@@ -82,6 +82,25 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @WithUserDetails(value = "user@cakeshop.local", userDetailsServiceBeanName = "memberDetailsService")
+    void customerScreensIncludeKoreaTimeFormatter() throws Exception {
+        assertThat(jdbcTemplate.queryForObject("SELECT @@session.time_zone", String.class)).isEqualTo("+09:00");
+        for (String path : new String[]{"/chat", "/notifications"}) {
+            mockMvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("/js/korea-time.js")));
+        }
+    }
+
+    @Test
+    @WithUserDetails(value = "admin@cakeshop.local", userDetailsServiceBeanName = "memberDetailsService")
+    void adminScreensIncludeKoreaTimeFormatter() throws Exception {
+        for (String path : new String[]{"/admin/chat", "/admin/notifications"}) {
+            mockMvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("/js/korea-time.js")));
+        }
+    }
+
+    @Test
     void publicScreensRenderWithoutAuthentication() throws Exception {
         String[] paths = {
             "/screens", "/login", "/admin/login", "/signup", "/find-email",

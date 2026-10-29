@@ -11,6 +11,7 @@ import com.cakeshop.domain.notification.mapper.NotificationMapper;
 import com.cakeshop.global.infra.kakao.SolapiKakaoAlimtalkClient;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 public class NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final Clock clock;
     private final MemberNotificationQueryService memberNotificationQueryService;
     private final NotificationDeliveryService notificationDeliveryService;
     private final SolapiKakaoAlimtalkClient solapiKakaoAlimtalkClient;
@@ -60,7 +62,7 @@ public class NotificationService {
         if (notificationMapper.existsByReceiverIdAndEventKey(request.getReceiverId(), eventKey)) {
             if (isBundleNotification) {
                 Notification existing = notificationMapper.findNotificationByReceiverAndEventKeyForUpdate(request.getReceiverId(), eventKey);
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime now = LocalDateTime.now(clock);
                 notificationMapper.updateLastEventAtAndUnread(request.getReceiverId(), eventKey, title, content, now);
 
                 long minutesGap = (existing != null && existing.getLastEventAt() != null)
@@ -102,7 +104,7 @@ public class NotificationService {
             return;
         }
 
-        LocalDateTime createNow = LocalDateTime.now();
+        LocalDateTime createNow = LocalDateTime.now(clock);
 
         // 신규 알림 생성
         Notification notification = Notification.builder()
@@ -132,7 +134,7 @@ public class NotificationService {
         } catch (DuplicateKeyException e) {
             if (isBundleNotification) {
                 Notification existing = notificationMapper.findNotificationByReceiverAndEventKeyForUpdate(request.getReceiverId(), eventKey);
-                LocalDateTime updateNow = LocalDateTime.now();
+                LocalDateTime updateNow = LocalDateTime.now(clock);
                 notificationMapper.updateLastEventAtAndUnread(request.getReceiverId(), eventKey, title, content, updateNow);
 
                 long minutesGap = (existing != null && existing.getLastEventAt() != null)
@@ -244,7 +246,7 @@ public class NotificationService {
             try {
                 SolapiKakaoAlimtalkClient.SmsResult result = solapiKakaoAlimtalkClient.sendAlimtalk(notificationId, receiverPhone, title, content);
                 if (result != null) {
-                    LocalDateTime sentAt = "SENT".equals(result.getStatus()) ? LocalDateTime.now() : null;
+                    LocalDateTime sentAt = "SENT".equals(result.getStatus()) ? LocalDateTime.now(clock) : null;
                     notificationDeliveryService.updateDeliveryResult(
                             deliveryId,
                             result.getStatus(),
