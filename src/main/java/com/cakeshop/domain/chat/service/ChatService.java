@@ -39,6 +39,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ public class ChatService {
     // TODO: 고객당 채팅방 1개 UNIQUE, 방 소유자 검증
 
     private final ChatMapper chatMapper;
+    private final Clock clock;
     private final MemberChatQueryService memberChatQueryService;
     private final OrderChatQueryService orderChatQueryService;
     private final FileStorageClient fileStorageClient;
@@ -211,7 +213,7 @@ public class ChatService {
             .customerId(customerId)
             .status(ChatRoomStatus.OPEN)
             .responseStatus(ChatResponseStatus.WAITING_ADMIN)
-            .createdAt(LocalDateTime.now())
+            .createdAt(LocalDateTime.now(clock))
             .build();
         try {
             chatMapper.insertChatRoom(chatRoom);
@@ -296,7 +298,7 @@ public class ChatService {
                 .senderId(senderId)
                 .productId(productId)
                 .content(content)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(clock))
                 .build();
             chatMapper.insertChatMessage(message);
 
@@ -311,7 +313,7 @@ public class ChatService {
                         .contentType(att.getContentType())
                         .fileSize(att.getFileSize())
                         .displayOrder(displayOrder++)   // 정렬 순서 자동 증가
-                        .createdAt(LocalDateTime.now())
+                        .createdAt(LocalDateTime.now(clock))
                         .build();
                         
                     try {
@@ -509,7 +511,7 @@ public class ChatService {
                 .chatRoomId(chatRoomId)
                 .orderId(orderId)
                 .conversationAnchorMessageId(anchorMessageId)
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(clock))
                 .build();
 
         chatMapper.upsertChatRoomOrder(roomOrder);
@@ -538,8 +540,8 @@ public class ChatService {
                 .chatRoomId(chatRoomId)
                 .readerSide(derivedSide)
                 .lastReadMessageId(lastReadMessageId)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(clock))
+                .updatedAt(LocalDateTime.now(clock))
                 .build();
 
         chatMapper.upsertReadCursor(cursor);
@@ -644,8 +646,8 @@ public class ChatService {
                 .customerId(customerId)
                 .content(request.getContent())
                 .updatedBy(adminId)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(clock))
+                .updatedAt(LocalDateTime.now(clock))
                 .build();
 
         chatMapper.upsertCustomerAdminNote(note);

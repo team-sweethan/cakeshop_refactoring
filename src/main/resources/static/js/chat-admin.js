@@ -193,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const existing = roomMap.get(r.chatRoomId || r.id);
             if (existing) {
               const isExistingNewer = (existing.lastMessageId && r.lastMessageId && existing.lastMessageId > r.lastMessageId) ||
-                (existing.lastMessageCreatedAt && r.lastMessageCreatedAt && new Date(existing.lastMessageCreatedAt) > new Date(r.lastMessageCreatedAt));
+                (existing.lastMessageCreatedAt && r.lastMessageCreatedAt && window.CakeShopTime.parse(existing.lastMessageCreatedAt) > window.CakeShopTime.parse(r.lastMessageCreatedAt));
 
               if (isExistingNewer) {
                 r.lastMessageId = existing.lastMessageId;
@@ -1005,18 +1005,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
 
           function formatPickupDateTime(rawTime) {
-            if (!rawTime || rawTime === "-") return "-";
-            try {
-              const date = new Date(rawTime);
-              if (isNaN(date.getTime())) return String(rawTime);
-              const month = String(date.getMonth() + 1).padStart(2, "0");
-              const day = String(date.getDate()).padStart(2, "0");
-              const hours = String(date.getHours()).padStart(2, "0");
-              const minutes = String(date.getMinutes()).padStart(2, "0");
-              return `${month}월 ${day}일 ${hours}:${minutes}`;
-            } catch (e) {
-              return String(rawTime);
-            }
+            return window.CakeShopTime.pickup(rawTime);
           }
 
           cardDiv.innerHTML = `
@@ -1344,14 +1333,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatTime(isoString) {
-    try {
-      const date = new Date(isoString);
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    } catch (e) {
-      return "";
-    }
+    return window.CakeShopTime.time(isoString);
   }
 
   // 주문 목록의 딥링크는 채팅 도메인의 권위 있는 방·고객 조합으로 연다.

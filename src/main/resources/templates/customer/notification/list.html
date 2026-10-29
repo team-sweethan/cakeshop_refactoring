@@ -9,6 +9,7 @@
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/customer-mockup.js}"></script>
+  <script defer th:src="@{/js/korea-time.js}"></script>
 </head>
 <body data-page-title="알림">
   <header th:replace="~{fragments/common/header :: header}"></header>
@@ -68,7 +69,7 @@
               
               // 날짜 포맷 변환 (YYYY-MM-DD HH:mm 형태로 자르기, 최근 이벤트 시각 우선)
               const displayDate = item.lastEventAt || item.createdAt;
-              const formattedDate = displayDate ? displayDate.replace("T", " ").substring(0, 16) : "";
+              const formattedDate = window.CakeShopTime.dateTime(displayDate);
 
               // 상세 링크 버튼 생성 (targetUrl이 있는 경우, data-noti-id 추가로 읽음 처리 연동)
               const detailBtn = item.targetUrl 

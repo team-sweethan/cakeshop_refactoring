@@ -455,18 +455,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       function formatPickupDateTime(rawTime) {
-        if (!rawTime || rawTime === "-") return "-";
-        try {
-          const date = new Date(rawTime);
-          if (isNaN(date.getTime())) return String(rawTime);
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const hours = String(date.getHours()).padStart(2, "0");
-          const minutes = String(date.getMinutes()).padStart(2, "0");
-          return `${month}월 ${day}일 ${hours}:${minutes}`;
-        } catch (e) {
-          return String(rawTime);
-        }
+        return window.CakeShopTime.pickup(rawTime);
       }
 
       itemDiv.innerHTML = `
@@ -694,14 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatTime(isoString) {
-    try {
-      const date = new Date(isoString);
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    } catch (e) {
-      return "";
-    }
+    return window.CakeShopTime.time(isoString);
   }
 
   // 초기화 실행
