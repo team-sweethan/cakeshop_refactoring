@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 고객의 수제 케이크 요청·주문·쿠폰 예약·READY 결제 준비를 하나의 작업으로 처리한다. */
@@ -49,6 +51,7 @@ public class CustomerCustomOrderService {
     private final MemberCouponQueryService memberCouponQueryService;
     private final CouponOrderCommandService couponOrderCommandService;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     /** 수제 주문과 스냅샷, 쿠폰 예약, READY 결제를 한 트랜잭션으로 생성한다. */
     @Transactional
@@ -145,6 +148,7 @@ public class CustomerCustomOrderService {
                 order.getOrderNumber(),
                 order.getFinalAmount()
         );
+        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
         return OrderCreationResult.paymentReady(order.getId());
     }
 

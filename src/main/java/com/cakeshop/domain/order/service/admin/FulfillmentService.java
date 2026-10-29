@@ -13,6 +13,8 @@ import com.cakeshop.global.common.paging.PageResult;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -38,6 +40,7 @@ public class FulfillmentService {
 
     private final OrderMapper orderMapper;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     /** 검토·제작·픽업 업무 전체를 페이지 단위로 조회하고 상품·옵션 스냅샷을 조합한다. */
     @Transactional(readOnly = true)
@@ -94,6 +97,7 @@ public class FulfillmentService {
         if (affectedRows != 1) {
             throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
         }
+        events.publishEvent(new DonWorryPickupEvent(orderId, true));
     }
 
     private OrderStatus normalizeStatus(OrderStatus status) {
