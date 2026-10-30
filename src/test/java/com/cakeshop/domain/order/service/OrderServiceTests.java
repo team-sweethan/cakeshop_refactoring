@@ -1,5 +1,8 @@
 package com.cakeshop.domain.order.service;
 
+import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.cakeshop.domain.order.dto.form.customer.OrderCartCreateForm;
 import com.cakeshop.domain.order.dto.form.customer.OrderGeneralCreateForm;
 import com.cakeshop.domain.order.dto.view.customer.OrderCreationResult;
@@ -102,6 +105,9 @@ class OrderServiceTests {
     @Mock
     private OrderCartMapper orderCartMapper;
 
+    @Mock
+    private ApplicationEventPublisher events;
+
     private OrderService orderService;
 
     @BeforeEach
@@ -120,7 +126,7 @@ class OrderServiceTests {
                 couponOrderCommandService,
                 cartOrderQueryService,
                 orderCartMapper,
-                FIXED_CLOCK
+                FIXED_CLOCK, events
         );
     }
 
@@ -198,6 +204,7 @@ class OrderServiceTests {
                 order.getFinalAmount()
         );
 
+        verify(events).publishEvent(new DonWorryPickupEvent(100L, false));
         InOrder saveOrder = inOrder(
                 productQueryService,
                 orderOptionValidator,
@@ -250,6 +257,7 @@ class OrderServiceTests {
         form.setDisplayedOriginalAmount(BigDecimal.valueOf(50_000));
 
         OrderCreationResult result = orderService.createCartOrder(10L, form);
+        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId(), false));
 
         assertThat(result.orderId()).isEqualTo(100L);
         assertThat(result.requiresPendingPaymentGuide()).isFalse();

@@ -1,5 +1,8 @@
 package com.cakeshop.domain.order.service.customer;
 
+import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
+import org.springframework.context.ApplicationEventPublisher;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,6 +59,9 @@ class CustomerCustomOrderServiceTests {
     @Mock private MemberCouponQueryService memberCouponQueryService;
     @Mock private CouponOrderCommandService couponOrderCommandService;
 
+    @Mock
+    private ApplicationEventPublisher events;
+
     private CustomerCustomOrderService service;
 
     @BeforeEach
@@ -63,7 +69,7 @@ class CustomerCustomOrderServiceTests {
         service = new CustomerCustomOrderService(
                 pickupAvailabilityPolicy, productQueryService, orderOptionValidator, orderMapper,
                 paymentPreparationCommandService, memberService, memberCouponQueryService,
-                couponOrderCommandService, CLOCK
+                couponOrderCommandService, CLOCK, events
         );
     }
 
@@ -92,6 +98,7 @@ class CustomerCustomOrderServiceTests {
     void createCustomOrder_validRequest_savesServerCalculatedSnapshotAndReadyPayment() {
         stubNewOrder();
         OrderCreationResult result = service.createCustomOrder(10L, form());
+        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId(), false));
 
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderMapper).insertOrder(orderCaptor.capture());

@@ -31,6 +31,8 @@ import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -60,6 +62,7 @@ public class OrderService {
     private final CartOrderQueryService cartOrderQueryService;
     private final OrderCartMapper orderCartMapper;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     /** 일반 상품 주문, 주문 항목 스냅샷, READY 결제를 하나의 트랜잭션으로 생성한다. */
     @Transactional
@@ -152,6 +155,7 @@ public class OrderService {
                 order.getFinalAmount()
         );
 
+        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
         return OrderCreationResult.paymentReady(order.getId());
     }
 
@@ -255,6 +259,7 @@ public class OrderService {
         paymentOrderPreparationCommandService.prepareReadyPayment(
                 order.getId(), order.getOrderNumber(), order.getFinalAmount()
         );
+        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
         return OrderCreationResult.paymentReady(order.getId());
     }
 
