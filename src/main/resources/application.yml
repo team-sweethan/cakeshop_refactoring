@@ -115,6 +115,14 @@ app:
       initial-delay: ${PAYMENT_RECOVERY_INITIAL_DELAY:60s}
       batch-size: ${PAYMENT_RECOVERY_BATCH_SIZE:50}
 
+# P6 픽업 송신은 실제 키·주소가 준비될 때만 명시적으로 켠다.
+donworry:
+  pickup:
+    enabled: ${DONWORRY_PICKUP_ENABLED:false}
+    base-url: ${DONWORRY_PICKUP_BASE_URL:}
+    merchant-code: ${DONWORRY_MERCHANT_CODE:CAKESHOP}
+    key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
+
 ---
 # Google/Kakao OAuth login. Team members configure both providers in .env.
 spring:
@@ -241,11 +249,3 @@ spring:
     # 애플리케이션 기동으로 공용 RDS 스키마가 변경되지 않도록 차단한다.
     # RDS 스키마 변경은 검토·승인된 별도 반영 절차로만 수행한다.
     enabled: false
-
-# P6 픽업 송신은 실제 키·주소가 준비될 때만 명시적으로 켠다.
-donworry:
-  pickup:
-    enabled: ${DONWORRY_PICKUP_ENABLED:false}
-    base-url: ${DONWORRY_PICKUP_BASE_URL:}
-    merchant-code: ${DONWORRY_MERCHANT_CODE:CAKESHOP}
-    key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
