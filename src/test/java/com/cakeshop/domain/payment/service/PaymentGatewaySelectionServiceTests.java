@@ -132,7 +132,8 @@ class PaymentGatewaySelectionServiceTests {
 
     private DonWorryPaymentResponse attempt(String status) {
         return new DonWorryPaymentResponse(3L, "ORD-100", 1, status,
-                Instant.parse("2026-10-31T03:00:00Z"), Instant.parse("2026-10-31T03:00:00Z"), 25_000L, null);
+                Instant.parse("2026-10-31T03:00:00Z"), Instant.parse("2026-10-31T03:00:00Z"), 25_000L, null,
+                "HELD".equals(status) || "CAPTURED".equals(status));
     }
 
     private PaymentCheckoutView checkout() {

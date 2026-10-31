@@ -1,8 +1,6 @@
 (function () {
   "use strict";
 
-  const POLL_INTERVAL_MS = 3000;
-
   document.addEventListener("DOMContentLoaded", function () {
     const root = document.getElementById("payment-root");
     const button = document.getElementById("request-payment");
@@ -16,8 +14,9 @@
     const tossForm = document.getElementById("choose-toss-form");
     const donWorryForm = document.getElementById("choose-donworry-form");
     const donWorryPanel = document.getElementById("donworry-panel");
-    // 돈워리 결제 요청 뒤 결과가 나올 때까지 모달을 닫지 못하게 한다.
-    let locked = false;
+    const donWorryFrame = document.getElementById("donworry-frame");
+    // 돈워리 결제창이 보내는 메시지는 이 출처에서 온 것만 받는다(결제 준비 응답의 결제창 출처).
+    let checkoutOrigin = null;
 
     function showError(node, message) {
       if (!node) return;
@@ -36,19 +35,14 @@
     }
 
     function showChoice() {
-      locked = false;
+      checkoutOrigin = null;
       choice.hidden = false;
       donWorryPanel.hidden = true;
-      donWorryPanel.replaceChildren();
+      donWorryFrame.removeAttribute("src");
       showError(modalError, "");
       modal.querySelectorAll(".pg-choice__button").forEach(function (node) {
         node.disabled = node.dataset.unavailable === "true";
       });
-    }
-
-    function closeModal() {
-      if (locked) return;
-      modal.close();
     }
 
     // 선택한 PG를 서버에 저장한다. 폼의 CSRF 값을 그대로 보낸다.
@@ -76,12 +70,11 @@
     });
 
     modal.addEventListener("click", function (event) {
-      if (event.target.closest("[data-modal-close]")) closeModal();
+      if (event.target.closest("[data-modal-close]")) modal.close();
     });
 
-    // Esc로 닫을 때도 결제 진행 중이면 막는다.
-    modal.addEventListener("cancel", function (event) {
-      if (locked) event.preventDefault();
+    modal.addEventListener("close", function () {
+      showChoice();
     });
 
     if (tossForm) {
@@ -141,7 +134,7 @@
     }
 
     if (donWorryForm) {
-      // 돈워리: 선택을 저장하고 모달 안에 돈워리 결제창을 그린다.
+      // 돈워리: 선택을 저장하고 돈워리에 결제를 준비한 뒤, 돈워리 결제창을 모달 안 iframe으로 연다.
       donWorryForm.addEventListener("submit", async function (event) {
         event.preventDefault();
         const donWorryButton = donWorryForm.querySelector("button");
@@ -151,16 +144,20 @@
           if (!(await saveSelection(donWorryForm))) {
             throw new Error("selection");
           }
-          const response = await fetch(modal.dataset.donworryPanelUrl, { credentials: "same-origin" });
+          const response = await fetch(modal.dataset.donworrySessionUrl, {
+            method: "POST",
+            body: new FormData(donWorryForm),
+            credentials: "same-origin",
+            headers: { Accept: "application/json" }
+          });
           if (!response.ok) {
-            throw new Error("panel");
+            throw new Error("session");
           }
-          donWorryPanel.innerHTML = await response.text();
-          const payForm = donWorryPanel.querySelector("#dw-pay-form");
-          if (!payForm) {
-            throw new Error("panel");
-          }
-          openDonWorryPanel(payForm);
+          const session = await response.json();
+          checkoutOrigin = session.checkoutOrigin;
+          donWorryFrame.src = session.checkoutUrl;
+          choice.hidden = true;
+          donWorryPanel.hidden = false;
         } catch (error) {
           donWorryButton.disabled = false;
           showError(modalError, "돈워리 결제창을 열지 못했습니다. 이미 진행 중인 결제가 있는지 확인해 주세요.");
@@ -168,87 +165,24 @@
       });
     }
 
-    function openDonWorryPanel(payForm) {
-      choice.hidden = true;
-      donWorryPanel.hidden = false;
-      const payButton = payForm.querySelector("#dw-pay-button");
-      const processing = payForm.querySelector("#dw-processing");
-      const cancel = donWorryPanel.querySelector("#dw-cancel");
-      if (payButton) payButton.focus();
-
-      // 모달 안의 결제 취소는 결제 수단 선택으로 돌아간다.
-      if (cancel) {
-        cancel.addEventListener("click", function (event) {
-          event.preventDefault();
-          showChoice();
-        });
-      }
-
-      payForm.addEventListener("submit", async function (event) {
-        event.preventDefault();
-        locked = true;
-        payButton.disabled = true;
-        payButton.hidden = true;
-        if (cancel) cancel.hidden = true;
-        processing.hidden = false;
-        try {
-          const response = await fetch(modal.dataset.donworryRequestUrl, {
-            method: "POST",
-            body: new FormData(payForm),
-            credentials: "same-origin",
-            headers: { Accept: "application/json" }
-          });
-          if (!response.ok) {
-            throw new Error("request");
-          }
-          follow(await response.json(), payForm);
-        } catch (error) {
-          locked = false;
-          payButton.disabled = false;
-          payButton.hidden = false;
-          if (cancel) cancel.hidden = false;
-          processing.hidden = true;
-          showError(errorNode, "돈워리 결제를 요청하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-        }
-      });
-    }
-
-    // 결과가 나오면 기존 성공·실패 화면으로 간다. PENDING·HELD는 모달에서 기다리며 다시 조회한다.
-    function follow(progress, payForm) {
-      if (!progress.inProgress) {
-        location.assign(progress.nextUrl);
+    // 돈워리 결제창이 결과를 알리면 이 화면이 결과 주소로 이동한다. 이 쇼핑몰 주소만 따른다.
+    window.addEventListener("message", function (event) {
+      if (!checkoutOrigin || event.origin !== checkoutOrigin) return;
+      const data = event.data;
+      if (data && data.type === "donworry-checkout-resize" && Number.isFinite(data.height)) {
+        // 결제창 내용 높이에 맞춘다. 화면보다 크면 CSS max-height까지만 늘고 iframe 안에서 스크롤한다.
+        donWorryFrame.style.height = Math.max(200, Math.ceil(data.height)) + "px";
         return;
       }
-      showWaiting(progress, payForm);
-      window.setTimeout(async function () {
-        try {
-          const response = await fetch(progress.nextUrl + "/progress", {
-            credentials: "same-origin",
-            headers: { Accept: "application/json" }
-          });
-          if (!response.ok) throw new Error("progress");
-          follow(await response.json(), payForm);
-        } catch (error) {
-          // 조회에 실패하면 결과 대기 화면으로 넘겨 계속 확인하게 한다.
-          location.assign(progress.nextUrl);
-        }
-      }, POLL_INTERVAL_MS);
-    }
-
-    function showWaiting(progress, payForm) {
-      const result = donWorryPanel.querySelector("#dw-result");
-      if (!result) return;
-      payForm.hidden = true;
-      result.hidden = false;
-      const held = progress.paymentStatus === "HELD";
-      donWorryPanel.querySelector("#dw-result-icon").hidden = !held;
-      donWorryPanel.querySelector("#dw-result-spin").hidden = held;
-      donWorryPanel.querySelector("#dw-result-title").textContent =
-        held ? "결제를 확인하고 있습니다" : "결제를 처리하고 있습니다";
-      donWorryPanel.querySelector("#dw-result-message").textContent =
-        held
-          ? "카드 승인은 완료되었고, 안전 확인 후 최종 처리됩니다. 확인이 끝나면 자동으로 결과 화면으로 이동합니다."
-          : "잠시 후 결과로 바뀝니다.";
-    }
+      if (!data || data.type !== "donworry-checkout" || typeof data.redirectUrl !== "string") return;
+      let target;
+      try {
+        target = new URL(data.redirectUrl, location.origin);
+      } catch (error) {
+        return;
+      }
+      if (target.origin !== location.origin) return;
+      location.assign(target.href);
+    });
   });
 })();

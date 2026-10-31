@@ -124,6 +124,8 @@ donworry:
     key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
     connect-timeout: ${DONWORRY_PAYMENT_CONNECT_TIMEOUT:3s}
     read-timeout: ${DONWORRY_PAYMENT_READ_TIMEOUT:5s}
+    # 돈워리 결제창이 결과를 돌려보낼 이 쇼핑몰 주소
+    shop-base-url: ${DONWORRY_PAYMENT_SHOP_BASE_URL:http://localhost:8080}
 
 ---
 # Google/Kakao OAuth login. Team members configure both providers in .env.

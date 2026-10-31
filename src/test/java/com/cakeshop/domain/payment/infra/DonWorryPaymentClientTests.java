@@ -107,6 +107,32 @@ class DonWorryPaymentClientTests {
     }
 
     @Test
+    void createSession_signsBodyWithIdempotencyKeyAndReadsCheckoutUrl() {
+        AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
+        server.expect(requestTo(BASE_URL + "/api/payment-sessions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(request -> captured.set((MockClientHttpRequest) request))
+                .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"sessionKey\":\"pss_1\",\"checkoutUrl\":\"http://localhost:5174/checkout/pss_1\","
+                                + "\"expiresAt\":\"2026-10-31T03:09:00Z\"}"));
+
+        DonWorryPaymentSessionResponse session = client().createSession(new DonWorryPaymentSessionRequest(
+                "ORD-100", "42", 25_000L, Instant.parse("2026-10-31T02:59:00Z"), "딸기 케이크", null,
+                "http://localhost:8080/orders/1/payment/donworry/return",
+                "http://localhost:8080/orders/1/payment/fail", null), "idem-1");
+
+        assertThat(session.checkoutUrl()).isEqualTo("http://localhost:5174/checkout/pss_1");
+        HttpHeaders headers = captured.get().getHeaders();
+        byte[] body = captured.get().getBodyAsBytes();
+        assertThat(new String(body, StandardCharsets.UTF_8)).doesNotContain("buyerEmail").doesNotContain("notifyUrl");
+        assertThat(headers.getFirst("Idempotency-Key")).isEqualTo("idem-1");
+        assertThat(headers.getFirst("X-Signature")).isEqualTo(DonWorryPaymentClient.sign(KEY, "CAKESHOP",
+                "1793415600", headers.getFirst("X-Nonce"), "POST", "/api/payment-sessions", "application/json",
+                "idem-1", body));
+        server.verify();
+    }
+
+    @Test
     void findLatestAttempt_signsPathWithQuery() {
         AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
         server.expect(requestTo(BASE_URL + "/api/payment-orders?orderRef=ORD-100&size=1"))

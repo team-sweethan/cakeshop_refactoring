@@ -1,36 +1,33 @@
 package com.cakeshop.domain.payment.service;
 
-import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
-import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentOrder;
-import com.cakeshop.domain.payment.dto.form.DonWorryPayForm;
-import com.cakeshop.domain.payment.dto.view.DonWorryCheckoutView;
 import com.cakeshop.domain.payment.dto.view.PaymentCheckoutView;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentClient;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentException;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentGateway;
-import com.cakeshop.domain.payment.infra.DonWorryPaymentRequest;
-import com.cakeshop.domain.payment.infra.DonWorryPaymentResponse;
+import com.cakeshop.domain.payment.infra.DonWorryPaymentProperties;
+import com.cakeshop.domain.payment.infra.DonWorryPaymentSessionRequest;
+import com.cakeshop.domain.payment.infra.DonWorryPaymentSessionResponse;
 import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
-import java.math.BigDecimal;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * ******************************
  * 작성자 : 수민
  * 담당자 : 주환 (payment)
  * 작성일 : 2026-10-31
- * 기능 : DonWorry 결제창의 결제 요청·결과 확인
+ * 기능 : 돈워리 호스팅 결제창 준비와 결과 복귀
  * 설명 : 주문 소유권·결제 기한·금액 검증은 기존 PaymentCheckoutService를 그대로 거친다.
- *        DonWorry가 매입 완료(CAPTURED)를 알려 주면 기존 성공 콜백 → confirm 흐름으로 주문을 완료한다.
- *        이 서비스는 로컬 결제 상태를 바꾸지 않는다.
+ *        돈워리에 결제를 준비(세션)하고 받은 결제창 주소를 화면 모달의 iframe으로 띄운다.
+ *        카드 선택·FDS·보류 표시는 돈워리 결제창이 맡고, 승인되면 기존 성공 콜백 → confirm으로 주문을 완료한다.
  * ******************************
  */
 @Service
@@ -40,88 +37,80 @@ public class DonWorryCheckoutService {
     private static final Duration DONWORRY_REQUEST_WINDOW = Duration.ofMinutes(10);
 
     private final PaymentCheckoutService paymentCheckoutService;
-    private final OrderPaymentQueryService orderPaymentQueryService;
     private final ObjectProvider<DonWorryPaymentClient> clientProvider;
+    private final ObjectProvider<DonWorryPaymentProperties> propertiesProvider;
     private final Clock clock;
 
     public DonWorryCheckoutService(
             PaymentCheckoutService paymentCheckoutService,
-            OrderPaymentQueryService orderPaymentQueryService,
             ObjectProvider<DonWorryPaymentClient> clientProvider,
+            ObjectProvider<DonWorryPaymentProperties> propertiesProvider,
             Clock clock
     ) {
         this.paymentCheckoutService = paymentCheckoutService;
-        this.orderPaymentQueryService = orderPaymentQueryService;
         this.clientProvider = clientProvider;
+        this.propertiesProvider = propertiesProvider;
         this.clock = clock;
     }
 
-    /** 결제창을 열 때마다 새 멱등 키를 만든다. 같은 창에서 다시 제출하면 같은 결제 시도다. */
-    public DonWorryCheckoutView openWindow(long memberId, String memberEmail, long orderId, String selectedCard) {
+    /**
+     * 돈워리에 결제를 준비하고 결제창 주소를 받는다. 결제창을 열 때마다 새 준비 요청이며,
+     * 응답을 못 받으면 같은 키로 한 번 더 보낸다. 같은 주문의 결제 시도 중복은 돈워리가 막는다.
+     */
+    public DonWorryCheckoutSession prepare(long memberId, String memberEmail, long orderId) {
         PaymentCheckoutView payment = getDonWorryCheckout(memberId, memberEmail, orderId);
-        String selected = DonWorryDemoCard.from(selectedCard).orElse(DonWorryDemoCard.A).code();
-        return new DonWorryCheckoutView(
-                payment,
-                Arrays.asList(DonWorryDemoCard.values()),
-                selected,
-                UUID.randomUUID().toString()
-        );
-    }
-
-    public DonWorryPaymentResult pay(
-            long memberId,
-            String memberEmail,
-            long orderId,
-            DonWorryPayForm form,
-            String deviceId,
-            String ipAddress
-    ) {
-        PaymentCheckoutView payment = getDonWorryCheckout(memberId, memberEmail, orderId);
-        DonWorryDemoCard card = DonWorryDemoCard.from(form.getCard())
-                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT));
-        DonWorryPaymentRequest request = new DonWorryPaymentRequest(
+        String shopBaseUrl = shopBaseUrl();
+        DonWorryPaymentSessionRequest request = new DonWorryPaymentSessionRequest(
                 payment.gatewayOrderId(),
                 Long.toString(memberId),
                 payment.amount().longValueExact(),
                 orderCreatedAt(payment),
-                deviceId,
-                card.token(memberId),
-                card.displayLabel(),
-                null,
-                ipAddress,
-                buyerEmail(memberEmail)
+                payment.orderName(),
+                buyerEmail(memberEmail),
+                shopBaseUrl + "/orders/" + orderId + "/payment/donworry/return",
+                shopBaseUrl + "/orders/" + orderId + "/payment/fail",
+                null
         );
-        DonWorryPaymentResponse response;
+        String key = UUID.randomUUID().toString();
+        DonWorryPaymentSessionResponse session;
         try {
-            response = client().request(request, form.getIdempotencyKey());
+            session = createWithRetry(request, key);
         } catch (DonWorryPaymentException exception) {
             if (exception.resultUnknown()) {
                 throw new BusinessException(PaymentErrorCode.PAYMENT_STATUS_LOOKUP_FAILED);
             }
             throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
         }
-        return toResult(orderId, payment.gatewayOrderId(), payment.amount(), response);
+        URI checkout = URI.create(session.checkoutUrl());
+        String origin = checkout.getScheme() + "://" + checkout.getAuthority();
+        return new DonWorryCheckoutSession(session.checkoutUrl(), origin);
     }
 
-    /** 회원 소유 주문의 DonWorry 결제인지 확인하고 현재 상태를 조회한다. 조회는 결제를 다시 실행하지 않는다. */
-    public DonWorryPaymentResult status(long memberId, long orderId, String paymentKey) {
-        PaymentOrder order = orderPaymentQueryService.getMemberPaymentOrder(memberId, orderId);
-        long paymentId = DonWorryPaymentGateway.paymentId(paymentKey)
-                .orElseThrow(() -> new BusinessException(CommonErrorCode.INVALID_INPUT));
-        DonWorryPaymentResponse response;
+    /** 돈워리 결제창이 돌려준 성공 값을 CakeShop 결제 키 형식(DW-)으로 바꿔 기존 성공 콜백 주소를 만든다. */
+    public String successCallbackUrl(long orderId, String paymentId, String gatewayOrderId, String amount) {
+        if (paymentId == null || !paymentId.matches("[1-9][0-9]{0,18}")) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT);
+        }
+        return UriComponentsBuilder.fromPath("/orders/" + orderId + "/payment/success")
+                .queryParam("paymentKey", DonWorryPaymentGateway.PAYMENT_KEY_PREFIX + paymentId)
+                .queryParam("orderId", gatewayOrderId)
+                .queryParam("amount", amount)
+                .encode()
+                .build()
+                .toUriString();
+    }
+
+    private DonWorryPaymentSessionResponse createWithRetry(DonWorryPaymentSessionRequest request, String key) {
+        DonWorryPaymentClient client = client();
         try {
-            response = client().find(paymentId);
+            return client.createSession(request, key);
         } catch (DonWorryPaymentException exception) {
-            throw new BusinessException(PaymentErrorCode.PAYMENT_STATUS_LOOKUP_FAILED);
+            if (!exception.resultUnknown()) {
+                throw exception;
+            }
+            // 결과를 모르면 같은 키·같은 본문으로 한 번 더 보낸다. 돈워리는 같은 세션을 돌려준다.
+            return client.createSession(request, key);
         }
-        if (!order.orderNumber().equals(response.orderRef())) {
-            throw new BusinessException(PaymentErrorCode.PAYMENT_ORDER_ID_MISMATCH);
-        }
-        if (order.finalAmount() == null
-                || order.finalAmount().compareTo(BigDecimal.valueOf(response.amount())) != 0) {
-            throw new BusinessException(PaymentErrorCode.AMOUNT_MISMATCH);
-        }
-        return toResult(orderId, order.orderNumber(), order.finalAmount(), response);
     }
 
     private PaymentCheckoutView getDonWorryCheckout(long memberId, String memberEmail, long orderId) {
@@ -158,6 +147,14 @@ public class DonWorryCheckoutService {
         return memberEmail;
     }
 
+    private String shopBaseUrl() {
+        DonWorryPaymentProperties properties = propertiesProvider.getIfAvailable();
+        if (properties == null || properties.getShopBaseUrl() == null) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_GATEWAY_UNAVAILABLE);
+        }
+        return properties.getShopBaseUrl().toString().replaceAll("/+$", "");
+    }
+
     private DonWorryPaymentClient client() {
         DonWorryPaymentClient client = clientProvider.getIfAvailable();
         if (client == null) {
@@ -166,45 +163,7 @@ public class DonWorryCheckoutService {
         return client;
     }
 
-    private DonWorryPaymentResult toResult(
-            long orderId,
-            String gatewayOrderId,
-            BigDecimal amount,
-            DonWorryPaymentResponse response
-    ) {
-        return new DonWorryPaymentResult(
-                orderId,
-                gatewayOrderId,
-                amount,
-                DonWorryPaymentGateway.paymentKey(response.paymentId()),
-                response.paymentStatus(),
-                response.declineCode()
-        );
-    }
-
-    public record DonWorryPaymentResult(
-            long orderId,
-            String gatewayOrderId,
-            BigDecimal amount,
-            String paymentKey,
-            String paymentStatus,
-            String declineCode
-    ) {
-
-        public boolean captured() {
-            return "CAPTURED".equals(paymentStatus);
-        }
-
-        public boolean inProgress() {
-            return "PENDING".equals(paymentStatus) || "HELD".equals(paymentStatus);
-        }
-
-        /** 실패 화면으로 넘길 코드. 거절 사유의 세부 규칙은 DonWorry가 알려 주지 않는다. */
-        public String failureCode() {
-            if ("DECLINED".equals(paymentStatus)) {
-                return DonWorryPaymentGateway.AUTHORIZATION_DECLINED;
-            }
-            return declineCode == null ? paymentStatus : declineCode;
-        }
+    /** 화면이 iframe으로 띄울 결제창 주소와, 결제창이 보내는 메시지를 확인할 출처. */
+    public record DonWorryCheckoutSession(String checkoutUrl, String checkoutOrigin) {
     }
 }

@@ -28,4 +28,6 @@ public class DonWorryPaymentProperties {
     private String keyEnvironmentVariable = "DONWORRY_MERCHANT_HMAC_CAKESHOP";
     private Duration connectTimeout = Duration.ofSeconds(3);
     private Duration readTimeout = Duration.ofSeconds(5);
+    // 돈워리 결제창이 결과를 돌려보낼 쇼핑몰 주소(성공·실패 URL의 앞부분).
+    private URI shopBaseUrl;
 }

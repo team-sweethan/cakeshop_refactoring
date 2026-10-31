@@ -16,8 +16,8 @@ import org.springframework.stereotype.Component;
  * 담당자 : 주환 (payment)
  * 작성일 : 2026-10-31
  * 기능 : DonWorry를 자체 PG(OWN)로 연결
- * 설명 : DonWorry 결제창은 CakeShop 화면에서 결제를 요청하고, 매입 완료(CAPTURED)가 확인된 결제만 기존 성공 콜백으로 넘긴다.
- *        따라서 approve는 새 승인을 요청하지 않고 DonWorry 상태를 조회해 CAPTURED인지 확인한다.
+ * 설명 : 돈워리 결제창(호스팅)이 카드 승인을 마치면 기존 성공 콜백으로 돌아온다(paymentKey = DW-돈워리 결제 ID).
+ *        approve는 새 승인을 요청하지 않고 돈워리 상태를 조회해 승인 완료(authorized)인지 확인한다.
  *        paymentKey는 "DW-" + DonWorry paymentId다.
  *        DonWorry에는 가맹점용 취소·환불 API가 아직 없어 cancel은 실패로 남기고 복구 대상으로 둔다.
  * ******************************
@@ -116,7 +116,7 @@ public class DonWorryPaymentGateway implements PaymentGateway {
                 paymentKey(response.paymentId()),
                 response.orderRef(),
                 METHOD,
-                toGatewayStatus(response.paymentStatus()),
+                toGatewayStatus(response),
                 response.amount(),
                 response.statusChangedAt() == null
                         ? null
@@ -130,12 +130,22 @@ public class DonWorryPaymentGateway implements PaymentGateway {
         throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
     }
 
+    // 카드 승인이 끝났으면(매입 대기·보류 포함) 결제 완료로 본다. 실제 PG의 "승인 = 결제됨"과 같다.
+    // 보류 뒤 직원 거절(VOIDED)은 웹훅으로 받아 주문을 취소한다.
+    static PaymentGatewayStatus toGatewayStatus(DonWorryPaymentResponse response) {
+        if (response.approved()) {
+            return PaymentGatewayStatus.DONE;
+        }
+        return toGatewayStatus(response.paymentStatus());
+    }
+
     static PaymentGatewayStatus toGatewayStatus(String donWorryStatus) {
         if (donWorryStatus == null) {
             return PaymentGatewayStatus.UNKNOWN;
         }
         return switch (donWorryStatus) {
             case "CAPTURED" -> PaymentGatewayStatus.DONE;
+            // 승인 전 평가 중이거나 승인 결과를 아직 모름
             case "PENDING", "HELD" -> PaymentGatewayStatus.IN_PROGRESS;
             // VOIDED는 매입 전 승인 취소라 청구가 없다. 환불 완료(CANCELED)와 구분한다.
             case "DENIED", "DECLINED", "VOIDED" -> PaymentGatewayStatus.ABORTED;

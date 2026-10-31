@@ -81,7 +81,7 @@ class DonWorryPaymentGatewayTests {
     }
 
     @Test
-    void approve_returnsOnlyCapturedPayment() {
+    void approve_capturedPayment_isApproval() {
         when(client.find(101L)).thenReturn(response("CAPTURED"));
 
         ApprovalResult approval = gateway.approve("DW-101", "ORD-100", 25_000L, "unused");
@@ -92,9 +92,22 @@ class DonWorryPaymentGatewayTests {
     }
 
     @Test
-    void approve_heldPayment_isNotApproval() {
-        when(client.find(101L)).thenReturn(response("HELD"));
+    void approve_authorizedHeldOrPendingPayment_isApproval() {
+        // 카드 승인 뒤 보류·매입 대기는 결제 완료다. 직원 거절(VOIDED)은 이후 웹훅으로 처리한다.
+        when(client.find(101L)).thenReturn(response("HELD", true), response("PENDING", true));
 
+        assertThat(gateway.approve("DW-101", "ORD-100", 25_000L, "unused").status())
+                .isEqualTo(PaymentGatewayStatus.DONE);
+        assertThat(gateway.approve("DW-101", "ORD-100", 25_000L, "unused").status())
+                .isEqualTo(PaymentGatewayStatus.DONE);
+    }
+
+    @Test
+    void approve_notAuthorizedPendingOrVoided_isNotApproval() {
+        when(client.find(101L)).thenReturn(response("PENDING", false), response("VOIDED", true));
+
+        assertThatThrownBy(() -> gateway.approve("DW-101", "ORD-100", 25_000L, "unused"))
+                .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> gateway.approve("DW-101", "ORD-100", 25_000L, "unused"))
                 .isInstanceOf(BusinessException.class);
     }
@@ -108,7 +121,12 @@ class DonWorryPaymentGatewayTests {
     }
 
     private DonWorryPaymentResponse response(String status) {
+        return response(status, "CAPTURED".equals(status));
+    }
+
+    private DonWorryPaymentResponse response(String status, boolean authorized) {
         return new DonWorryPaymentResponse(101L, "ORD-100", 1, status,
-                Instant.parse("2026-10-31T03:00:00Z"), Instant.parse("2026-10-31T03:01:00Z"), 25_000L, null);
+                Instant.parse("2026-10-31T03:00:00Z"), Instant.parse("2026-10-31T03:01:00Z"), 25_000L, null,
+                authorized);
     }
 }

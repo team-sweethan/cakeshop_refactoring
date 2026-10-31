@@ -42,6 +42,7 @@ public class DonWorryPaymentClient {
 
     private static final String PAYMENTS_PATH = "/api/payments";
     private static final String ORDERS_PATH = "/api/payment-orders";
+    private static final String SESSIONS_PATH = "/api/payment-sessions";
     private static final String CONTENT_TYPE = MediaType.APPLICATION_JSON_VALUE;
 
     private final RestClient restClient;
@@ -79,6 +80,15 @@ public class DonWorryPaymentClient {
         }
         byte[] body = json.writeValueAsBytes(request);
         return exchange(HttpMethod.POST, PAYMENTS_PATH, body, idempotencyKey, DonWorryPaymentResponse.class);
+    }
+
+    /** 호스팅 결제창을 준비한다. 같은 키·같은 본문이면 돈워리가 같은 세션을 돌려준다. */
+    public DonWorryPaymentSessionResponse createSession(DonWorryPaymentSessionRequest request, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key가 필요합니다.");
+        }
+        byte[] body = json.writeValueAsBytes(request);
+        return exchange(HttpMethod.POST, SESSIONS_PATH, body, idempotencyKey, DonWorryPaymentSessionResponse.class);
     }
 
     /** 결제 단건 상태를 조회한다. 조회는 평가·승인을 다시 실행하지 않는다. */
