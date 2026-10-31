@@ -64,3 +64,4 @@
 | 002 | [자체 PG 구현 전 선택 설정의 동작](002-payment-gateway-selection.md) | 대체됨 (003으로) |
 | 003 | [결제 생성 시 PG 고정과 기존 결제 라우팅](003-payment-provider-routing.md) | 채택 |
 | 004 | [복구 배치에서 PG별 처리 기회 분배](004-payment-recovery-batch-fairness.md) | 채택 |
+| 006 | [결제창에서 고객이 PG(Toss·DonWorry)를 고른다](006-customer-payment-gateway-choice.md) | 제안 |

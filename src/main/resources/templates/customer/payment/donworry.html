@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>돈워리 결제 | 케이크 쇼핑몰</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/donworry-checkout.css}">
+  <script defer th:src="@{/js/app.js}"></script>
+  <script defer th:src="@{/js/donworry-checkout.js}"></script>
+</head>
+<body data-page-title="돈워리 결제">
+  <header th:replace="~{fragments/common/header :: header}"></header>
+
+  <main class="page-container page-container--narrow">
+    <!--/* 결제 화면 모달은 이 조각만 받아 그린다(/payment/donworry/panel). 이 화면 자체는 스크립트 없이 쓰는 대체 경로다. */-->
+    <section class="dw-window"
+             th:fragment="panel"
+             th:with="payment=${checkout.payment}"
+             aria-labelledby="dw-title">
+      <div class="dw-top">
+        <b id="dw-title" class="dw-brand">돈워리 <span>결제</span></b>
+        <span class="dw-muted" th:text="${payment.orderNumber}">ORD-0001</span>
+      </div>
+
+      <dl class="dw-summary">
+        <div class="dw-row"><dt>가맹점</dt><dd><b>CakeShop</b></dd></div>
+        <div class="dw-row"><dt>상품</dt><dd th:text="${payment.orderName}">상품명</dd></div>
+        <div class="dw-row">
+          <dt>구매자</dt>
+          <dd th:text="${payment.customerEmail} ? |${payment.customerName} · ${payment.customerEmail}| : ${payment.customerName}">
+            구매자
+          </dd>
+        </div>
+        <div class="dw-row dw-row--amount">
+          <dt>결제 금액</dt>
+          <dd><b th:text="|${#numbers.formatInteger(payment.amount, 1, 'COMMA')}원|">0원</b></dd>
+        </div>
+      </dl>
+
+      <form class="dw-body"
+            id="dw-pay-form"
+            method="post"
+            th:action="@{/orders/{id}/payment/donworry(id=${payment.orderId})}">
+        <input type="hidden" name="idempotencyKey" th:value="${checkout.idempotencyKey}">
+        <fieldset class="dw-cards">
+          <legend>결제 카드 (시연용 모의 카드)</legend>
+          <label class="dw-card" th:each="card : ${checkout.cards}">
+            <input type="radio"
+                   name="card"
+                   required
+                   th:value="${card.code()}"
+                   th:checked="${card.code() == checkout.selectedCard}">
+            <span class="dw-card__face" th:style="|background:${card.color()}|" aria-hidden="true"></span>
+            <span>
+              <b th:text="${card.label()}">시연 카드</b><br>
+              <span class="dw-muted" th:text="|${card.masked()} · 발급국 ${card.issuerCountry()}|">**** 0000 · 발급국 KR</span>
+            </span>
+          </label>
+        </fieldset>
+
+        <p class="dw-note">
+          결제 보안 확인을 위해 이메일 · 접속 IP · 기기 정보가 돈워리에 전달됩니다. 카드번호는 전달하지 않습니다.
+        </p>
+
+        <button class="btn btn--primary btn--block"
+                type="submit"
+                id="dw-pay-button"
+                th:text="|${#numbers.formatInteger(payment.amount, 1, 'COMMA')}원 결제하기|">
+          결제하기
+        </button>
+        <div class="dw-processing" id="dw-processing" role="status" hidden>
+          <span class="dw-spin" aria-hidden="true"></span>
+          <b>결제를 처리하고 있습니다</b>
+          <span class="dw-muted">FDS가 위험 점수를 계산하는 중입니다. 창을 닫지 마세요.</span>
+        </div>
+        <a class="btn btn--block"
+           id="dw-cancel"
+           th:href="@{/orders/{id}/payment/fail(id=${payment.orderId},code='DONWORRY_USER_CANCELED')}">
+          결제 취소
+        </a>
+      </form>
+
+      <!--/* 모달에서 결제 요청 뒤 결과를 기다릴 때 보인다. 문구는 스크립트가 상태에 맞춰 바꾼다. */-->
+      <div class="dw-result" id="dw-result" role="status" aria-live="polite" hidden>
+        <span class="dw-result__icon dw-result__icon--held" id="dw-result-icon" aria-hidden="true">…</span>
+        <span class="dw-spin" id="dw-result-spin" aria-hidden="true"></span>
+        <h2 id="dw-result-title">결제를 처리하고 있습니다</h2>
+        <p class="dw-muted" id="dw-result-message">잠시 후 결과로 바뀝니다.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>
+</body>
+</html>

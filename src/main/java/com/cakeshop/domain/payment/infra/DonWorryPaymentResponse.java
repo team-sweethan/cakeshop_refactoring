@@ -28,4 +28,10 @@ public record DonWorryPaymentResponse(
     public boolean inProgress() {
         return "PENDING".equals(paymentStatus) || "HELD".equals(paymentStatus);
     }
+
+    /** 청구 없이 끝난 시도. 이 상태면 같은 주문으로 새 시도나 다른 PG 결제를 해도 이중 청구가 없다. */
+    public boolean endedWithoutCharge() {
+        return "DENIED".equals(paymentStatus) || "DECLINED".equals(paymentStatus)
+                || "VOIDED".equals(paymentStatus) || "EXPIRED".equals(paymentStatus);
+    }
 }
