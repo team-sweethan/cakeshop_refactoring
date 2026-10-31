@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--/* 결과가 나올 때까지 5초마다 다시 조회한다. 서버가 결과에 맞춰 성공·실패 화면으로 보낸다. */-->
+  <meta http-equiv="refresh" content="5">
+  <title>결제 확인 중 | 케이크 쇼핑몰</title>
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/donworry-checkout.css}">
+  <script defer th:src="@{/js/app.js}"></script>
+</head>
+<body data-page-title="결제 확인 중">
+  <header th:replace="~{fragments/common/header :: header}"></header>
+
+  <main class="page-container page-container--narrow">
+    <section class="dw-window" aria-labelledby="dw-status-title">
+      <div class="dw-top">
+        <b class="dw-brand">돈워리 <span>결제</span></b>
+        <span class="dw-muted" th:text="${status.orderNumber}">ORD-0001</span>
+      </div>
+
+      <div class="dw-result" role="status">
+        <th:block th:if="${status.held()}">
+          <span class="dw-result__icon dw-result__icon--held" aria-hidden="true">…</span>
+          <h1 id="dw-status-title">결제를 확인하고 있습니다</h1>
+          <p class="dw-muted">
+            카드 승인은 완료되었고, 안전 확인 후 최종 처리됩니다.<br>
+            확인이 끝나면 이 화면이 자동으로 결과로 바뀝니다.
+          </p>
+        </th:block>
+        <th:block th:unless="${status.held()}">
+          <span class="dw-spin" aria-hidden="true"></span>
+          <h1 id="dw-status-title">결제를 처리하고 있습니다</h1>
+          <p class="dw-muted">잠시 후 결과로 바뀝니다.</p>
+        </th:block>
+
+        <a class="btn btn--block"
+           th:href="@{/orders/{id}/payment/donworry/{key}(id=${status.orderId},key=${status.paymentKey})}">
+          지금 다시 확인
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>
+</body>
+</html>

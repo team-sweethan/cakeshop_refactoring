@@ -1,8 +1,8 @@
-# DonWorry 결제 API 클라이언트
+# DonWorry 결제 연동
 
-- 관련: 로드맵 #1, [PG-3] #4, DonWorry #149(결제 API) · #219(HMAC) · #246(CakeShop 키)
-- 범위: DonWorry `POST /api/payments` · `GET /api/payments/{paymentId}`를 서명해 호출하는 HTTP 경계만 둔다.
-  결제 흐름·`PaymentGateway`·`OWN` 라우팅은 바꾸지 않는다.
+- 관련: 로드맵 #1, [PG-3] #4, DonWorry #149(결제 API) · #219(HMAC) · #246(CakeShop 키), DonWorry 프로토타입 v4.2 결제창
+- 범위: DonWorry 결제 API 클라이언트, `OWN` 게이트웨이, CakeShop 안의 DonWorry 결제창(시연용 모의 카드 4장).
+  주문 완료는 기존 Toss와 같은 성공 콜백 → `confirm` 흐름을 그대로 쓴다.
 
 ## 1. 구성
 
@@ -12,15 +12,40 @@
 | `DonWorryPaymentRequest` | 요청 본문. `customerRef`는 `member_id` 문자열, FDS 식별자는 선택(null이면 생략) |
 | `DonWorryPaymentResponse` | 단건 응답. `PENDING`·`HELD`는 결과가 아니므로 다시 조회한다 |
 | `DonWorryPaymentException` | 실패. `resultUnknown()`이면 결제 생성 여부를 모르므로 같은 `Idempotency-Key`·본문으로 다시 보낸다 |
+| `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>` |
+| `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제창 열기, 결제 요청, 결과 대기 조회 |
+| `DonWorryDemoCard` | 프로토타입 `SHOP_CARDS`(A·B·D·C)와 같은 시연용 카드 |
 
 서명 규칙은 픽업 송신(PR #20 `DonWorryPickupClient`)과 같다. 둘 다 병합되면 서명 코드를 한곳으로 모은다.
 
-## 2. 로컬 연결 확인
+## 2. 결제 흐름
+
+```text
+주문 결제 화면(/orders/{id}/payment)
+  └ OWN이면 [결제하기] → DonWorry 결제창(/orders/{id}/payment/donworry): 카드 A·B·D·C 선택
+      └ POST → DonWorry POST /api/payments (서명, 창마다 새 Idempotency-Key)
+          ├ CAPTURED        → 기존 성공 URL(paymentKey=DW-…) → confirm → approve가 DonWorry 조회로 CAPTURED 확인 → 주문 완료
+          ├ PENDING · HELD  → 결과 대기 화면(/orders/{id}/payment/donworry/DW-…), 5초마다 다시 조회
+          └ DENIED · DECLINED · VOIDED · EXPIRED → 기존 실패 URL(code=FDS_REJECTED 등) → 재결제 가능
+```
+
+- DonWorry로 보내는 값: 주문번호, 회원 ID, 서버가 확정한 금액, 결제 창 시작 시각, 회원별 카드 토큰·마스킹 표시값,
+  기기 쿠키(`cakeshop_device`), 접속 IP, 회원 이메일. 카드번호 원문은 없다.
+- `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
+- 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
+
+## 3. 로컬 실행
 
 1. DonWorry: `docker compose up -d` 후 `payment.http.enabled=true`로 백엔드 실행 (DonWorry `docs/demo/local-demo.md` 2절)
 2. 같은 값의 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 **OS 환경변수**로 둔다. `.env`는 Spring 속성으로만 읽혀서
    `System.getenv`로 읽는 이 키에는 쓰이지 않는다.
-3. CakeShop에서 실제 요청 테스트:
+3. CakeShop `.env`: `DONWORRY_PAYMENT_ENABLED=true`, `DONWORRY_PAYMENT_BASE_URL=http://localhost:8081`, `PAYMENT_GATEWAY=own`
+4. 새로 만든 주문부터 DonWorry 결제창이 열린다. 기존 결제는 저장된 PG(`TOSS`)를 그대로 쓴다.
+
+> 테스트도 `.env`를 읽는다. `.env`에서 `DONWORRY_PAYMENT_ENABLED=true`로 두고 키 환경변수 없이 `./gradlew test`를 돌리면
+> 앱 컨텍스트를 쓰는 테스트가 키 설정 오류로 실패한다. 테스트할 때는 키를 OS 환경변수로 두거나 연동 설정을 끈다.
+
+API만 확인할 때:
 
 ```bash
 DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakeshop.domain.payment.infra.DonWorryPaymentClientLiveTests'
@@ -28,11 +53,12 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
 
 `DONWORRY_LIVE_BASE_URL`이 없으면 이 테스트는 건너뛴다(CI 포함).
 
-## 3. 미결정 (OWN 게이트웨이 연결 전에 정할 것)
+## 4. 알려진 한계 (결정 필요)
 
-- `PaymentGateway`는 결제창 `paymentKey` → `approve` 구조다. DonWorry는 서버 간 요청 → `PENDING`/`HELD` → 조회 구조라
-  인터페이스 변경 여부를 `pg-decisions` ADR로 정해야 한다 (order·payment 담당).
-- DonWorry 상태(`PENDING`·`HELD`·`CAPTURED`·`DENIED`·`DECLINED`·`VOIDED`·`EXPIRED`)와 CakeShop 결제 상태 매핑.
-- DonWorry에는 가맹점용 취소·환불 API가 아직 없다 (#149 범위 밖). `cancel`은 연결할 대상이 없다.
-- 결제창: DonWorry는 카드 입력 화면을 제공하지 않는다. 고객 화면에서 무엇을 받을지(FDS 식별자 포함) 정해야 한다.
-- 주문 기한: DonWorry는 `orderCreatedAt` + 10분을 기한으로 본다. CakeShop 주문 만료와 맞춰야 한다.
+- **HELD 중 주문 만료**: CakeShop은 결제 기한(10분)이 지나면 결제 대기 주문을 만료한다. DonWorry HELD가 그 뒤에
+  CAPTURED가 되면 CakeShop 주문은 이미 만료돼 완료되지 않는다. HELD 동안 만료를 멈출지 order·payment 담당이 정해야 한다.
+- **취소·환불**: DonWorry에 가맹점용 취소·환불 API가 없다(DonWorry #153). `OWN` 결제의 `cancel`은 실패로 남고 복구 대상이 된다.
+- **카드 C(한도 초과)·D(해외 발급)**: DonWorry 모의 승인은 항상 성공하고 카드 발급국을 받지 않는다. 현재는 A·B와 같은 규칙으로 평가된다.
+  프로토타입처럼 동작하려면 DonWorry(P5·P2) 쪽 변경이 필요하다.
+- **접속 IP**: 프록시 뒤에서는 `request.getRemoteAddr()`가 프록시 주소다. 배포 환경의 전달 헤더 신뢰 범위를 정해야 한다.
+- 위 구조(성공 콜백 재사용, `approve` = 조회)는 `pg-decisions` ADR로 남길 대상이다.

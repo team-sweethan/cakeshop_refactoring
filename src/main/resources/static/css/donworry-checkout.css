@@ -1,0 +1,197 @@
+/* DonWorry 결제창. 색은 DonWorry 프로토타입 v4.2 결제창을 따른다. */
+.dw-window {
+    --dw-brand: #2563eb;
+    --dw-ink: #0f172a;
+    --dw-muted: #64748b;
+    --dw-line: #e2e8f0;
+    --dw-soft: #f8fafc;
+    max-width: 440px;
+    margin: 24px auto;
+    border: 1px solid var(--dw-line);
+    border-radius: 14px;
+    background: #fff;
+    color: var(--dw-ink);
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(15, 23, 42, .12);
+}
+
+.dw-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--dw-line);
+}
+
+.dw-brand {
+    color: var(--dw-brand);
+    font-size: 20px;
+    letter-spacing: -1px;
+}
+
+.dw-brand span {
+    color: var(--dw-ink);
+    font-size: 13px;
+}
+
+.dw-muted {
+    color: var(--dw-muted);
+    font-size: 12px;
+}
+
+.dw-summary {
+    margin: 0;
+    padding: 14px 20px;
+    background: var(--dw-soft);
+    border-bottom: 1px solid var(--dw-line);
+}
+
+.dw-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.dw-row dt {
+    color: var(--dw-muted);
+}
+
+.dw-row dd {
+    margin: 0;
+    text-align: right;
+}
+
+.dw-row--amount {
+    align-items: baseline;
+}
+
+.dw-row--amount b {
+    font-size: 22px;
+}
+
+.dw-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px 20px 20px;
+}
+
+.dw-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.dw-cards legend {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.dw-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--dw-line);
+    border-radius: 10px;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.dw-card:has(input:checked) {
+    border-color: var(--dw-brand);
+    background: #eff6ff;
+}
+
+.dw-card input:focus-visible {
+    outline: 2px solid var(--dw-brand);
+    outline-offset: 2px;
+}
+
+.dw-card__face {
+    flex: none;
+    width: 42px;
+    height: 28px;
+    border-radius: 5px;
+}
+
+.dw-note {
+    margin: 4px 0;
+    color: var(--dw-muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.dw-processing,
+.dw-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.dw-processing[hidden] {
+    display: none;
+}
+
+.dw-processing {
+    padding: 20px 0;
+}
+
+.dw-result {
+    padding: 28px 20px;
+}
+
+.dw-result h1 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.dw-result p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.dw-result__icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.dw-result__icon--held {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dw-spin {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #dbeafe;
+    border-top-color: var(--dw-brand);
+    border-radius: 50%;
+    animation: dw-spin 0.9s linear infinite;
+}
+
+@keyframes dw-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dw-spin {
+        animation: none;
+    }
+}

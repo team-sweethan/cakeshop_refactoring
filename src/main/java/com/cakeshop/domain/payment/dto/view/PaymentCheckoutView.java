@@ -20,7 +20,9 @@ public record PaymentCheckoutView(
         String customerPhone,
         String clientKey,
         boolean paymentAvailable,
-        List<ItemView> items
+        List<ItemView> items,
+        // 결제에 고정된 PG가 OWN(DonWorry)이면 Toss 대신 DonWorry 결제창으로 보낸다.
+        boolean donWorryCheckout
 ) {
 
     public record ItemView(

@@ -8,6 +8,7 @@ import com.cakeshop.domain.payment.dto.view.PaymentCheckoutView;
 import com.cakeshop.domain.payment.dto.view.PaymentCompletionView;
 import com.cakeshop.domain.payment.dto.view.PaymentFailureView;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.PaymentGateway;
 import com.cakeshop.domain.payment.infra.PaymentGatewayRouter;
@@ -79,7 +80,8 @@ public class PaymentCheckoutService {
                 order.ordererPhone(),
                 paymentGateway.clientKey(),
                 paymentGateway.isAvailable(),
-                items
+                items,
+                paymentGateway.provider() == PaymentProvider.OWN
         );
     }
 
