@@ -271,7 +271,7 @@ class CustomerPageControllerTests {
     }
 
     @Test
-    void pickupViewUsesDedicatedInitializationMarker() throws IOException {
+    void pickupViewUsesDedicatedInitializationMarkerAndDisclosesMockData() throws IOException {
         String pickupTemplate =
                 new ClassPathResource("templates/customer/order/pickup-setting.html")
                         .getContentAsString(StandardCharsets.UTF_8);
@@ -279,7 +279,9 @@ class CustomerPageControllerTests {
                 new ClassPathResource("static/js/customer-mockup.js")
                         .getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(pickupTemplate).contains("data-pickup-root");
+        assertThat(pickupTemplate)
+                .contains("data-pickup-root")
+                .contains("표시된 상품, 가격, 날짜와 시간은 실제 주문 데이터가 아닙니다.");
         assertThat(mockupScript)
                 .contains("document.querySelector(\"[data-pickup-root]\")")
                 .doesNotContain(
