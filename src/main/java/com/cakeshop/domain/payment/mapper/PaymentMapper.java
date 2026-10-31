@@ -35,6 +35,12 @@ public interface PaymentMapper {
     // 주문의 현재 READY 결제 시도를 조회한다. DB 제약에 따라 최대 한 건이다.
     Optional<Payment> findReadyPaymentByOrderId(@Param("orderId") long orderId);
 
+    // 승인 시도 전 READY 결제의 PG를 바꾼다. 바뀐 행 수가 0이면 이미 승인이 시작됐거나 READY가 아니다.
+    int changeReadyPaymentProvider(
+            @Param("paymentId") long paymentId,
+            @Param("provider") PaymentProvider provider
+    );
+
     // 결제 대기 주문의 READY 결제에만 승인 결과와 승인 시각을 함께 기록한다.
     int completeIfReady(
             @Param("paymentId") long paymentId,

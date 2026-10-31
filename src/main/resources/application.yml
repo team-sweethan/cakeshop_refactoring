@@ -115,7 +115,7 @@ app:
       batch-size: ${PAYMENT_RECOVERY_BATCH_SIZE:50}
 
 # DonWorry 결제 API 송신은 실제 키·주소가 준비될 때만 명시적으로 켠다.
-# 켜면 OWN 게이트웨이가 등록된다. 새 결제가 DonWorry로 가려면 app.payment.gateway=own도 필요하다.
+# 켜면 OWN 게이트웨이가 등록되고 결제 화면의 결제창 선택에 돈워리가 열린다.
 donworry:
   payment:
     enabled: ${DONWORRY_PAYMENT_ENABLED:false}

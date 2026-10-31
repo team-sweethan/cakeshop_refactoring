@@ -19,7 +19,9 @@ public enum PaymentErrorCode implements ErrorCode {
     PAYMENT_RECOVERY_PENDING("PAYMENT_013", "결제 복구를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.", 503),
     PAYMENT_COMPENSATED("PAYMENT_014", "주문 처리 실패로 승인된 결제를 자동 취소했습니다. 다시 주문해 주세요.", 409),
 
-    PAYMENT_GATEWAY_UNAVAILABLE("PAYMENT_015", "해당 결제사의 처리를 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.", 503);
+    PAYMENT_GATEWAY_UNAVAILABLE("PAYMENT_015", "해당 결제사의 처리를 이용할 수 없습니다. 잠시 후 다시 시도해 주세요.", 503),
+
+    PAYMENT_GATEWAY_CHANGE_NOT_ALLOWED("PAYMENT_016", "이미 진행 중인 결제가 있어 결제 수단을 바꿀 수 없습니다.", 409);
 
     private final String code;
     private final String message;

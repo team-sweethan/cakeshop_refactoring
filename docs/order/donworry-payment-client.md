@@ -21,8 +21,10 @@
 ## 2. 결제 흐름
 
 ```text
-주문 결제 화면(/orders/{id}/payment)
-  └ OWN이면 [결제하기] → DonWorry 결제창(/orders/{id}/payment/donworry): 카드 A·B·D·C 선택
+주문 결제 화면(/orders/{id}/payment): 동의 체크 → [결제하기] → 결제창 선택(토스페이먼츠 · 돈워리)
+  ├ 토스 → POST /orders/{id}/payment/gateway/toss (PG를 TOSS로 저장) → Toss 결제창 (기존 흐름)
+  └ 돈워리 → POST /orders/{id}/payment/gateway/donworry (PG를 OWN으로 저장)
+      → DonWorry 결제창(/orders/{id}/payment/donworry): 카드 A·B·D·C 선택
       └ POST → DonWorry POST /api/payments (서명, 창마다 새 Idempotency-Key)
           ├ CAPTURED        → 기존 성공 URL(paymentKey=DW-…) → confirm → approve가 DonWorry 조회로 CAPTURED 확인 → 주문 완료
           ├ PENDING · HELD  → 결과 대기 화면(/orders/{id}/payment/donworry/DW-…), 5초마다 다시 조회
@@ -33,14 +35,18 @@
   기기 쿠키(`cakeshop_device`), 접속 IP, 회원 이메일. 카드번호 원문은 없다.
 - `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
 - 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
+- PG 선택은 승인 시도 전 READY 결제에만 저장된다. DonWorry 결제가 진행 중(PENDING·HELD·CAPTURED)이면 Toss로 바꿀 수 없다.
+  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (제안).
+- Toss 키가 없어도 DonWorry 연동이 켜져 있으면 결제 버튼이 열리고 Toss 선택지만 비활성으로 보인다.
 
 ## 3. 로컬 실행
 
 1. DonWorry: `docker compose up -d` 후 `payment.http.enabled=true`로 백엔드 실행 (DonWorry `docs/demo/local-demo.md` 2절)
 2. 같은 값의 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 **OS 환경변수**로 둔다. `.env`는 Spring 속성으로만 읽혀서
    `System.getenv`로 읽는 이 키에는 쓰이지 않는다.
-3. CakeShop `.env`: `DONWORRY_PAYMENT_ENABLED=true`, `DONWORRY_PAYMENT_BASE_URL=http://localhost:8081`, `PAYMENT_GATEWAY=own`
-4. 새로 만든 주문부터 DonWorry 결제창이 열린다. 기존 결제는 저장된 PG(`TOSS`)를 그대로 쓴다.
+3. CakeShop `.env`: `DONWORRY_PAYMENT_ENABLED=true`, `DONWORRY_PAYMENT_BASE_URL=http://localhost:8081`
+   (`PAYMENT_GATEWAY`는 초기값일 뿐이며 고객이 결제창 선택에서 바꾼다)
+4. 결제 화면에서 결제하기 → 돈워리를 고른다. 이미 승인된 기존 결제는 저장된 PG를 그대로 쓴다.
 
 > 테스트도 `.env`를 읽는다. `.env`에서 `DONWORRY_PAYMENT_ENABLED=true`로 두고 키 환경변수 없이 `./gradlew test`를 돌리면
 > 앱 컨텍스트를 쓰는 테스트가 키 설정 오류로 실패한다. 테스트할 때는 키를 OS 환경변수로 두거나 연동 설정을 끈다.

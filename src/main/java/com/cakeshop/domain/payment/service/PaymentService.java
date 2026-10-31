@@ -6,6 +6,7 @@ import com.cakeshop.domain.order.entity.OrderType;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.ApprovalResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
@@ -43,6 +44,14 @@ public class PaymentService {
     public Payment getReadyPayment(long orderId) {
         return paymentMapper.findReadyPaymentByOrderId(orderId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.READY_PAYMENT_NOT_FOUND));
+    }
+
+    /** 승인 시도 전 READY 결제의 PG를 고객이 고른 PG로 바꾼다. */
+    @Transactional
+    public void changeReadyPaymentProvider(Payment payment, PaymentProvider provider) {
+        if (paymentMapper.changeReadyPaymentProvider(payment.getId(), provider) != 1) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_GATEWAY_CHANGE_NOT_ALLOWED);
+        }
     }
 
     /** 실패·만료를 포함한 주문의 마지막 결제 기록을 조회한다. */

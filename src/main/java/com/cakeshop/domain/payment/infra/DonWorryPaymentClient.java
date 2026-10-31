@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import javax.crypto.Mac;
@@ -40,6 +41,7 @@ import tools.jackson.databind.ObjectMapper;
 public class DonWorryPaymentClient {
 
     private static final String PAYMENTS_PATH = "/api/payments";
+    private static final String ORDERS_PATH = "/api/payment-orders";
     private static final String CONTENT_TYPE = MediaType.APPLICATION_JSON_VALUE;
 
     private final RestClient restClient;
@@ -76,15 +78,35 @@ public class DonWorryPaymentClient {
             throw new IllegalArgumentException("Idempotency-Key가 필요합니다.");
         }
         byte[] body = json.writeValueAsBytes(request);
-        return exchange(HttpMethod.POST, PAYMENTS_PATH, body, idempotencyKey);
+        return exchange(HttpMethod.POST, PAYMENTS_PATH, body, idempotencyKey, DonWorryPaymentResponse.class);
     }
 
     /** 결제 단건 상태를 조회한다. 조회는 평가·승인을 다시 실행하지 않는다. */
     public DonWorryPaymentResponse find(long paymentId) {
-        return exchange(HttpMethod.GET, PAYMENTS_PATH + "/" + paymentId, new byte[0], "");
+        return exchange(HttpMethod.GET, PAYMENTS_PATH + "/" + paymentId, new byte[0], "",
+                DonWorryPaymentResponse.class);
     }
 
-    private DonWorryPaymentResponse exchange(HttpMethod method, String target, byte[] body, String idempotencyKey) {
+    /** 주문의 최신 결제 시도를 조회한다. DonWorry에 시도가 없으면 비어 있다. */
+    public Optional<DonWorryPaymentResponse> findLatestAttempt(String orderRef) {
+        // 주문번호는 영문·숫자·하이픈이라 그대로 query에 둔다. 서명 대상도 같은 원문이다.
+        if (orderRef == null || !orderRef.matches("[A-Za-z0-9_-]{1,100}")) {
+            throw new IllegalArgumentException("주문번호 형식을 확인해 주세요.");
+        }
+        try {
+            DonWorryPaymentOrderResponse order = exchange(HttpMethod.GET,
+                    ORDERS_PATH + "?orderRef=" + orderRef + "&size=1", new byte[0], "",
+                    DonWorryPaymentOrderResponse.class);
+            return Optional.ofNullable(order.latestPayment());
+        } catch (DonWorryPaymentException exception) {
+            if (exception.getStatus() == 404) {
+                return Optional.empty();
+            }
+            throw exception;
+        }
+    }
+
+    private <T> T exchange(HttpMethod method, String target, byte[] body, String idempotencyKey, Class<T> type) {
         String contentType = body.length == 0 ? "" : CONTENT_TYPE;
         String timestamp = Long.toString(clock.instant().getEpochSecond());
         String nonce = UUID.randomUUID().toString();
@@ -103,7 +125,7 @@ public class DonWorryPaymentClient {
             if (body.length > 0) {
                 spec.header(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE).body(body);
             }
-            DonWorryPaymentResponse response = spec.retrieve().body(DonWorryPaymentResponse.class);
+            T response = spec.retrieve().body(type);
             if (response == null) {
                 throw new DonWorryPaymentException(0, null);
             }

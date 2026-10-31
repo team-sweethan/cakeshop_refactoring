@@ -107,6 +107,35 @@ class DonWorryPaymentClientTests {
     }
 
     @Test
+    void findLatestAttempt_signsPathWithQuery() {
+        AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
+        server.expect(requestTo(BASE_URL + "/api/payment-orders?orderRef=ORD-100&size=1"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(request -> captured.set((MockClientHttpRequest) request))
+                .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"orderRef\":\"ORD-100\",\"latestPayment\":" + RESPONSE.formatted("HELD")
+                                + ",\"attempts\":[],\"nextBeforeAttemptNo\":null}"));
+
+        DonWorryPaymentResponse latest = client().findLatestAttempt("ORD-100").orElseThrow();
+
+        assertThat(latest.paymentStatus()).isEqualTo("HELD");
+        assertThat(latest.endedWithoutCharge()).isFalse();
+        HttpHeaders headers = captured.get().getHeaders();
+        assertThat(headers.getFirst("X-Signature")).isEqualTo(DonWorryPaymentClient.sign(KEY, "CAKESHOP",
+                "1793415600", headers.getFirst("X-Nonce"), "GET", "/api/payment-orders?orderRef=ORD-100&size=1",
+                "", "", new byte[0]));
+    }
+
+    @Test
+    void findLatestAttempt_orderNotFound_isEmpty() {
+        server.expect(requestTo(BASE_URL + "/api/payment-orders?orderRef=ORD-404&size=1"))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                        .body("{\"code\":\"ORDER_NOT_FOUND\"}"));
+
+        assertThat(client().findLatestAttempt("ORD-404")).isEmpty();
+    }
+
+    @Test
     void find_finalStatusIsNotInProgress() {
         server.expect(requestTo(BASE_URL + "/api/payments/101"))
                 .andRespond(withStatus(HttpStatus.OK)

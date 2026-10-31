@@ -161,7 +161,7 @@ class DonWorryCheckoutServiceTests {
                 ORDER_ID, "ORD-100", "ORD-100", "딸기 케이크",
                 BigDecimal.valueOf(25_000), BigDecimal.ZERO, BigDecimal.valueOf(25_000),
                 LocalDateTime.parse("2026-11-02T15:00:00"), LocalDateTime.parse("2026-10-31T12:08:00"),
-                "회원", EMAIL, "01000000000", "", true, List.of(), donWorry);
+                "회원", EMAIL, "01000000000", "", true, List.of(), donWorry, false, true, "");
     }
 
     private PaymentOrder order(String orderNumber) {

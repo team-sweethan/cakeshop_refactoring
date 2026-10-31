@@ -65,6 +65,10 @@ public class PaymentCheckoutService {
                 ))
                 .toList();
 
+        // 고객이 결제창에서 PG를 고른다. 고를 수 있는 PG가 하나라도 있으면 결제 버튼을 연다.
+        boolean tossAvailable = gatewayRouter.isAvailable(PaymentProvider.TOSS);
+        boolean donWorryAvailable = gatewayRouter.isAvailable(PaymentProvider.OWN);
+
         return new PaymentCheckoutView(
                 order.orderId(),
                 order.orderNumber(),
@@ -79,9 +83,12 @@ public class PaymentCheckoutService {
                 memberEmail,
                 order.ordererPhone(),
                 paymentGateway.clientKey(),
-                paymentGateway.isAvailable(),
+                tossAvailable || donWorryAvailable,
                 items,
-                paymentGateway.provider() == PaymentProvider.OWN
+                paymentGateway.provider() == PaymentProvider.OWN,
+                tossAvailable,
+                donWorryAvailable,
+                tossAvailable ? gatewayRouter.forProvider(PaymentProvider.TOSS).clientKey() : ""
         );
     }
 
