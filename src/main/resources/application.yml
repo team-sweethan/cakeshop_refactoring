@@ -115,6 +115,17 @@ app:
       initial-delay: ${PAYMENT_RECOVERY_INITIAL_DELAY:60s}
       batch-size: ${PAYMENT_RECOVERY_BATCH_SIZE:50}
 
+# DonWorry 결제 API 송신은 실제 키·주소가 준비될 때만 명시적으로 켠다.
+# 켜도 결제 흐름은 바뀌지 않는다. PaymentGateway(OWN) 연결은 별도 작업이다.
+donworry:
+  payment:
+    enabled: ${DONWORRY_PAYMENT_ENABLED:false}
+    base-url: ${DONWORRY_PAYMENT_BASE_URL:}
+    merchant-code: ${DONWORRY_MERCHANT_CODE:CAKESHOP}
+    key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
+    connect-timeout: ${DONWORRY_PAYMENT_CONNECT_TIMEOUT:3s}
+    read-timeout: ${DONWORRY_PAYMENT_READ_TIMEOUT:5s}
+
 ---
 # Google/Kakao OAuth login. Team members configure both providers in .env.
 spring:
