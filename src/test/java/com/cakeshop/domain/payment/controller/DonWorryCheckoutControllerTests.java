@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -126,6 +127,36 @@ class DonWorryCheckoutControllerTests {
         mockMvc.perform(get("/orders/1/payment/donworry").param("card", "B"))
                 .andExpect(view().name("customer/payment/donworry"));
         verify(service).openWindow(10L, "member@example.com", 1L, "B");
+    }
+
+    @Test
+    void panel_rendersOnlyWindowFragmentForModal() throws Exception {
+        mockMvc.perform(get("/orders/1/payment/donworry/panel"))
+                .andExpect(view().name("customer/payment/donworry :: panel"));
+        verify(service).openWindow(10L, "member@example.com", 1L, null);
+    }
+
+    @Test
+    void requestInModal_held_returnsProgressWithWaitingUrl() throws Exception {
+        when(service.pay(eq(10L), anyString(), eq(1L), any(), anyString(), anyString()))
+                .thenReturn(result("HELD", null));
+
+        mockMvc.perform(post("/orders/1/payment/donworry/requests").param("card", "B").param("idempotencyKey", KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paymentKey").value("DW-101"))
+                .andExpect(jsonPath("$.paymentStatus").value("HELD"))
+                .andExpect(jsonPath("$.inProgress").value(true))
+                .andExpect(jsonPath("$.nextUrl").value("/orders/1/payment/donworry/DW-101"));
+    }
+
+    @Test
+    void progressInModal_captured_returnsSuccessUrl() throws Exception {
+        when(service.status(10L, 1L, "DW-101")).thenReturn(result("CAPTURED", null));
+
+        mockMvc.perform(get("/orders/1/payment/donworry/DW-101/progress"))
+                .andExpect(jsonPath("$.inProgress").value(false))
+                .andExpect(jsonPath("$.nextUrl")
+                        .value("/orders/1/payment/success?paymentKey=DW-101&orderId=ORD-100&amount=25000"));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder pay() {

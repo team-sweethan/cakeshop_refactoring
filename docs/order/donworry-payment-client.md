@@ -21,15 +21,19 @@
 ## 2. 결제 흐름
 
 ```text
-주문 결제 화면(/orders/{id}/payment): 동의 체크 → [결제하기] → 결제창 선택(토스페이먼츠 · 돈워리)
-  ├ 토스 → POST /orders/{id}/payment/gateway/toss (PG를 TOSS로 저장) → Toss 결제창 (기존 흐름)
+주문 결제 화면(/orders/{id}/payment): 동의 체크 → [결제하기] → "결제 수단 선택" 모달(토스페이먼츠 · 돈워리)
+  ├ 토스 → POST /orders/{id}/payment/gateway/toss (PG를 TOSS로 저장) → 모달 닫고 Toss 결제창 (기존 흐름)
   └ 돈워리 → POST /orders/{id}/payment/gateway/donworry (PG를 OWN으로 저장)
-      → DonWorry 결제창(/orders/{id}/payment/donworry): 카드 A·B·D·C 선택
-      └ POST → DonWorry POST /api/payments (서명, 창마다 새 Idempotency-Key)
+      → 같은 모달 안에 DonWorry 결제창 조각(/orders/{id}/payment/donworry/panel): 카드 A·B·D·C 선택
+      └ POST /orders/{id}/payment/donworry/requests → DonWorry POST /api/payments (서명, 창마다 새 Idempotency-Key)
           ├ CAPTURED        → 기존 성공 URL(paymentKey=DW-…) → confirm → approve가 DonWorry 조회로 CAPTURED 확인 → 주문 완료
-          ├ PENDING · HELD  → 결과 대기 화면(/orders/{id}/payment/donworry/DW-…), 5초마다 다시 조회
+          ├ PENDING · HELD  → 모달 안에서 "확인 중" 표시, 3초마다 …/DW-…/progress 조회 → 결과가 나오면 성공·실패 URL로 이동
           └ DENIED · DECLINED · VOIDED · EXPIRED → 기존 실패 URL(code=FDS_REJECTED 등) → 재결제 가능
 ```
+
+- 실제 PG의 PC 레이어 결제창처럼 모달 안에 돈워리 화면만 보인다. 돈워리가 결제창을 직접 호스팅하는 방식(돈워리 도메인)은
+  DonWorry 쪽 화면·계약이 필요해 팀 논의 후 정한다.
+- 스크립트 없이 쓰는 대체 경로로 전체 화면 결제창(`/orders/{id}/payment/donworry`)과 결과 대기 화면을 남겨 둔다.
 
 - DonWorry로 보내는 값: 주문번호, 회원 ID, 서버가 확정한 금액, 결제 창 시작 시각, 회원별 카드 토큰·마스킹 표시값,
   기기 쿠키(`cakeshop_device`), 접속 IP, 회원 이메일. 카드번호 원문은 없다.
@@ -42,7 +46,11 @@
 ## 3. 로컬 실행
 
 1. DonWorry: `docker compose up -d` 후 `payment.http.enabled=true`로 백엔드 실행 (DonWorry `docs/demo/local-demo.md` 2절)
-2. 같은 값의 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 **OS 환경변수**로 둔다. `.env`는 Spring 속성으로만 읽혀서
+   - DonWorry #354 PR B(2026-10-31) 이후 가맹점 키는 DonWorry DB에 암호화 저장한다. 시드 `CAKESHOP`을 쓰려면
+     DonWorry에 `DONWORRY_HMAC_MASTER_KEY_V1`(Base64 32바이트)과 기존 키 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 두고
+     `--donworry.integration.legacy-import-enabled=true`로 한 번 기동해 키를 옮긴다 (DonWorry ADR-0052).
+     사장님 화면 키 발급·연결 확인(PR C)이 마무리되면 이 절차는 바뀐다.
+2. 같은 값의 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 CakeShop 쪽에도 **OS 환경변수**로 둔다. `.env`는 Spring 속성으로만 읽혀서
    `System.getenv`로 읽는 이 키에는 쓰이지 않는다.
 3. CakeShop `.env`: `DONWORRY_PAYMENT_ENABLED=true`, `DONWORRY_PAYMENT_BASE_URL=http://localhost:8081`
    (`PAYMENT_GATEWAY`는 초기값일 뿐이며 고객이 결제창 선택에서 바꾼다)

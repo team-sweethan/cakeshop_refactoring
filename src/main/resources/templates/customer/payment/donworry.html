@@ -12,8 +12,12 @@
 <body data-page-title="돈워리 결제">
   <header th:replace="~{fragments/common/header :: header}"></header>
 
-  <main class="page-container page-container--narrow" th:with="payment=${checkout.payment}">
-    <section class="dw-window" aria-labelledby="dw-title">
+  <main class="page-container page-container--narrow">
+    <!--/* 결제 화면 모달은 이 조각만 받아 그린다(/payment/donworry/panel). 이 화면 자체는 스크립트 없이 쓰는 대체 경로다. */-->
+    <section class="dw-window"
+             th:fragment="panel"
+             th:with="payment=${checkout.payment}"
+             aria-labelledby="dw-title">
       <div class="dw-top">
         <b id="dw-title" class="dw-brand">돈워리 <span>결제</span></b>
         <span class="dw-muted" th:text="${payment.orderNumber}">ORD-0001</span>
@@ -71,10 +75,19 @@
           <span class="dw-muted">FDS가 위험 점수를 계산하는 중입니다. 창을 닫지 마세요.</span>
         </div>
         <a class="btn btn--block"
+           id="dw-cancel"
            th:href="@{/orders/{id}/payment/fail(id=${payment.orderId},code='DONWORRY_USER_CANCELED')}">
           결제 취소
         </a>
       </form>
+
+      <!--/* 모달에서 결제 요청 뒤 결과를 기다릴 때 보인다. 문구는 스크립트가 상태에 맞춰 바꾼다. */-->
+      <div class="dw-result" id="dw-result" role="status" aria-live="polite" hidden>
+        <span class="dw-result__icon dw-result__icon--held" id="dw-result-icon" aria-hidden="true">…</span>
+        <span class="dw-spin" id="dw-result-spin" aria-hidden="true"></span>
+        <h2 id="dw-result-title">결제를 처리하고 있습니다</h2>
+        <p class="dw-muted" id="dw-result-message">잠시 후 결과로 바뀝니다.</p>
+      </div>
     </section>
   </main>
 

@@ -121,6 +121,13 @@
     border-radius: 5px;
 }
 
+/* 결제창 안 버튼은 쇼핑몰 색 대신 돈워리 색을 쓴다. */
+.dw-window .btn--primary {
+    border-color: var(--dw-brand);
+    background: var(--dw-brand);
+    color: #fff;
+}
+
 .dw-note {
     margin: 4px 0;
     color: var(--dw-muted);
@@ -137,7 +144,11 @@
     text-align: center;
 }
 
-.dw-processing[hidden] {
+.dw-processing[hidden],
+.dw-result[hidden],
+.dw-result__icon[hidden],
+.dw-spin[hidden],
+.dw-body[hidden] {
     display: none;
 }
 
@@ -149,7 +160,8 @@
     padding: 28px 20px;
 }
 
-.dw-result h1 {
+.dw-result h1,
+.dw-result h2 {
     margin: 0;
     font-size: 18px;
 }

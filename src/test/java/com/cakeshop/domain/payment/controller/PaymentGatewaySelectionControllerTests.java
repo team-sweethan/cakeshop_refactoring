@@ -2,7 +2,6 @@ package com.cakeshop.domain.payment.controller;
 
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.cakeshop.domain.member.dto.view.MemberAuthenticationView;
@@ -46,9 +45,9 @@ class PaymentGatewaySelectionControllerTests {
     }
 
     @Test
-    void selectDonWorry_redirectsToDonWorryWindow() throws Exception {
+    void selectDonWorry_returnsNoContentForModal() throws Exception {
         mockMvc.perform(post("/orders/1/payment/gateway/donworry"))
-                .andExpect(redirectedUrl("/orders/1/payment/donworry"));
+                .andExpect(status().isNoContent());
         verify(service).select(10L, "member@example.com", 1L, PaymentProvider.OWN);
     }
 

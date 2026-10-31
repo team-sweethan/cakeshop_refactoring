@@ -1,13 +1,50 @@
-/* 결제 화면의 결제창 선택(토스페이먼츠 · 돈워리) */
+/* 결제 화면의 결제 수단 선택 모달(토스페이먼츠 · 돈워리). 돈워리 결제창 자체 모양은 donworry-checkout.css */
+.payment-modal {
+    width: min(460px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    overflow: auto;
+}
+
+.payment-modal::backdrop {
+    background: rgba(15, 23, 42, .55);
+}
+
 .pg-choice {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    margin-top: 16px;
+    padding: 20px;
+    border-radius: 14px;
+    background: var(--color-background);
 }
 
 .pg-choice[hidden] {
     display: none;
+}
+
+.pg-choice__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pg-choice__head .section-title {
+    margin: 0;
+}
+
+.pg-choice__close {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
+    color: var(--color-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
 }
 
 .pg-choice__option {
@@ -44,4 +81,13 @@
     background: var(--color-background-soft);
     color: var(--color-muted);
     cursor: not-allowed;
+}
+
+.payment-modal__donworry[hidden] {
+    display: none;
+}
+
+/* 모달 안에서는 돈워리 결제창이 모달 자체가 된다. */
+.payment-modal__donworry .dw-window {
+    margin: 0;
 }

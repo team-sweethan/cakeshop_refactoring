@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
  * 담당자 : 주환 (payment)
  * 작성일 : 2026-10-31
  * 기능 : 결제 수단 선택(Toss·DonWorry)
- * 설명 : DonWorry는 폼 제출 후 DonWorry 결제창으로 이동한다.
- *        Toss는 결제창을 브라우저에서 바로 열어야 하므로 화면 스크립트가 선택만 저장하고 응답을 받은 뒤 Toss를 연다.
+ * 설명 : 결제 화면 모달의 스크립트가 선택만 저장하고 응답을 받은 뒤 해당 결제창을 연다.
+ *        Toss는 Toss 결제창, DonWorry는 모달 안 DonWorry 결제창이다.
  * ******************************
  */
 @Controller
@@ -30,12 +30,13 @@ public class PaymentGatewaySelectionController {
     private final PaymentGatewaySelectionService selectionService;
 
     @PostMapping("/orders/{orderId:\\d+}/payment/gateway/donworry")
-    public String selectDonWorry(
+    @ResponseBody
+    public ResponseEntity<Void> selectDonWorry(
             @PathVariable("orderId") long orderId,
             @AuthenticationPrincipal MemberDetails member
     ) {
         selectionService.select(requireMemberId(member), member.getUsername(), orderId, PaymentProvider.OWN);
-        return "redirect:/orders/" + orderId + "/payment/donworry";
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/orders/{orderId:\\d+}/payment/gateway/toss")

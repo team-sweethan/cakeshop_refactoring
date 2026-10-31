@@ -6,6 +6,7 @@
   <title>결제 | 케이크 쇼핑몰</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <link rel="stylesheet" th:href="@{/css/payment-gateway-choice.css}">
+  <link rel="stylesheet" th:href="@{/css/donworry-checkout.css}">
   <script defer src="https://js.tosspayments.com/v2/standard"></script>
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/payment.js}"></script>
@@ -79,7 +80,7 @@
       <h2 class="section-title">결제 수단</h2>
       <div class="panel">
         <strong>카드 결제</strong>
-        <p class="text-muted">결제하기를 누르면 토스페이먼츠와 돈워리 안전결제 중에서 결제창을 고릅니다.</p>
+        <p class="text-muted">결제하기를 누르면 결제 수단 선택 창이 열립니다. 토스페이먼츠와 돈워리 안전결제 중에서 고릅니다.</p>
       </div>
     </section>
 
@@ -109,42 +110,52 @@
             class="btn btn--primary btn--block"
             id="request-payment"
             type="button"
-            aria-controls="payment-gateway-choice"
-            aria-expanded="false"
+            aria-haspopup="dialog"
+            aria-controls="payment-modal"
             th:disabled="${!payment.paymentAvailable}"
             th:text="|${#numbers.formatInteger(payment.amount, 1, 'COMMA')}원 결제하기|">
       결제하기
     </button>
 
-    <!--/* 결제하기를 누르면 열린다. 고른 PG를 서버에 저장한 뒤 해당 결제창으로 간다. */-->
-    <section th:if="${payment.amount.signum() > 0}"
-             class="pg-choice"
-             id="payment-gateway-choice"
-             aria-labelledby="pg-choice-title"
-             hidden>
-      <h2 class="section-title" id="pg-choice-title">결제창 선택</h2>
-      <form class="pg-choice__option"
-            id="choose-toss-form"
-            method="post"
-            th:action="@{/orders/{id}/payment/gateway/toss(id=${payment.orderId})}">
-        <button class="pg-choice__button" type="submit" th:disabled="${!payment.tossAvailable}">
-          <b>토스페이먼츠</b>
-          <span class="text-muted" th:if="${payment.tossAvailable}">카드 · 간편결제</span>
-          <span class="text-muted" th:unless="${payment.tossAvailable}">Toss 테스트 키가 설정되지 않아 사용할 수 없습니다.</span>
-        </button>
-      </form>
-      <form class="pg-choice__option"
-            method="post"
-            th:action="@{/orders/{id}/payment/gateway/donworry(id=${payment.orderId})}">
-        <button class="pg-choice__button pg-choice__button--donworry"
-                type="submit"
-                th:disabled="${!payment.donWorryAvailable}">
-          <b>돈워리 안전결제</b>
-          <span class="text-muted" th:if="${payment.donWorryAvailable}">결제 보안 확인을 위해 이메일 · 접속 IP · 기기 정보가 사용됩니다.</span>
-          <span class="text-muted" th:unless="${payment.donWorryAvailable}">돈워리 연동이 꺼져 있어 사용할 수 없습니다.</span>
-        </button>
-      </form>
-    </section>
+    <!--/* 결제하기를 누르면 열린다. 고른 PG를 서버에 저장한 뒤 Toss는 Toss 결제창을, 돈워리는 이 모달 안에 돈워리 결제창을 연다. */-->
+    <dialog th:if="${payment.amount.signum() > 0}"
+            class="payment-modal"
+            id="payment-modal"
+            aria-labelledby="pg-choice-title"
+            th:attr="data-donworry-panel-url=@{/orders/{id}/payment/donworry/panel(id=${payment.orderId})},
+                     data-donworry-request-url=@{/orders/{id}/payment/donworry/requests(id=${payment.orderId})}">
+      <section class="pg-choice" id="payment-gateway-choice">
+        <div class="pg-choice__head">
+          <h2 class="section-title" id="pg-choice-title">결제 수단 선택</h2>
+          <button class="pg-choice__close" type="button" data-modal-close aria-label="결제 수단 선택 닫기">×</button>
+        </div>
+        <form class="pg-choice__option"
+              id="choose-toss-form"
+              method="post"
+              th:action="@{/orders/{id}/payment/gateway/toss(id=${payment.orderId})}">
+          <button class="pg-choice__button" type="submit" th:disabled="${!payment.tossAvailable}">
+            <b>토스페이먼츠</b>
+            <span class="text-muted" th:if="${payment.tossAvailable}">카드 · 간편결제</span>
+            <span class="text-muted" th:unless="${payment.tossAvailable}">Toss 테스트 키가 설정되지 않아 사용할 수 없습니다.</span>
+          </button>
+        </form>
+        <form class="pg-choice__option"
+              id="choose-donworry-form"
+              method="post"
+              th:action="@{/orders/{id}/payment/gateway/donworry(id=${payment.orderId})}">
+          <button class="pg-choice__button pg-choice__button--donworry"
+                  type="submit"
+                  th:disabled="${!payment.donWorryAvailable}">
+            <b>돈워리 안전결제</b>
+            <span class="text-muted" th:if="${payment.donWorryAvailable}">결제 보안 확인을 위해 이메일 · 접속 IP · 기기 정보가 사용됩니다.</span>
+            <span class="text-muted" th:unless="${payment.donWorryAvailable}">돈워리 연동이 꺼져 있어 사용할 수 없습니다.</span>
+          </button>
+        </form>
+        <p class="form-error" id="payment-modal-error" role="alert" hidden></p>
+      </section>
+      <!--/* 돈워리를 고르면 서버가 그린 돈워리 결제창 조각이 이 자리에 들어온다. */-->
+      <div class="payment-modal__donworry" id="donworry-panel" hidden></div>
+    </dialog>
   </main>
 
   <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>
