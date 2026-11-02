@@ -56,7 +56,7 @@
    `DONWORRY_PAYMENT_SHOP_BASE_URL`(결제창이 돌려보낼 이 쇼핑몰 주소)
 4. **CakeShop은 `http://127.0.0.1:8080`으로 연다.** DonWorry 화면(`localhost:5173`)과 같은 `localhost`면 로그인 쿠키가 섞이고,
    복귀 주소(`DONWORRY_PAYMENT_SHOP_BASE_URL`)와 출처가 다르면 결제창의 이동 신호가 전달되지 않는다
-   (결제창은 4초 뒤 "결과 화면으로 이동" 링크를 보인다). `DONWORRY_PAYMENT_SHOP_BASE_URL=http://127.0.0.1:8080`으로 맞춘다.
+   (결제창은 4초 뒤 "쇼핑몰 화면으로 이동" 링크를 보인다. 결과 · 취소 · 만료 모두 같다). `DONWORRY_PAYMENT_SHOP_BASE_URL=http://127.0.0.1:8080`으로 맞춘다.
 5. 결제 화면에서 결제하기 → 돈워리를 고른다. 이미 승인된 기존 결제는 저장된 PG를 그대로 쓴다.
 
 > 테스트도 `.env`를 읽는다. `.env`에서 `DONWORRY_PAYMENT_ENABLED=true`로 두고 키 환경변수 없이 `./gradlew test`를 돌리면
