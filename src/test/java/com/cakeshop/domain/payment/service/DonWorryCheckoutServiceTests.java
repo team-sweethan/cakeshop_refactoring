@@ -81,6 +81,23 @@ class DonWorryCheckoutServiceTests {
         assertThat(session.checkoutOrigin()).isEqualTo("http://localhost:5174");
     }
 
+    // 돈워리가 거절할 이메일(@ 두 개 · 공백)은 보내지 않는다 — 보내면 결제 준비가 400으로 막힌다
+    @Test
+    void prepare_emailDonWorryWouldReject_isOmitted() {
+        for (String email : new String[] {"a@b@c.com", "a b@c.com", "no-at-sign"}) {
+            org.mockito.Mockito.reset(client);
+            when(checkoutService.getCheckout(MEMBER_ID, email, ORDER_ID)).thenReturn(checkout(true));
+            when(client.createSession(any(), anyString())).thenReturn(SESSION);
+
+            service.prepare(MEMBER_ID, email, ORDER_ID);
+
+            ArgumentCaptor<DonWorryPaymentSessionRequest> captor =
+                    ArgumentCaptor.forClass(DonWorryPaymentSessionRequest.class);
+            verify(client).createSession(captor.capture(), anyString());
+            assertThat(captor.getValue().buyerEmail()).as(email).isNull();
+        }
+    }
+
     @Test
     void prepare_unknownResult_retriesOnceWithSameKey() {
         when(checkoutService.getCheckout(MEMBER_ID, EMAIL, ORDER_ID)).thenReturn(checkout(true));

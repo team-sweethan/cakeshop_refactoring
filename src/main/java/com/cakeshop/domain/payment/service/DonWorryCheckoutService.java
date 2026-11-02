@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -35,6 +36,8 @@ public class DonWorryCheckoutService {
 
     // DonWorry는 orderCreatedAt + 10분 안의 요청만 받는다(DonWorry #149).
     private static final Duration DONWORRY_REQUEST_WINDOW = Duration.ofMinutes(10);
+    // DonWorry PaymentRiskSignals와 같은 이메일 규칙
+    private static final Pattern DONWORRY_EMAIL = Pattern.compile("[^@\\s]+@[^@\\s]+");
 
     private final PaymentCheckoutService paymentCheckoutService;
     private final ObjectProvider<DonWorryPaymentClient> clientProvider;
@@ -139,9 +142,10 @@ public class DonWorryCheckoutService {
         return windowStart.isAfter(now) ? now : windowStart;
     }
 
+    // 돈워리는 결제 준비 때 이메일 형식이 틀리면 400으로 거절한다(DonWorry PR #425).
+    // 같은 규칙(공백 없이 @ 하나)에 맞지 않으면 보내지 않는다 — 이메일은 선택 값이라 빠져도 결제는 된다.
     private String buyerEmail(String memberEmail) {
-        if (memberEmail == null || memberEmail.length() > 254 || !memberEmail.contains("@")
-                || !memberEmail.strip().equals(memberEmail)) {
+        if (memberEmail == null || memberEmail.length() > 254 || !DONWORRY_EMAIL.matcher(memberEmail).matches()) {
             return null;
         }
         return memberEmail;
