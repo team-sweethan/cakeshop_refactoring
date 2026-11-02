@@ -47,40 +47,8 @@ class DonWorryPaymentClientTests {
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
 
     @Test
-    void request_signsExactBodyWithIdempotencyKey() {
-        AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
-        server.expect(requestTo(BASE_URL + "/api/payments"))
-                .andExpect(method(HttpMethod.POST))
-                .andExpect(request -> captured.set((MockClientHttpRequest) request))
-                .andRespond(withStatus(HttpStatus.ACCEPTED)
-                        .contentType(MediaType.APPLICATION_JSON).body(RESPONSE.formatted("PENDING")));
-
-        DonWorryPaymentResponse response = client().request(
-                DonWorryPaymentRequest.of("ORD-100", 42L, 25_000L, Instant.parse("2026-10-31T02:59:00Z")),
-                "idem-1");
-
-        assertThat(response.paymentId()).isEqualTo(101L);
-        assertThat(response.inProgress()).isTrue();
-        MockClientHttpRequest request = captured.get();
-        HttpHeaders headers = request.getHeaders();
-        byte[] body = request.getBodyAsBytes();
-        assertThat(new String(body, StandardCharsets.UTF_8))
-                .isEqualTo("{\"orderRef\":\"ORD-100\",\"customerRef\":\"42\",\"amount\":25000,"
-                        + "\"orderCreatedAt\":\"2026-10-31T02:59:00Z\"}");
-        assertThat(headers.getFirst("X-Merchant-Code")).isEqualTo("CAKESHOP");
-        assertThat(headers.getFirst("X-Timestamp")).isEqualTo("1793415600");
-        assertThat(headers.getFirst("Idempotency-Key")).isEqualTo("idem-1");
-        assertThat(headers.getFirst(HttpHeaders.CONTENT_TYPE)).isEqualTo("application/json");
-        assertThat(headers.getFirst("X-Signature")).isEqualTo(DonWorryPaymentClient.sign(KEY, "CAKESHOP",
-                "1793415600", headers.getFirst("X-Nonce"), "POST", "/api/payments", "application/json",
-                "idem-1", body));
-        server.verify();
-    }
-
-    @Test
-    void request_truncatesOrderCreatedAtToMicros() {
-        DonWorryPaymentRequest request =
-                DonWorryPaymentRequest.of("ORD-100", 42L, 25_000L, Instant.parse("2026-10-31T02:59:00.123456789Z"));
+    void sessionRequest_truncatesOrderCreatedAtToMicros() {
+        DonWorryPaymentSessionRequest request = sessionRequest(Instant.parse("2026-10-31T02:59:00.123456789Z"));
 
         assertThat(request.orderCreatedAt()).isEqualTo(Instant.parse("2026-10-31T02:59:00.123456Z"));
     }
@@ -171,14 +139,12 @@ class DonWorryPaymentClientTests {
     }
 
     @Test
-    void request_errorResponse_keepsProblemCodeOnly() {
-        server.expect(requestTo(BASE_URL + "/api/payments"))
+    void createSession_errorResponse_keepsProblemCodeOnly() {
+        server.expect(requestTo(BASE_URL + "/api/payment-sessions"))
                 .andRespond(withStatus(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_PROBLEM_JSON)
                         .body("{\"status\":409,\"code\":\"IDEMPOTENCY_KEY_CONFLICT\",\"detail\":\"secret\"}"));
 
-        assertThatThrownBy(() -> client().request(
-                DonWorryPaymentRequest.of("ORD-100", 42L, 25_000L, Instant.parse("2026-10-31T02:59:00Z")),
-                "idem-1"))
+        assertThatThrownBy(() -> client().createSession(sessionRequest(Instant.parse("2026-10-31T02:59:00Z")), "idem-1"))
                 .isInstanceOfSatisfying(DonWorryPaymentException.class, exception -> {
                     assertThat(exception.getStatus()).isEqualTo(409);
                     assertThat(exception.getCode()).isEqualTo("IDEMPOTENCY_KEY_CONFLICT");
@@ -188,23 +154,25 @@ class DonWorryPaymentClientTests {
     }
 
     @Test
-    void request_serverError_isResultUnknown() {
-        server.expect(requestTo(BASE_URL + "/api/payments"))
+    void createSession_serverError_isResultUnknown() {
+        server.expect(requestTo(BASE_URL + "/api/payment-sessions"))
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
-        assertThatThrownBy(() -> client().request(
-                DonWorryPaymentRequest.of("ORD-100", 42L, 25_000L, Instant.parse("2026-10-31T02:59:00Z")),
-                "idem-1"))
+        assertThatThrownBy(() -> client().createSession(sessionRequest(Instant.parse("2026-10-31T02:59:00Z")), "idem-1"))
                 .isInstanceOfSatisfying(DonWorryPaymentException.class,
                         exception -> assertThat(exception.resultUnknown()).isTrue());
     }
 
     @Test
-    void request_requiresIdempotencyKey() {
-        assertThatThrownBy(() -> client().request(
-                DonWorryPaymentRequest.of("ORD-100", 42L, 25_000L, Instant.parse("2026-10-31T02:59:00Z")),
-                " "))
+    void createSession_requiresIdempotencyKey() {
+        assertThatThrownBy(() -> client().createSession(sessionRequest(Instant.parse("2026-10-31T02:59:00Z")), " "))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private static DonWorryPaymentSessionRequest sessionRequest(Instant orderCreatedAt) {
+        return new DonWorryPaymentSessionRequest("ORD-100", "42", 25_000L, orderCreatedAt, "딸기 케이크", null,
+                "http://localhost:8080/orders/1/payment/donworry/return",
+                "http://localhost:8080/orders/1/payment/fail", null);
     }
 
     @Test
