@@ -70,18 +70,6 @@ public class DonWorryPaymentClient {
         this.key = decodeKey(environment.apply(properties.getKeyEnvironmentVariable()));
     }
 
-    /**
-     * 결제를 요청한다. 응답을 못 받아 다시 보낼 때는 같은 idempotencyKey와 같은 본문을 써야 같은 시도로 처리된다.
-     * PENDING·HELD는 202이며 결제 성공이 아니다.
-     */
-    public DonWorryPaymentResponse request(DonWorryPaymentRequest request, String idempotencyKey) {
-        if (idempotencyKey == null || idempotencyKey.isBlank()) {
-            throw new IllegalArgumentException("Idempotency-Key가 필요합니다.");
-        }
-        byte[] body = json.writeValueAsBytes(request);
-        return exchange(HttpMethod.POST, PAYMENTS_PATH, body, idempotencyKey, DonWorryPaymentResponse.class);
-    }
-
     /** 호스팅 결제창을 준비한다. 같은 키·같은 본문이면 돈워리가 같은 세션을 돌려준다. */
     public DonWorryPaymentSessionResponse createSession(DonWorryPaymentSessionRequest request, String idempotencyKey) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
