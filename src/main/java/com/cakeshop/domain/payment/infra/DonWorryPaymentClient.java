@@ -91,6 +91,19 @@ public class DonWorryPaymentClient {
         return exchange(HttpMethod.POST, SESSIONS_PATH, body, idempotencyKey, DonWorryPaymentSessionResponse.class);
     }
 
+    /**
+     * 결제 전액 취소를 요청한다. idempotencyKey는 UUID이며, 거절·결과 대기 뒤 다시 보낼 때도 같은 키·같은 사유를 쓴다.
+     * 접수 전 거절(진행 중·준비 안 됨 등)은 DonWorryPaymentException(status, code)로 온다.
+     */
+    public DonWorryCancellationResponse cancel(long paymentId, String reason, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new IllegalArgumentException("Idempotency-Key가 필요합니다.");
+        }
+        byte[] body = json.writeValueAsBytes(java.util.Map.of("reason", reason));
+        return exchange(HttpMethod.POST, PAYMENTS_PATH + "/" + paymentId + "/cancellations", body, idempotencyKey,
+                DonWorryCancellationResponse.class);
+    }
+
     /** 결제 단건 상태를 조회한다. 조회는 평가·승인을 다시 실행하지 않는다. */
     public DonWorryPaymentResponse find(long paymentId) {
         return exchange(HttpMethod.GET, PAYMENTS_PATH + "/" + paymentId, new byte[0], "",

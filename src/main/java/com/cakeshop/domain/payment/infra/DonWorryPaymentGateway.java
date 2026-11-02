@@ -6,6 +6,7 @@ import com.cakeshop.global.error.BusinessException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -125,9 +126,76 @@ public class DonWorryPaymentGateway implements PaymentGateway {
         ));
     }
 
+    /**
+     * 돈워리에 전액 취소를 요청한다. 완료(SUCCEEDED·ALREADY_CANCELED)만 결과로 돌려준다.
+     * 결과 대기(PROCESSING·UNKNOWN)·진행 중(PAYMENT_IN_PROGRESS)·준비 안 됨(CANCELLATION_NOT_READY)·일시 장애는
+     * PAYMENT_RECOVERY_PENDING으로 알려, CakeShop 취소 요청을 REQUESTED로 두고 복구 배치가 같은 키로 다시 보낸다.
+     * 취소할 거래가 없음·확인 필요·키 충돌·실패 확정은 PAYMENT_CANCEL_FAILED다.
+     * 2026-11-02 돈워리: 보류(HELD) 결제는 승인 취소가 실제로 실행된다(DonWorry #382). 매입된(CAPTURED) 결제의 환불은
+     * DonWorry #383 전까지 503 CANCELLATION_NOT_READY라, 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 다시 보낸다.
+     */
     @Override
     public CancellationResult cancel(String paymentKey, String reason, String idempotencyKey) {
-        throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
+        long paymentId = paymentId(paymentKey)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED));
+        DonWorryCancellationResponse response;
+        try {
+            response = client.cancel(paymentId, cancellationReason(reason), cancellationKey(idempotencyKey));
+        } catch (DonWorryPaymentException exception) {
+            throw new BusinessException(retryable(exception)
+                    ? PaymentErrorCode.PAYMENT_RECOVERY_PENDING
+                    : PaymentErrorCode.PAYMENT_CANCEL_FAILED);
+        }
+        if (!response.completed()) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING);
+        }
+        // 직원 거절(VOIDED)로 이미 취소된 결제는 고객 취소 작업 ID가 없을 수 있어 요청 키로 거래 키를 만든다.
+        String transactionKey = response.cancellationId() != null
+                ? "DW-CANCEL-" + response.cancellationId()
+                : "DW-CANCEL-REQ-" + response.requestKey();
+        LocalDateTime canceledAt = response.completedAt() != null
+                ? LocalDateTime.ofInstant(response.completedAt(), clock.getZone())
+                : LocalDateTime.now(clock);
+        return new CancellationResult(PaymentGatewayStatus.CANCELED, transactionKey, canceledAt);
+    }
+
+    private static boolean retryable(DonWorryPaymentException exception) {
+        int status = exception.getStatus();
+        String code = exception.getCode();
+        return status == 0
+                || status >= 500
+                || status == 429
+                || "PAYMENT_IN_PROGRESS".equals(code)
+                || "CANCELLATION_ALREADY_IN_PROGRESS".equals(code);
+    }
+
+    /** 돈워리는 UUID 키만 받는다. CakeShop 키(CANCEL-{uuid})는 UUID 부분을, 그 밖의 키는 같은 값에서 항상 같은 UUID를 쓴다. */
+    static String cancellationKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
+        }
+        String candidate = idempotencyKey.startsWith("CANCEL-") ? idempotencyKey.substring(7) : idempotencyKey;
+        try {
+            UUID uuid = UUID.fromString(candidate);
+            if (uuid.toString().equalsIgnoreCase(candidate)) {
+                return uuid.toString();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // 아래에서 이름 기반 UUID로 바꾼다.
+        }
+        return UUID.nameUUIDFromBytes(idempotencyKey.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
+
+    /** 돈워리 사유 규칙(앞뒤 공백 없음, 1~200자)에 맞춘다. 같은 입력은 항상 같은 사유가 되어 재요청 내용이 같다. */
+    static String cancellationReason(String reason) {
+        String value = reason == null ? "" : reason.strip();
+        if (value.isEmpty()) {
+            return "고객 요청으로 주문 취소";
+        }
+        if (value.codePointCount(0, value.length()) > 200) {
+            value = value.substring(0, value.offsetByCodePoints(0, 200)).strip();
+        }
+        return value;
     }
 
     // 카드 승인이 끝났으면(매입 대기·보류 포함) 결제 완료로 본다. 실제 PG의 "승인 = 결제됨"과 같다.
@@ -150,6 +218,7 @@ public class DonWorryPaymentGateway implements PaymentGateway {
             case "PENDING", "HELD" -> PaymentGatewayStatus.IN_PROGRESS;
             // VOIDED는 매입 전 승인 취소라 청구가 없다. 환불 완료(CANCELED)와 구분한다.
             case "DENIED", "DECLINED", "VOIDED" -> PaymentGatewayStatus.ABORTED;
+            // 매입 뒤 환불은 돈워리에서 결제 상태를 CAPTURED로 둔다(DonWorry ADR-0058). 환불 완료는 취소 응답으로만 안다
             case "EXPIRED" -> PaymentGatewayStatus.EXPIRED;
             default -> PaymentGatewayStatus.UNKNOWN;
         };

@@ -2,8 +2,9 @@ package com.cakeshop.domain.payment.infra;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.cakeshop.domain.payment.entity.PaymentProvider;
@@ -113,11 +114,71 @@ class DonWorryPaymentGatewayTests {
     }
 
     @Test
-    void cancel_isNotSupportedYet() {
-        assertThatThrownBy(() -> gateway.cancel("DW-101", "고객 취소", "key"))
+    void cancel_succeeded_returnsCanceledResultWithStableUuidKey() {
+        when(client.cancel(101L, "고객 취소", "6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b"))
+                .thenReturn(cancellation("SUCCEEDED", 501L, Instant.parse("2026-10-31T03:05:00Z")));
+
+        CancellationResult result = gateway.cancel(
+                "DW-101", "  고객 취소  ", "CANCEL-6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b");
+
+        assertThat(result.status()).isEqualTo(PaymentGatewayStatus.CANCELED);
+        assertThat(result.transactionKey()).isEqualTo("DW-CANCEL-501");
+        assertThat(result.canceledAt()).isEqualTo(java.time.LocalDateTime.parse("2026-10-31T12:05:00"));
+    }
+
+    @Test
+    void cancel_alreadyCanceledByStaffVoid_isCompletedWithoutCancellationId() {
+        when(client.cancel(eq(101L), anyString(), anyString())).thenReturn(cancellation("ALREADY_CANCELED", null, null));
+
+        CancellationResult result = gateway.cancel("DW-101", "고객 취소", "CANCEL-6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b");
+
+        assertThat(result.transactionKey()).isEqualTo("DW-CANCEL-REQ-6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b");
+    }
+
+    @Test
+    void cancel_processingOrRetryableRefusal_keepsRequestForRetry() {
+        when(client.cancel(eq(101L), anyString(), anyString()))
+                .thenReturn(cancellation("PROCESSING", 501L, null))
+                .thenThrow(new DonWorryPaymentException(409, "PAYMENT_IN_PROGRESS"))
+                .thenThrow(new DonWorryPaymentException(503, "CANCELLATION_NOT_READY"))
+                .thenThrow(new DonWorryPaymentException(0, null));
+
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> gateway.cancel("DW-101", "고객 취소", "CANCEL-6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b"))
+                    .isInstanceOfSatisfying(BusinessException.class, exception ->
+                            assertThat(exception.getErrorCode()).isEqualTo(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
+        }
+    }
+
+    @Test
+    void cancel_finalRefusal_isCancelFailed() {
+        when(client.cancel(eq(101L), anyString(), anyString()))
+                .thenThrow(new DonWorryPaymentException(409, "PAYMENT_NOT_CANCELABLE"));
+
+        assertThatThrownBy(() -> gateway.cancel("DW-101", "고객 취소", "CANCEL-6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b"))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(PaymentErrorCode.PAYMENT_CANCEL_FAILED));
-        verifyNoInteractions(client);
+        assertThatThrownBy(() -> gateway.cancel("TOSS-KEY", "고객 취소", "key"))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void cancellationKeyAndReason_followDonWorryRules() {
+        assertThat(DonWorryPaymentGateway.cancellationKey("CANCEL-6F1C2A8E-3B4D-4E5F-8A9B-0C1D2E3F4A5B"))
+                .isEqualTo("6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b");
+        // UUID가 아닌 키는 항상 같은 UUID로 바꾼다(재시도 때 같은 키).
+        assertThat(DonWorryPaymentGateway.cancellationKey("COMPENSATE-7"))
+                .isEqualTo(DonWorryPaymentGateway.cancellationKey("COMPENSATE-7"))
+                .matches("[0-9a-f-]{36}");
+        assertThat(DonWorryPaymentGateway.cancellationReason("   ")).isEqualTo("고객 요청으로 주문 취소");
+        assertThat(DonWorryPaymentGateway.cancellationReason("가".repeat(250)).codePointCount(0, 200))
+                .isEqualTo(200);
+    }
+
+    private DonWorryCancellationResponse cancellation(String status, Long cancellationId, Instant completedAt) {
+        return new DonWorryCancellationResponse("6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b", 101L, status,
+                cancellationId, "REFUND", 25_000L, Instant.parse("2026-10-31T03:00:00Z"),
+                Instant.parse("2026-10-31T03:00:00Z"), completedAt, null, "NONE");
     }
 
     private DonWorryPaymentResponse response(String status) {
