@@ -150,6 +150,34 @@ public class DonWorryPaymentClient {
         }
     }
 
+    /**
+     * DonWorry 웹훅 서명을 확인한다. 서명 문자열: DONWORRY-WEBHOOK-V1, 가맹점 코드, 초 단위 시각, 이벤트 ID, sha256(본문).
+     * 시각은 앞뒤 5분까지만 받는다. 내용은 믿지 않고 호출한 쪽이 결제를 다시 조회해 반영한다.
+     */
+    public boolean verifyWebhook(String merchantCode, String timestamp, String eventId, String signature,
+                                 byte[] body) {
+        if (!this.merchantCode.equals(merchantCode) || timestamp == null || !timestamp.matches("[0-9]{10}")
+                || eventId == null || eventId.isBlank() || eventId.length() > 100
+                || signature == null || !signature.matches("[0-9a-f]{64}") || body == null) {
+            return false;
+        }
+        long now = clock.instant().getEpochSecond();
+        long sent = Long.parseLong(timestamp);
+        if (sent < now - 300 || sent > now + 300) {
+            return false;
+        }
+        try {
+            String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body));
+            String canonical = String.join("\n", "DONWORRY-WEBHOOK-V1", merchantCode, timestamp, eventId, hash);
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key, "HmacSHA256"));
+            byte[] expected = mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8));
+            return MessageDigest.isEqual(expected, HexFormat.of().parseHex(signature));
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("HMAC-SHA256을 사용할 수 없습니다.");
+        }
+    }
+
     static String sign(byte[] key, String merchantCode, String timestamp, String nonce, String method,
                        String target, String contentType, String idempotencyKey, byte[] body) {
         try {

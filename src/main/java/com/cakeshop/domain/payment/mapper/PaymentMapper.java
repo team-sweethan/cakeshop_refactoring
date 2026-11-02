@@ -148,4 +148,35 @@ public interface PaymentMapper {
             @Param("transactionKey") String transactionKey,
             @Param("canceledAt") LocalDateTime canceledAt
     );
+
+    // 돈워리 웹훅·조회 배치: 주문 참조(gateway order id)로 결제를 찾는다.
+    Optional<Payment> findPaymentByGatewayOrderId(@Param("gatewayOrderId") String gatewayOrderId);
+
+    // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id)
+    List<String> findDonWorryGatewayOrderIdsToSync(
+            @Param("since") LocalDateTime since,
+            @Param("limit") int limit
+    );
+
+    // 돈워리 거절(VOIDED)을 완료된 취소로 기록한다. DONE 결제만 대상이라 결제 취소(cancelPaymentByGatewayVoid)보다 먼저 부른다.
+    int insertGatewayVoidCancellation(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("reason") String reason,
+            @Param("canceledAt") LocalDateTime canceledAt
+    );
+
+    // 돈워리가 승인을 취소했지만 주문이 이미 이행돼 유지한 DONE 결제를 한 번만 표시한다(failure_code=GATEWAY_VOIDED_KEPT).
+    // 바뀐 행 수 0이면 이미 표시했거나 대상이 아니다.
+    int markGatewayVoidKept(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey
+    );
+
+    // DONE 결제를 돈워리 거절로 취소한다. 바뀐 행 수 0이면 이미 반영됐거나 대상이 아니다.
+    int cancelPaymentByGatewayVoid(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("canceledAt") LocalDateTime canceledAt
+    );
 }

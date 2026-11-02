@@ -95,6 +95,8 @@ public record PaymentAdminListRow(
             case "SYSTEM_COMPENSATION" -> "자동 복구";
             case "ADMIN" -> "관리자 처리";
             case "ADMIN_REJECTION" -> "관리자 반려";
+            // 돈워리 보안 검토로 승인이 취소돼 주문을 취소했다(DonWorry ADR-0064 4-1)
+            case "GATEWAY_VOID" -> "결제 보안 거절";
             default -> "고객 요청";
         };
     }

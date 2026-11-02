@@ -72,7 +72,8 @@ public class DonWorryCheckoutService {
                 buyerEmail(memberEmail),
                 shopBaseUrl + "/orders/" + orderId + "/payment/donworry/return",
                 shopBaseUrl + "/orders/" + orderId + "/payment/fail",
-                null
+                // 상태 변경 웹훅(보류 뒤 거절 등)을 받을 주소
+                shopBaseUrl + "/webhooks/donworry"
         );
         String key = UUID.randomUUID().toString();
         DonWorryPaymentSessionResponse session;

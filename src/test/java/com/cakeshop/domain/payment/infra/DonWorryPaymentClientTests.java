@@ -74,6 +74,32 @@ class DonWorryPaymentClientTests {
         server.verify();
     }
 
+    // 돈워리 MerchantWebhookSignerServiceTests와 같은 고정 벡터(키 0x00 × 32)
+    private static final String WEBHOOK_SIGNATURE = "1eece5c756406c6efbde75b08f7fd69471a87cff3630f0679dc8ddb23eade07a";
+    private static final byte[] WEBHOOK_BODY = "{\"paymentId\":4}".getBytes(StandardCharsets.UTF_8);
+
+    @Test
+    void verifyWebhook_acceptsDonWorrySignature() {
+        assertThat(client().verifyWebhook("CAKESHOP", "1793415600", "evt_4_CAPTURED_A", WEBHOOK_SIGNATURE,
+                WEBHOOK_BODY)).isTrue();
+    }
+
+    @Test
+    void verifyWebhook_rejectsTamperedOrStaleOrOtherMerchant() {
+        DonWorryPaymentClient client = client();
+        assertThat(client.verifyWebhook("CAKESHOP", "1793415600", "evt_4_CAPTURED_A", WEBHOOK_SIGNATURE,
+                "{\"paymentId\":5}".getBytes(StandardCharsets.UTF_8))).isFalse();
+        assertThat(client.verifyWebhook("CAKESHOP", "1793415600", "evt_4_VOIDED_A", WEBHOOK_SIGNATURE,
+                WEBHOOK_BODY)).isFalse();
+        // 서명 시각이 5분보다 오래됐다
+        assertThat(client.verifyWebhook("CAKESHOP", "1793415299", "evt_4_CAPTURED_A", WEBHOOK_SIGNATURE,
+                WEBHOOK_BODY)).isFalse();
+        assertThat(client.verifyWebhook("OTHER", "1793415600", "evt_4_CAPTURED_A", WEBHOOK_SIGNATURE,
+                WEBHOOK_BODY)).isFalse();
+        assertThat(client.verifyWebhook("CAKESHOP", "1793415600", "evt_4_CAPTURED_A", null, WEBHOOK_BODY))
+                .isFalse();
+    }
+
     @Test
     void createSession_signsBodyWithIdempotencyKeyAndReadsCheckoutUrl() {
         AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
