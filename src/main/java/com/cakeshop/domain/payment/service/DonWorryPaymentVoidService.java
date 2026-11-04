@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  *        DonWorry ADR-0064 4-1에 따라 이행 전이면 주문을 취소하고(재고·쿠폰 복구, 고객 알림),
  *        가맹점이 "결제 확인 중"에 진행해 이행(제작·픽업)이 시작된 주문은 유지한다 — 손실은 가맹점이 부담하고 처리한다.
  *        유지한 결제는 한 번만 표시하고 기록한다.
+ *        고객 · 관리자 취소나 수제 반려가 PG 응답을 기다리는 중이었으면 그 요청을 승인 취소 결과로 완료한다(RefundService).
  *        돈워리 쪽 승인은 이미 풀렸으므로 PG 취소 API를 부르지 않는다.
  * ******************************
  */
@@ -38,6 +39,7 @@ public class DonWorryPaymentVoidService {
     private final OrderPaymentRecoveryService orderPaymentRecoveryService;
     private final OrderNotificationService orderNotificationService;
     private final OrderPaymentQueryService orderPaymentQueryService;
+    private final RefundService refundService;
 
     public enum VoidOutcome {
         // 주문을 취소했다
@@ -63,6 +65,11 @@ public class DonWorryPaymentVoidService {
             log.warn("돈워리 승인 취소됐으나 가맹점이 이미 진행한 주문이라 유지(가맹점 부담) orderId={} paymentId={}",
                     payment.getOrderId(), payment.getId());
             return VoidOutcome.ORDER_KEPT;
+        }
+        // 고객 · 관리자 취소나 수제 반려 요청이 PG 응답을 기다리는 중이면, 새 거절 기록을 만들지 않고 그 요청을
+        // 돈워리 승인 취소 결과로 완료한다. 결제 · 주문은 요청 종류대로 확정된다(#26 Codex 리뷰). 알림은 주문 상태 알림 배치가 보낸다.
+        if (refundService.completeRequestedCancellationByGatewayVoid(payment, canceledAt)) {
+            return VoidOutcome.ORDER_CANCELED;
         }
         // DONE 결제에만 기록되므로 0이면 이미 반영된 거절이다(웹훅·조회 배치 중복).
         if (paymentMapper.insertGatewayVoidCancellation(
