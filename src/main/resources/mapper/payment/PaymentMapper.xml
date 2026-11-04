@@ -563,4 +563,88 @@
           AND payment.status IN ('READY', 'DONE', 'EXPIRED')
           AND (payment.payment_key IS NULL OR payment.payment_key = #{paymentKey})
     </update>
+
+    <!-- 돈워리 웹훅·조회 배치: 돈워리 결제의 주문 참조(gateway order id)로 결제 한 건을 찾는다. -->
+    <select id="findPaymentByGatewayOrderId"
+            resultType="com.cakeshop.domain.payment.entity.Payment">
+        SELECT
+            id,
+            order_id,
+            toss_order_id AS gateway_order_id,
+            provider,
+            payment_key,
+            idempotency_key,
+            method,
+            amount,
+            status,
+            active_payment_order_id,
+            failure_code,
+            requested_at,
+            approved_at,
+            canceled_at,
+            created_at,
+            updated_at
+        FROM payments
+        WHERE toss_order_id = #{gatewayOrderId}
+    </select>
+
+    <!-- 조회 배치 대상: 최근 완료한 돈워리 결제(보류 뒤 직원 거절 확인)와 결제창을 닫아 아직 READY인 결제의 주문 참조 -->
+    <select id="findDonWorryGatewayOrderIdsToSync" resultType="string">
+        SELECT toss_order_id
+        FROM payments
+        WHERE provider = 'OWN'
+          AND status IN ('READY', 'DONE')
+          AND COALESCE(approved_at, requested_at) &gt;= #{since}
+        ORDER BY id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 돈워리가 결제를 거절(VOIDED)한 뒤 완료했던 결제를 취소로 기록한다. 같은 결제는 한 번만 기록된다. -->
+    <insert id="insertGatewayVoidCancellation">
+        INSERT INTO payment_cancellations (
+            payment_id,
+            idempotency_key,
+            cancel_amount,
+            cancel_reason,
+            request_type,
+            requested_by,
+            status,
+            transaction_key,
+            canceled_at
+        )
+        SELECT
+            payment.id,
+            CONCAT('GATEWAY-VOID-', payment.id),
+            payment.amount,
+            #{reason},
+            'GATEWAY_VOID',
+            NULL,
+            'DONE',
+            CONCAT('GATEWAY-VOID-', payment.payment_key),
+            #{canceledAt}
+        FROM payments AS payment
+        WHERE payment.id = #{paymentId}
+          AND payment.status = 'DONE'
+          AND payment.payment_key = #{paymentKey}
+    </insert>
+
+    <!-- 돈워리가 승인을 취소했지만 주문이 이미 이행돼 유지한다(DonWorry ADR-0064 4-1). 결제는 DONE 그대로, 표시만 한 번 남긴다 -->
+    <update id="markGatewayVoidKept">
+        UPDATE payments
+        SET failure_code = 'GATEWAY_VOIDED_KEPT'
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND failure_code IS NULL
+    </update>
+
+    <update id="cancelPaymentByGatewayVoid">
+        UPDATE payments
+        SET status = 'CANCELED',
+            canceled_at = #{canceledAt},
+            failure_code = 'GATEWAY_VOIDED'
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+    </update>
 </mapper>

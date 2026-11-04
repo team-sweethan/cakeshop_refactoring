@@ -77,6 +77,7 @@ class DonWorryCheckoutServiceTests {
         assertThat(request.buyerEmail()).isEqualTo(EMAIL);
         assertThat(request.successUrl()).isEqualTo("http://localhost:8080/orders/1/payment/donworry/return");
         assertThat(request.failUrl()).isEqualTo("http://localhost:8080/orders/1/payment/fail");
+        assertThat(request.notifyUrl()).isEqualTo("http://localhost:8080/webhooks/donworry");
         assertThat(session.checkoutUrl()).isEqualTo("http://localhost:5174/checkout/pss_1");
         assertThat(session.checkoutOrigin()).isEqualTo("http://localhost:5174");
     }

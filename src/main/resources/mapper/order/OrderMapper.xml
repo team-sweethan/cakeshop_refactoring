@@ -664,7 +664,7 @@
               FROM payments AS payment
               WHERE payment.order_id = orders.id
                 AND payment.status = 'CANCELED'
-                AND payment.failure_code = 'INTERNAL_COMPLETION_FAILED'
+                AND payment.failure_code IN ('INTERNAL_COMPLETION_FAILED', 'GATEWAY_VOIDED')
           )
     </update>
 
