@@ -100,6 +100,34 @@ class DonWorryPaymentClientTests {
         server.verify();
     }
 
+    // DonWorry 취소 계약(#381): 본문은 reason 하나뿐, Idempotency-Key는 UUID, 응답의 requestStatus로 완료를 판단한다
+    @Test
+    void cancel_signsReasonOnlyBodyWithIdempotencyKey() {
+        String key = "6f1c2a8e-3b4d-4e5f-8a9b-0c1d2e3f4a5b";
+        AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
+        server.expect(requestTo(BASE_URL + "/api/payments/101/cancellations"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(request -> captured.set((MockClientHttpRequest) request))
+                .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"requestKey\":\"" + key + "\",\"paymentId\":101,\"requestStatus\":\"SUCCEEDED\","
+                                + "\"cancellationId\":501,\"operation\":\"VOID\",\"amount\":25000,"
+                                + "\"requestedAt\":\"2026-10-31T03:00:00Z\",\"updatedAt\":\"2026-10-31T03:00:01Z\","
+                                + "\"completedAt\":\"2026-10-31T03:00:01Z\",\"code\":null,\"nextAction\":\"NONE\"}"));
+
+        DonWorryCancellationResponse response = client().cancel(101L, "고객 요청으로 주문 취소", key);
+
+        assertThat(response.completed()).isTrue();
+        assertThat(response.cancellationId()).isEqualTo(501L);
+        HttpHeaders headers = captured.get().getHeaders();
+        byte[] body = captured.get().getBodyAsBytes();
+        assertThat(new String(body, StandardCharsets.UTF_8)).isEqualTo("{\"reason\":\"고객 요청으로 주문 취소\"}");
+        assertThat(headers.getFirst("Idempotency-Key")).isEqualTo(key);
+        assertThat(headers.getFirst("X-Signature")).isEqualTo(DonWorryPaymentClient.sign(KEY, "CAKESHOP",
+                "1793415600", headers.getFirst("X-Nonce"), "POST", "/api/payments/101/cancellations",
+                "application/json", key, body));
+        server.verify();
+    }
+
     @Test
     void findLatestAttempt_signsPathWithQuery() {
         AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();

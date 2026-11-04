@@ -10,7 +10,7 @@
 
 | 클래스 | 역할 |
 |---|---|
-| `DonWorryPaymentClient` | HMAC(`DONWORRY-HMAC-V1`) 서명 후 결제 준비 · 조회. `donworry.payment.enabled=true`일 때만 빈 생성 |
+| `DonWorryPaymentClient` | HMAC(`DONWORRY-HMAC-V1`) 서명 후 결제 준비 · 조회 · 전액 취소. `donworry.payment.enabled=true`일 때만 빈 생성 |
 | `DonWorryPaymentSessionRequest` · `DonWorryPaymentSessionResponse` | 결제 준비(`POST /api/payment-sessions`) 요청 · 응답. 응답의 `checkoutUrl`을 iframe으로 연다 |
 | `DonWorryPaymentResponse` | 서명 조회 응답. `authorized`(카드 승인 완료 여부)로 `PENDING`의 두 의미(평가 중 / 승인 뒤 매입 대기)를 구분한다 |
 | `DonWorryPaymentException` | 실패. `resultUnknown()`이면 같은 `Idempotency-Key`·본문으로 한 번 다시 보낸다 |
@@ -56,7 +56,7 @@
    `DONWORRY_PAYMENT_SHOP_BASE_URL`(결제창이 돌려보낼 이 쇼핑몰 주소)
 4. **CakeShop은 `http://127.0.0.1:8080`으로 연다.** DonWorry 화면(`localhost:5173`)과 같은 `localhost`면 로그인 쿠키가 섞이고,
    복귀 주소(`DONWORRY_PAYMENT_SHOP_BASE_URL`)와 출처가 다르면 결제창의 이동 신호가 전달되지 않는다
-   (결제창은 4초 뒤 "결과 화면으로 이동" 링크를 보인다). `DONWORRY_PAYMENT_SHOP_BASE_URL=http://127.0.0.1:8080`으로 맞춘다.
+   (결제창은 4초 뒤 "쇼핑몰 화면으로 이동" 링크를 보인다. 결과 · 취소 · 만료 모두 같다). `DONWORRY_PAYMENT_SHOP_BASE_URL=http://127.0.0.1:8080`으로 맞춘다.
 5. 결제 화면에서 결제하기 → 돈워리를 고른다. 이미 승인된 기존 결제는 저장된 PG를 그대로 쓴다.
 
 > 테스트도 `.env`를 읽는다. `.env`에서 `DONWORRY_PAYMENT_ENABLED=true`로 두고 키 환경변수 없이 `./gradlew test`를 돌리면
@@ -75,6 +75,10 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
 
 - **보류 뒤 거절 반영**: 돈워리 웹훅 수신(후속 PR) 전에는 보류(HELD) 뒤 직원 거절(VOIDED)이 주문에 반영되지 않는다.
   제작 시작 전이면 주문 취소, 제작 시작 뒤면 주문 유지(손실은 돈워리 부담)로 나누는 방향은 DonWorry ADR-0064 4-1에 있고, P6 정산 처리 확인이 남았다.
-- **고객 취소**: DonWorry가 HELD 결제의 고객 승인 취소(`POST /api/payments/{id}/cancellations`)를 실행한다(DonWorry #382). CakeShop 주문 취소와의 연결은 후속 PR이다.
-  매입된(CAPTURED) 결제의 환불은 DonWorry #383 전까지 503이다.
+- **고객 · 관리자 취소** (`DonWorryPaymentGateway.cancel` → DonWorry `POST /api/payments/{id}/cancellations`, 계약 DonWorry #381):
+  - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
+  - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")
+  - 결과 대기 · 진행 중 · 일시 장애는 `PAYMENT_RECOVERY_PENDING` — 취소 요청이 REQUESTED로 남고 복구 배치가 같은 키 · 같은 사유로 다시 보낸다
+  - **매입된(CAPTURED) 결제의 환불은 DonWorry #383 전까지 503 `CANCELLATION_NOT_READY`**다. 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 계속 다시 보낸다
+  - 돈워리 결제 상태에는 `REFUNDED`가 없다. 환불돼도 `CAPTURED`로 남는다(DonWorry ADR-0058)
 - 위 구조(성공 콜백 재사용, `approve` = 조회)는 `pg-decisions` ADR로 남길 대상이다.
