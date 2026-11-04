@@ -38,7 +38,7 @@ Spring이나 Thymeleaf가 실행 중에 읽는 설정 파일은 아니며, 실�
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>화면명 | 케이크 쇼핑몰</title>
+  <title>화면명 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <!-- 필요한 기능별 CSS -->
   <script defer th:src="@{/js/app.js}"></script>
