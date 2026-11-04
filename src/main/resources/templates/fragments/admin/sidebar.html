@@ -1,7 +1,7 @@
 <aside class="admin-sidebar" th:fragment="sidebar(activeMenu)" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}">
   <a class="admin-sidebar__brand" th:href="@{/admin}">
     <span class="admin-sidebar__eyebrow">관리자 페이지</span>
-    <span class="admin-sidebar__title">케이크 쇼핑몰</span>
+    <span class="admin-sidebar__title">스윗한 케이크</span>
   </a>
   <nav class="admin-sidebar__nav" aria-label="관리자 메뉴">
     <a class="admin-sidebar__link" th:classappend="${activeMenu == 'dashboard'} ? ' is-current'"

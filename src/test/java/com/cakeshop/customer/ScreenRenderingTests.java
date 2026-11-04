@@ -114,11 +114,13 @@ class ScreenRenderingTests {
     void login_footer_rendersPublicStoreInformation() throws Exception {
         mockMvc.perform(get("/login"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("케이크 공방")))
+            // 헤더도 같은 이름을 쓰므로 푸터 하단 저작권 줄로 store.name 을 확인한다
+            .andExpect(content().string(containsString("<span>스윗한 케이크</span>. All rights reserved.")))
             .andExpect(content().string(containsString("서울특별시 강남구 테헤란로 1")))
             .andExpect(content().string(containsString("02-000-0000")))
-            .andExpect(content().string(containsString("평일 10:00 ~ 20:00 / 주말 11:00 ~ 21:00")))
-            .andExpect(content().string(containsString("매장 1층 픽업 데스크")))
+            // 영업시간과 픽업 장소는 각각 한 줄(p)로 나온다
+            .andExpect(content().string(containsString("<p>평일 10:00 ~ 20:00 / 주말 11:00 ~ 21:00</p>")))
+            .andExpect(content().string(containsString("<span>매장 1층 픽업 데스크</span>")))
             .andExpect(content().string(not(containsString("매장 정보를 준비 중입니다."))));
     }
 

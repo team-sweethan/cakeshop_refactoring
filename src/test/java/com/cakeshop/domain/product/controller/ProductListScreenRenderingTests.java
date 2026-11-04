@@ -84,7 +84,7 @@ class ProductListScreenRenderingTests {
         mockMvc.perform(request)
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString(
-                        expectedTitle + " | 케이크 쇼핑몰"
+                        expectedTitle + " | 스윗한 케이크"
                 )))
                 .andExpect(content().string(containsString(
                         "data-page-title=\"" + expectedTitle + "\""
