@@ -384,7 +384,7 @@ class PaymentMapperTests {
         String ready2 = insertOwnPayment("CAP-READY-2", "READY", now.minusMinutes(4), null, null);
 
         // 이 테스트가 넣은 행이 가장 최신이라 각 종류의 맨 앞이다. 배치 4건 = 판정 대기 2건 + READY 2건
-        assertThat(paymentMapper.findDonWorryGatewayOrderIdsToSync(now.minusDays(3), 4))
+        assertThat(paymentMapper.findDonWorryGatewayOrderIdsToSync(now.minusDays(3), now.minusHours(1), 4))
                 .containsExactly(held3, held2, ready2, ready1);
     }
 
@@ -402,14 +402,43 @@ class PaymentMapperTests {
         // 거절됐지만 가맹점이 이미 진행해 유지한 결제는 판정이 끝났다
         String voidedKept = insertOwnPayment("SYNC-VOIDED-KEPT", "DONE", now.minusMinutes(12), now.minusMinutes(12), null);
         jdbcTemplate.update("UPDATE payments SET failure_code = 'GATEWAY_VOIDED_KEPT' WHERE toss_order_id = ?", voidedKept);
+        // 늦은 승인 확인: 보상 요청 없이 최근 1시간 안에 만들어진 만료 결제만 본다 (pg-decisions 008)
+        String expiredRecent = insertOwnPayment("SYNC-EXP-NEW", "EXPIRED", now.minusMinutes(30), null, null);
+        String expiredOld = insertOwnPayment("SYNC-EXP-OLD", "EXPIRED", now.minusHours(2), null, null);
+        String expiredCompensated = insertOwnPayment("SYNC-EXP-COMP", "EXPIRED", now.minusMinutes(20), null, null);
+        jdbcTemplate.update(
+                """
+                INSERT INTO payment_cancellations (
+                    payment_id, idempotency_key, cancel_amount, cancel_reason, request_type, status
+                )
+                SELECT id, CONCAT('COMPENSATE-', id), amount, '자동 결제 취소', 'SYSTEM_COMPENSATION', 'REQUESTED'
+                FROM payments WHERE toss_order_id = ?
+                """,
+                expiredCompensated
+        );
+        // 실패(FAILED)로 닫힌 옛 보상 기록만 있으면 복구 배치가 보지 않으므로 조회 배치가 계속 본다 (#30 Codex 리뷰)
+        String expiredFailedHistory = insertOwnPayment("SYNC-EXP-FAIL", "EXPIRED", now.minusMinutes(25), null, null);
+        jdbcTemplate.update(
+                """
+                INSERT INTO payment_cancellations (
+                    payment_id, idempotency_key, cancel_amount, cancel_reason, request_type, status, failure_code
+                )
+                SELECT id, CONCAT('COMPENSATE-', id), amount, '자동 결제 취소', 'SYSTEM_COMPENSATION', 'FAILED',
+                       'PAYMENT_NOT_APPROVED'
+                FROM payments WHERE toss_order_id = ?
+                """,
+                expiredFailedHistory
+        );
 
         // 다른 테스트가 남긴 행이 있을 수 있어 넉넉히 받고, 이 테스트의 행만 확인한다
-        java.util.List<String> targets = paymentMapper.findDonWorryGatewayOrderIdsToSync(since, 1_000);
+        java.util.List<String> targets =
+                paymentMapper.findDonWorryGatewayOrderIdsToSync(since, now.minusHours(1), 1_000);
 
-        assertThat(targets).contains(oldHeld, ready)
-                .doesNotContain(oldReady, captured, normalDone, canceledHeld, voidedKept);
-        // 판정 대기(오래됐어도)를 결제창을 닫은 READY보다 먼저 본다
+        assertThat(targets).contains(oldHeld, ready, expiredRecent, expiredFailedHistory)
+                .doesNotContain(oldReady, captured, normalDone, canceledHeld, voidedKept, expiredOld, expiredCompensated);
+        // 판정 대기(오래됐어도) → 결제창을 닫은 READY → 만료 순으로 본다
         assertThat(targets.indexOf(oldHeld)).isLessThan(targets.indexOf(ready));
+        assertThat(targets.indexOf(ready)).isLessThan(targets.indexOf(expiredRecent));
     }
 
     // 돈워리(OWN) 결제를 주문과 함께 직접 넣는다. requested_at · approved_at은 같은 시각으로 둔다
@@ -438,7 +467,7 @@ class PaymentMapperTests {
         long syncOrderId = jdbcTemplate.queryForObject(
                 "SELECT id FROM orders WHERE order_number = ?", Long.class, orderNumber);
         String gatewayOrderId = "OWN-" + label + "-" + suffix;
-        boolean approved = !"READY".equals(status);
+        boolean approved = "DONE".equals(status) || "CANCELED".equals(status);
         jdbcTemplate.update(
                 """
                 INSERT INTO payments (

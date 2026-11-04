@@ -66,3 +66,4 @@
 | 004 | [복구 배치에서 PG별 처리 기회 분배](004-payment-recovery-batch-fairness.md) | 채택 |
 | 006 | [결제창에서 고객이 PG(Toss·DonWorry)를 고른다](006-customer-payment-gateway-choice.md) | 채택 |
 | 007 | [돈워리 보류(HELD) 결제를 가맹점에서 "결제 확인 중"으로 다룬다](007-donworry-held-payment-review.md) | 채택 |
+| 008 | [결제 기한 뒤 늦게 승인된 돈워리 결제는 CakeShop이 보상 취소한다](008-donworry-late-approval-compensation.md) | 채택 |

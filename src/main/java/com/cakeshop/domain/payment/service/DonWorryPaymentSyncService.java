@@ -5,6 +5,7 @@ import com.cakeshop.domain.payment.dto.form.PaymentConfirmForm;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
+import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentClient;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentException;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentGateway;
@@ -30,6 +31,9 @@ import org.springframework.stereotype.Service;
  *        - 승인됐는데 CakeShop은 아직 READY(구매자가 결제창을 닫음 등) → 기존 승인 확인 흐름으로 결제 완료
  *        - CAPTURED(보류 뒤 직원 승인)인데 CakeShop은 "결제 확인 중" → 확인 중을 끝내고 일반 주문은 픽업 준비로
  *        - VOIDED(보류 뒤 직원 거절)인데 CakeShop은 DONE → 주문 취소 · 재고·쿠폰 복구 · 고객 알림
+ *        - 승인됐는데 CakeShop 결제 기한이 지남(READY 완료가 PAYMENT_EXPIRED, 또는 이미 EXPIRED) → 늦은 승인.
+ *          기존 보상 취소(SYSTEM_COMPENSATION)로 돈워리 승인을 취소한다. 취소가 바로 안 끝나면 복구 배치가 다시 보낸다
+ *          (pg-decisions 008).
  *        그 밖의 상태(매입 대기·보류 중)는 바꿀 것이 없다.
  * ******************************
  */
@@ -38,6 +42,8 @@ import org.springframework.stereotype.Service;
 public class DonWorryPaymentSyncService {
 
     private static final Duration SYNC_WINDOW = Duration.ofDays(3);
+    // 만료된 결제의 늦은 승인을 조회 배치로 확인하는 기간(결제 생성 기준). 웹훅이 닿지 않는 환경의 복구용이다.
+    private static final Duration LATE_APPROVAL_WINDOW = Duration.ofHours(1);
 
     private final ObjectProvider<DonWorryPaymentClient> clientProvider;
     private final PaymentMapper paymentMapper;
@@ -45,6 +51,7 @@ public class DonWorryPaymentSyncService {
     private final PaymentFacade paymentFacade;
     private final DonWorryPaymentVoidService voidService;
     private final DonWorryPaymentCaptureService captureService;
+    private final PaymentCompensationProcessor compensationProcessor;
     private final Clock clock;
 
     public DonWorryPaymentSyncService(
@@ -54,6 +61,7 @@ public class DonWorryPaymentSyncService {
             PaymentFacade paymentFacade,
             DonWorryPaymentVoidService voidService,
             DonWorryPaymentCaptureService captureService,
+            PaymentCompensationProcessor compensationProcessor,
             Clock clock
     ) {
         this.clientProvider = clientProvider;
@@ -62,12 +70,17 @@ public class DonWorryPaymentSyncService {
         this.paymentFacade = paymentFacade;
         this.voidService = voidService;
         this.captureService = captureService;
+        this.compensationProcessor = compensationProcessor;
         this.clock = clock;
     }
 
     // CAPTURED: 보류 뒤 승인돼 결제 확인 중을 끝냄(DonWorry ADR-0064 4절)
     // VOIDED: 거절로 주문 취소, FULFILLED_KEPT: 거절됐지만 가맹점이 이미 진행한 주문이라 유지(손실은 가맹점 부담, 4-1)
-    public enum SyncResult { COMPLETED, CAPTURED, VOIDED, FULFILLED_KEPT, UNCHANGED, NOT_FOUND }
+    // LATE_APPROVAL_CANCELED: 결제 기한 뒤 승인을 돈워리에서 취소함, LATE_APPROVAL_CANCEL_PENDING: 취소 요청을 남겨 복구 배치가 다시 보냄
+    public enum SyncResult {
+        COMPLETED, CAPTURED, VOIDED, FULFILLED_KEPT, LATE_APPROVAL_CANCELED, LATE_APPROVAL_CANCEL_PENDING,
+        UNCHANGED, NOT_FOUND
+    }
 
     /** 돈워리 결제 한 건을 다시 조회해 반영한다. 돈워리 조회 실패는 예외로 알려 웹훅 재전송을 받는다. */
     public SyncResult sync(long donWorryPaymentId) {
@@ -105,13 +118,23 @@ public class DonWorryPaymentSyncService {
                         new PaymentConfirmForm(paymentKey, payment.getGatewayOrderId(), payment.getAmount()));
                 return SyncResult.COMPLETED;
             } catch (BusinessException exception) {
-                // 결제 기한이 지났거나 다른 결제가 먼저 완료된 경우. 돈워리에서는 승인돼 청구가 남아 있을 수 있지만
-                // 지금은 자동으로 취소하지 않고 경고만 남긴다. 누가 취소할지는 아직 정하지 않았다
-                // (DonWorry ADR-0064 남은 결정 "결제 접수 기한이 지난 뒤 늦게 승인된 결제").
+                if (exception.getErrorCode() == PaymentErrorCode.PAYMENT_EXPIRED) {
+                    // 결제창에서 이미 승인됐지만 CakeShop 결제 기한이 지났다. 청구가 남지 않게 승인을 취소한다.
+                    return cancelLateApproval(payment, paymentKey);
+                }
+                if (exception.getErrorCode() == PaymentErrorCode.PAYMENT_COMPENSATED) {
+                    // 승인 확인 중에 기한을 넘겨 결제 흐름이 이미 보상 취소를 마쳤다.
+                    return SyncResult.LATE_APPROVAL_CANCELED;
+                }
+                // 다른 결제가 먼저 완료된 경우 등. 자동으로 바꾸지 않고 관리자 확인용 경고만 남긴다.
                 log.warn("donworry sync could not complete orderId={} code={}",
                         payment.getOrderId(), exception.getErrorCode());
                 return SyncResult.UNCHANGED;
             }
+        }
+        if (response.approved() && payment.getStatus() == PaymentStatus.EXPIRED) {
+            // 만료 배치가 주문 · 결제를 먼저 만료시킨 뒤 승인이 확인됐다.
+            return cancelLateApproval(payment, paymentKey);
         }
         if (response.captured()
                 && payment.getStatus() == PaymentStatus.DONE
@@ -133,8 +156,36 @@ public class DonWorryPaymentSyncService {
     }
 
     /**
+     * 결제 기한 뒤 늦게 승인된 돈워리 결제를 기존 보상 취소로 취소한다(pg-decisions 008).
+     * 보상 요청(COMPENSATE-{결제 ID})을 먼저 저장하므로 만료 배치가 건너뛰고, 취소가 바로 끝나지 않으면
+     * 복구 배치가 같은 키로 다시 보낸다. 보류 · 매입 대기는 승인 취소, 매입된 결제는 돈워리 환불 연결 전까지 대기한다.
+     */
+    private SyncResult cancelLateApproval(Payment payment, String paymentKey) {
+        log.warn("donworry late approval: cancel requested orderId={} paymentId={}",
+                payment.getOrderId(), payment.getId());
+        BusinessException outcome;
+        try {
+            outcome = compensationProcessor.compensateApproved(payment, paymentKey);
+        } catch (BusinessException exception) {
+            // 보상 요청은 저장됐고 돈워리 취소만 끝나지 않았다(매입 결제 환불 503 등). 복구 배치가 같은 키로 다시 보낸다.
+            log.warn("donworry late approval cancel pending orderId={} code={}",
+                    payment.getOrderId(), exception.getErrorCode());
+            return SyncResult.LATE_APPROVAL_CANCEL_PENDING;
+        }
+        if (outcome.getErrorCode() == PaymentErrorCode.PAYMENT_COMPENSATED) {
+            return SyncResult.LATE_APPROVAL_CANCELED;
+        }
+        // 보상 요청조차 저장하지 못했다. 정상으로 끝내면 웹훅 재전송이 멈추고 복구 배치가 볼 기록도 없으므로
+        // 실패로 알려 웹훅은 500(돈워리 재전송), 조회 배치는 다음 주기에 다시 보게 한다 (#30 Codex 리뷰).
+        log.warn("donworry late approval cancel not persisted orderId={} code={}",
+                payment.getOrderId(), outcome.getErrorCode());
+        throw outcome;
+    }
+
+    /**
      * 조회 배치: 웹훅을 놓쳐도 돈워리 결제의 승인·판정을 맞춘다. 바뀐 건수를 돌려준다.
-     * 아직 바뀔 수 있는 결제만 본다 — 판정 대기(보류 중) 결제는 기간과 관계없이, 결제창을 닫아 READY인 결제는 최근 3일.
+     * 아직 바뀔 수 있는 결제만 본다 — 판정 대기(보류 중) 결제는 기간과 관계없이, 결제창을 닫아 READY인 결제는 최근 3일,
+     * 보상 요청 없이 만료된 결제는 생성 후 1시간(늦은 승인 확인).
      * 이미 끝난 정상 결제는 다시 묻지 않아 오래된 판정 대기 결제가 최신 결제에 밀려 빠지지 않는다.
      */
     public int syncRecent(int limit) {
@@ -143,8 +194,10 @@ public class DonWorryPaymentSyncService {
             return 0;
         }
         int changed = 0;
-        LocalDateTime since = LocalDateTime.now(clock).minus(SYNC_WINDOW);
-        for (String gatewayOrderId : paymentMapper.findDonWorryGatewayOrderIdsToSync(since, limit)) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime since = now.minus(SYNC_WINDOW);
+        LocalDateTime expiredSince = now.minus(LATE_APPROVAL_WINDOW);
+        for (String gatewayOrderId : paymentMapper.findDonWorryGatewayOrderIdsToSync(since, expiredSince, limit)) {
             try {
                 // 주문 참조로 최신 시도를 찾는다. 결제창을 열지 않은 주문은 시도가 없어 건너뛴다.
                 Optional<DonWorryPaymentResponse> latest = client.findLatestAttempt(gatewayOrderId);
@@ -153,7 +206,8 @@ public class DonWorryPaymentSyncService {
                 }
                 SyncResult result = sync(latest.get().paymentId());
                 if (result == SyncResult.COMPLETED || result == SyncResult.CAPTURED
-                        || result == SyncResult.VOIDED || result == SyncResult.FULFILLED_KEPT) {
+                        || result == SyncResult.VOIDED || result == SyncResult.FULFILLED_KEPT
+                        || result == SyncResult.LATE_APPROVAL_CANCELED) {
                     changed++;
                 }
             } catch (RuntimeException exception) {
