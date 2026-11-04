@@ -58,6 +58,11 @@ management:
   endpoint:
     health:
       show-details: never
+  # 메일은 회원가입 인증번호 발송에만 쓴다. 메일 설정이 비었거나 SMTP 로그인이 실패해도
+  # 앱 전체 상태가 DOWN 이 되지 않도록 상태 확인에서 뺀다. 메일 발송은 실제 흐름으로 확인한다.
+  health:
+    mail:
+      enabled: false
   metrics:
     tags:
       application: ${spring.application.name}
