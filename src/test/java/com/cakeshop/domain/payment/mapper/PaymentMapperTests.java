@@ -361,6 +361,18 @@ class PaymentMapperTests {
         assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
     }
 
+    // 판정 전에 진행한 주문이 거절돼 결제를 유지한 경우(GATEWAY_VOIDED_KEPT)는 판정이 끝나 확인 중이 아니다
+    @Test
+    void existsPaymentUnderGatewayReview_voidedButKeptPayment_isNotUnderReview() {
+        Payment payment = insertPayment("UNDER-REVIEW-VOIDED-KEPT");
+        String paymentKey = "PAYMENT-KEY-UNDER-REVIEW-VOIDED-KEPT-" + suffix;
+        completePayment(payment, "UNDER-REVIEW-VOIDED-KEPT");
+        paymentMapper.markGatewayHeld(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 1));
+        assertThat(paymentMapper.markGatewayVoidKept(payment.getId(), paymentKey)).isEqualTo(1);
+
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
+    }
+
     // 조회 배치는 아직 바뀔 수 있는 돈워리 결제만 고른다. 끝난 정상 결제가 판정 대기 결제를 밀어내지 않는다
     @Test
     void findDonWorryGatewayOrderIdsToSync_onlyChangeablePayments_heldFirst() {
