@@ -17,27 +17,27 @@ import tools.jackson.databind.json.JsonMapper;
 @EnabledIfEnvironmentVariable(named = "DONWORRY_LIVE_BASE_URL", matches = "https?://.+")
 class DonWorryPaymentClientLiveTests {
 
+    // 2026-11-02: CakeShop은 결제를 직접 요청하지 않고 돈워리 결제창을 준비한다(DonWorry ADR-0064). 결제 준비를 실제로 보낸다
     @Test
-    void requestAndFind_againstRunningDonWorry() {
+    void createSession_againstRunningDonWorry() {
         DonWorryPaymentProperties properties = new DonWorryPaymentProperties();
         properties.setBaseUrl(URI.create(System.getenv("DONWORRY_LIVE_BASE_URL")));
         DonWorryPaymentClient client =
                 new DonWorryPaymentClient(properties, JsonMapper.builder().build(), Clock.systemUTC());
         String orderRef = "LIVE-" + UUID.randomUUID();
         long memberId = 900_000_000L + (long) (Math.random() * 99_999_999L);
-        DonWorryPaymentRequest request =
-                DonWorryPaymentRequest.of(orderRef, memberId, 25_000L, Instant.now().minusSeconds(1));
+        DonWorryPaymentSessionRequest request = new DonWorryPaymentSessionRequest(
+                orderRef, String.valueOf(memberId), 25_000L, Instant.now().minusSeconds(1), "라이브 확인 주문", null,
+                "http://127.0.0.1:8080/orders/1/payment/donworry/return",
+                "http://127.0.0.1:8080/orders/1/payment/fail", null);
         String idempotencyKey = UUID.randomUUID().toString();
 
-        DonWorryPaymentResponse created = client.request(request, idempotencyKey);
-        DonWorryPaymentResponse resent = client.request(request, idempotencyKey);
-        DonWorryPaymentResponse found = client.find(created.paymentId());
+        DonWorryPaymentSessionResponse created = client.createSession(request, idempotencyKey);
+        DonWorryPaymentSessionResponse resent = client.createSession(request, idempotencyKey);
 
-        assertThat(created.orderRef()).isEqualTo(orderRef);
-        assertThat(created.amount()).isEqualTo(25_000L);
-        // 같은 키 재전송은 새 결제를 만들지 않는다.
-        assertThat(resent.paymentId()).isEqualTo(created.paymentId());
-        assertThat(found.paymentId()).isEqualTo(created.paymentId());
-        System.out.println("DonWorry live: paymentId=" + found.paymentId() + " status=" + found.paymentStatus());
+        assertThat(created.checkoutUrl()).contains("/checkout/" + created.sessionKey());
+        // 같은 키 · 같은 본문 재전송은 새 세션을 만들지 않는다.
+        assertThat(resent.sessionKey()).isEqualTo(created.sessionKey());
+        System.out.println("DonWorry live: sessionKey=" + created.sessionKey() + " checkoutUrl=" + created.checkoutUrl());
     }
 }

@@ -189,6 +189,15 @@
         LIMIT 1
     </select>
 
+    <!-- 승인 시도 전(payment_key 없음)인 READY 결제만 고객이 고른 PG로 바꾼다. -->
+    <update id="changeReadyPaymentProvider">
+        UPDATE payments
+        SET provider = #{provider}
+        WHERE id = #{paymentId}
+          AND status = 'READY'
+          AND payment_key IS NULL
+    </update>
+
     <update id="completeIfReady">
         UPDATE payments
         SET status = 'DONE',

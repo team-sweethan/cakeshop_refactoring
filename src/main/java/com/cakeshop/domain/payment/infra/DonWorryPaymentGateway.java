@@ -1,0 +1,159 @@
+package com.cakeshop.domain.payment.infra;
+
+import com.cakeshop.domain.payment.entity.PaymentProvider;
+import com.cakeshop.domain.payment.error.PaymentErrorCode;
+import com.cakeshop.global.error.BusinessException;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+/**
+ * ******************************
+ * 작성자 : 수민
+ * 담당자 : 주환 (payment)
+ * 작성일 : 2026-10-31
+ * 기능 : DonWorry를 자체 PG(OWN)로 연결
+ * 설명 : 돈워리 결제창(호스팅)이 카드 승인을 마치면 기존 성공 콜백으로 돌아온다(paymentKey = DW-돈워리 결제 ID).
+ *        approve는 새 승인을 요청하지 않고 돈워리 상태를 조회해 승인 완료(authorized)인지 확인한다.
+ *        paymentKey는 "DW-" + DonWorry paymentId다.
+ *        DonWorry에는 가맹점용 취소·환불 API가 아직 없어 cancel은 실패로 남기고 복구 대상으로 둔다.
+ * ******************************
+ */
+@Component
+@ConditionalOnProperty(name = "donworry.payment.enabled", havingValue = "true")
+@RequiredArgsConstructor
+public class DonWorryPaymentGateway implements PaymentGateway {
+
+    public static final String PAYMENT_KEY_PREFIX = "DW-";
+    // 돈워리 결제창이 failUrl에 붙이는 code 값 (DonWorry ADR-0064 2절). 구매자가 결제창을 닫으면 USER_CANCELED,
+    // 카드 거절이면 결제의 declineCode(AUTHORIZATION_DECLINED), 그 밖에는 결제 상태 이름이다.
+    public static final String USER_CANCELED = "USER_CANCELED";
+    public static final String AUTHORIZATION_DECLINED = "AUTHORIZATION_DECLINED";
+    private static final int ORDER_NAME_MAX_LENGTH = 100;
+    private static final String METHOD = "카드";
+
+    private final DonWorryPaymentClient client;
+    private final Clock clock;
+
+    public static String paymentKey(long paymentId) {
+        return PAYMENT_KEY_PREFIX + paymentId;
+    }
+
+    /** "DW-" 뒤의 양수 paymentId만 받는다. 형식이 다르면 비어 있다. */
+    public static Optional<Long> paymentId(String paymentKey) {
+        if (paymentKey == null || !paymentKey.matches("DW-[1-9][0-9]{0,18}")) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(Long.parseLong(paymentKey.substring(PAYMENT_KEY_PREFIX.length())));
+        } catch (NumberFormatException exception) {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public PaymentProvider provider() {
+        return PaymentProvider.OWN;
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return true;
+    }
+
+    @Override
+    public String clientKey() {
+        // DonWorry 결제창은 브라우저용 키를 쓰지 않는다.
+        return "";
+    }
+
+    @Override
+    public String formatOrderName(String orderName) {
+        if (orderName.length() <= ORDER_NAME_MAX_LENGTH) {
+            return orderName;
+        }
+        return orderName.substring(0, ORDER_NAME_MAX_LENGTH);
+    }
+
+    @Override
+    public boolean isUserCanceled(String failureCode) {
+        return USER_CANCELED.equals(failureCode);
+    }
+
+    @Override
+    public boolean isCardRejected(String failureCode) {
+        return AUTHORIZATION_DECLINED.equals(failureCode);
+    }
+
+    @Override
+    public ApprovalResult approve(String paymentKey, String orderId, long amount, String idempotencyKey) {
+        PaymentLookupResult lookup = find(paymentKey)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED));
+        // 매입 전(PENDING·HELD)이나 거절된 결제는 승인으로 보지 않는다. 호출자가 조회로 상태를 다시 해석한다.
+        if (lookup.status() != PaymentGatewayStatus.DONE) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_APPROVAL_FAILED);
+        }
+        return lookup.toApprovalResult();
+    }
+
+    @Override
+    public Optional<PaymentLookupResult> find(String paymentKey) {
+        Optional<Long> paymentId = paymentId(paymentKey);
+        if (paymentId.isEmpty()) {
+            return Optional.empty();
+        }
+        DonWorryPaymentResponse response;
+        try {
+            response = client.find(paymentId.get());
+        } catch (DonWorryPaymentException exception) {
+            if (exception.getStatus() == 404) {
+                return Optional.empty();
+            }
+            throw new BusinessException(PaymentErrorCode.PAYMENT_STATUS_LOOKUP_FAILED);
+        }
+        return Optional.of(new PaymentLookupResult(
+                paymentKey(response.paymentId()),
+                response.orderRef(),
+                METHOD,
+                toGatewayStatus(response),
+                response.amount(),
+                response.statusChangedAt() == null
+                        ? null
+                        : LocalDateTime.ofInstant(response.statusChangedAt(), clock.getZone()),
+                null
+        ));
+    }
+
+    @Override
+    public CancellationResult cancel(String paymentKey, String reason, String idempotencyKey) {
+        throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_FAILED);
+    }
+
+    // 카드 승인이 끝났으면(매입 대기·보류 포함) 결제 완료로 본다. 실제 PG의 "승인 = 결제됨"과 같다.
+    // 보류 뒤 직원 거절(VOIDED)을 주문에 반영하는 일은 돈워리 결제 상태 웹훅(DonWorry ADR-0064 3절)을 받는 후속 PR에서 한다.
+    // 이 PR만으로는 거절돼도 주문이 결제 완료로 남는다.
+    static PaymentGatewayStatus toGatewayStatus(DonWorryPaymentResponse response) {
+        if (response.approved()) {
+            return PaymentGatewayStatus.DONE;
+        }
+        return toGatewayStatus(response.paymentStatus());
+    }
+
+    static PaymentGatewayStatus toGatewayStatus(String donWorryStatus) {
+        if (donWorryStatus == null) {
+            return PaymentGatewayStatus.UNKNOWN;
+        }
+        return switch (donWorryStatus) {
+            case "CAPTURED" -> PaymentGatewayStatus.DONE;
+            // 승인 전 평가 중이거나 승인 결과를 아직 모름
+            case "PENDING", "HELD" -> PaymentGatewayStatus.IN_PROGRESS;
+            // VOIDED는 매입 전 승인 취소라 청구가 없다. 환불 완료(CANCELED)와 구분한다.
+            case "DENIED", "DECLINED", "VOIDED" -> PaymentGatewayStatus.ABORTED;
+            case "EXPIRED" -> PaymentGatewayStatus.EXPIRED;
+            default -> PaymentGatewayStatus.UNKNOWN;
+        };
+    }
+}
