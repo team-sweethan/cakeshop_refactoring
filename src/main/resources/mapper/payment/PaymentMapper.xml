@@ -593,8 +593,10 @@
         * 판정 대기 DONE 결제(보류 시각은 있고 매입 시각은 없음): 직원 승인(CAPTURED)·거절(VOIDED)을 기다린다. 기간과 관계없이 본다.
           거절됐지만 이미 진행한 주문이라 결제를 유지한 경우(failure_code GATEWAY_VOIDED_KEPT)는 판정이 끝났으므로 뺀다.
         * READY 결제(최근 #{since} 이후): 구매자가 결제창을 닫아 성공 콜백이 오지 않았지만 돈워리에서는 승인됐을 수 있다.
+        * 보상 요청 없이 만료된 EXPIRED 결제(#{expiredSince} 이후 생성): 결제 기한 뒤 늦게 승인됐으면 승인을 취소해야 한다
+          (pg-decisions 008). 보상 요청이 생기면 복구 배치가 맡으므로 뺀다.
         이미 끝난 정상 결제(보류가 아니었거나 매입 확인된 DONE)는 다시 묻지 않는다. 거절(VOIDED)은 보류 결제에서만 생긴다.
-        판정 대기를 먼저 보고, 같은 종류 안에서는 최신순이다.
+        판정 대기 → READY → 만료 순으로 보고, 같은 종류 안에서는 최신순이다.
     -->
     <select id="findDonWorryGatewayOrderIdsToSync" resultType="string">
         SELECT toss_order_id
@@ -607,8 +609,16 @@
                   AND (failure_code IS NULL OR failure_code &lt;&gt; 'GATEWAY_VOIDED_KEPT'))
               OR (status = 'READY'
                   AND requested_at &gt;= #{since})
+              OR (status = 'EXPIRED'
+                  AND requested_at &gt;= #{expiredSince}
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payment_cancellations AS compensation
+                      WHERE compensation.payment_id = payments.id
+                        AND compensation.request_type = 'SYSTEM_COMPENSATION'
+                  ))
           )
-        ORDER BY CASE WHEN status = 'DONE' THEN 0 ELSE 1 END, id DESC
+        ORDER BY CASE status WHEN 'DONE' THEN 0 WHEN 'READY' THEN 1 ELSE 2 END, id DESC
         LIMIT #{limit}
     </select>
 

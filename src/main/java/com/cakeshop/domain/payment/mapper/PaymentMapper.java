@@ -153,9 +153,11 @@ public interface PaymentMapper {
     Optional<Payment> findPaymentByGatewayOrderId(@Param("gatewayOrderId") String gatewayOrderId);
 
     // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id). 아직 바뀔 수 있는 결제만이다:
-    // 판정 대기(보류 중) DONE 결제는 기간과 관계없이, 결제창을 닫아 READY로 남은 결제는 since 이후만. 판정 대기를 먼저 준다.
+    // 판정 대기(보류 중) DONE 결제는 기간과 관계없이, 결제창을 닫아 READY로 남은 결제는 since 이후만,
+    // 보상 요청 없이 만료된 결제는 expiredSince 이후 생성분만(늦은 승인 확인). 판정 대기 → READY → 만료 순이다.
     List<String> findDonWorryGatewayOrderIdsToSync(
             @Param("since") LocalDateTime since,
+            @Param("expiredSince") LocalDateTime expiredSince,
             @Param("limit") int limit
     );
 

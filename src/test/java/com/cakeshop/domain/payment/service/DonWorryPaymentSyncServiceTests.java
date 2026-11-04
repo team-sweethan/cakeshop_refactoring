@@ -14,6 +14,8 @@ import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.entity.PaymentStatus;
+import com.cakeshop.domain.payment.error.PaymentErrorCode;
+import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentClient;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentException;
 import com.cakeshop.domain.payment.infra.DonWorryPaymentResponse;
@@ -41,8 +43,10 @@ class DonWorryPaymentSyncServiceTests {
     private final PaymentFacade paymentFacade = mock(PaymentFacade.class);
     private final DonWorryPaymentVoidService voidService = mock(DonWorryPaymentVoidService.class);
     private final DonWorryPaymentCaptureService captureService = mock(DonWorryPaymentCaptureService.class);
+    private final PaymentCompensationProcessor compensationProcessor = mock(PaymentCompensationProcessor.class);
     private final DonWorryPaymentSyncService service = new DonWorryPaymentSyncService(
-            clientProvider, paymentMapper, orderPaymentQueryService, paymentFacade, voidService, captureService, CLOCK);
+            clientProvider, paymentMapper, orderPaymentQueryService, paymentFacade, voidService, captureService,
+            compensationProcessor, CLOCK);
 
     @BeforeEach
     void setUp() {
@@ -61,6 +65,72 @@ class DonWorryPaymentSyncServiceTests {
                 form.getPaymentKey().equals("DW-101")
                         && form.getGatewayOrderId().equals("ORD-100")
                         && form.getAmount().compareTo(BigDecimal.valueOf(52_000)) == 0));
+    }
+
+    // 결제창에서 승인됐지만 CakeShop 결제 기한이 지나 완료할 수 없으면 승인을 보상 취소한다 (pg-decisions 008)
+    @Test
+    void sync_approvedButShopPaymentExpired_cancelsLateApproval() {
+        Payment ready = local(PaymentStatus.READY, null);
+        when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(ready));
+        org.mockito.Mockito.doThrow(new BusinessException(PaymentErrorCode.PAYMENT_EXPIRED))
+                .when(paymentFacade).confirmPayment(anyLong(), anyLong(), any());
+        when(compensationProcessor.compensateApproved(ready, "DW-101"))
+                .thenReturn(new BusinessException(PaymentErrorCode.PAYMENT_COMPENSATED));
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCELED);
+        verify(compensationProcessor).compensateApproved(ready, "DW-101");
+    }
+
+    @Test
+    void sync_approvedAfterShopPaymentAlreadyExpired_cancelsLateApproval() {
+        Payment expired = local(PaymentStatus.EXPIRED, null);
+        when(client.find(101L)).thenReturn(donWorry("HELD", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(expired));
+        when(compensationProcessor.compensateApproved(expired, "DW-101"))
+                .thenReturn(new BusinessException(PaymentErrorCode.PAYMENT_COMPENSATED));
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCELED);
+        verify(paymentFacade, never()).confirmPayment(anyLong(), anyLong(), any());
+    }
+
+    // 취소가 바로 끝나지 않으면(매입 결제 환불 503 등) 보상 요청을 남기고 복구 배치에 맡긴다
+    @Test
+    void sync_lateApprovalCancelNotFinished_isPending() {
+        Payment expired = local(PaymentStatus.EXPIRED, null);
+        when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(expired));
+        when(compensationProcessor.compensateApproved(expired, "DW-101"))
+                .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING))
+                .thenReturn(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCEL_PENDING);
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCEL_PENDING);
+    }
+
+    // 승인되지 않은 시도나 다른 이유의 완료 실패는 취소하지 않는다
+    @Test
+    void sync_expiredWithoutApprovalOrOtherFailure_doesNotCancel() {
+        when(client.find(101L)).thenReturn(donWorry("DENIED", false), donWorry("PENDING", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100"))
+                .thenReturn(Optional.of(local(PaymentStatus.EXPIRED, null)), Optional.of(local(PaymentStatus.READY, null)));
+        org.mockito.Mockito.doThrow(new BusinessException(PaymentErrorCode.READY_PAYMENT_NOT_FOUND))
+                .when(paymentFacade).confirmPayment(anyLong(), anyLong(), any());
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
+        verify(compensationProcessor, never()).compensateApproved(any(), any());
+    }
+
+    @Test
+    void sync_confirmAlreadyCompensated_isLateApprovalCanceled() {
+        when(client.find(101L)).thenReturn(donWorry("PENDING", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(local(PaymentStatus.READY, null)));
+        org.mockito.Mockito.doThrow(new BusinessException(PaymentErrorCode.PAYMENT_COMPENSATED))
+                .when(paymentFacade).confirmPayment(anyLong(), anyLong(), any());
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCELED);
+        verify(compensationProcessor, never()).compensateApproved(any(), any());
     }
 
     @Test
@@ -156,7 +226,7 @@ class DonWorryPaymentSyncServiceTests {
     @Test
     void syncRecent_looksUpLatestAttemptByOrderAndCountsChanges() {
         Payment done = local(PaymentStatus.DONE, "DW-101");
-        when(paymentMapper.findDonWorryGatewayOrderIdsToSync(any(), eq(50))).thenReturn(List.of("ORD-100", "ORD-200"));
+        when(paymentMapper.findDonWorryGatewayOrderIdsToSync(any(), any(), eq(50))).thenReturn(List.of("ORD-100", "ORD-200"));
         when(client.findLatestAttempt("ORD-100")).thenReturn(Optional.of(donWorry("VOIDED", true)));
         when(client.findLatestAttempt("ORD-200")).thenReturn(Optional.empty());
         when(client.find(101L)).thenReturn(donWorry("VOIDED", true));

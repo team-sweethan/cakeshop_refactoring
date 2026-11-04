@@ -117,18 +117,30 @@ public class DonWorryPaymentGateway implements PaymentGateway {
             }
             throw new BusinessException(PaymentErrorCode.PAYMENT_STATUS_LOOKUP_FAILED);
         }
+        LocalDateTime changedAt = response.statusChangedAt() == null
+                ? null
+                : LocalDateTime.ofInstant(response.statusChangedAt(), clock.getZone());
         return Optional.of(new PaymentLookupResult(
                 paymentKey(response.paymentId()),
                 response.orderRef(),
                 METHOD,
                 toGatewayStatus(response),
                 response.amount(),
-                response.statusChangedAt() == null
-                        ? null
-                        : LocalDateTime.ofInstant(response.statusChangedAt(), clock.getZone()),
-                null,
+                changedAt,
+                voidedCancellation(response, changedAt),
                 response.heldForReview()
         ));
+    }
+
+    /**
+     * VOIDED는 승인된 결제를 돈워리가 승인 취소한 것이다(직원 거절 또는 가맹점 보상 취소). 상태는 청구 없음(ABORTED)이지만
+     * 승인 취소 기록을 함께 실어, 보상 취소 복구가 "승인 안 됨"으로 닫지 않고 취소 완료로 반영하게 한다.
+     */
+    private static CancellationResult voidedCancellation(DonWorryPaymentResponse response, LocalDateTime changedAt) {
+        if (!"VOIDED".equals(response.paymentStatus()) || changedAt == null) {
+            return null;
+        }
+        return new CancellationResult(PaymentGatewayStatus.CANCELED, "DW-VOID-" + response.paymentId(), changedAt);
     }
 
     /**

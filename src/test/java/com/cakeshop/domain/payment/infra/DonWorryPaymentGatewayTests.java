@@ -115,6 +115,21 @@ class DonWorryPaymentGatewayTests {
         assertThat(pending.heldForReview()).isFalse();
     }
 
+    // VOIDED는 청구 없음(ABORTED)이지만 승인 취소 기록을 함께 실어 보상 취소 복구가 취소 완료로 반영한다 (#25 Codex 리뷰)
+    @Test
+    void find_voided_carriesCompletedApprovalCancellation() {
+        when(client.find(101L)).thenReturn(response("VOIDED", true), response("DENIED", false));
+
+        PaymentLookupResult voided = gateway.find("DW-101").orElseThrow();
+        assertThat(voided.status()).isEqualTo(PaymentGatewayStatus.ABORTED);
+        assertThat(voided.cancellation()).isNotNull();
+        assertThat(voided.cancellation().status()).isEqualTo(PaymentGatewayStatus.CANCELED);
+        assertThat(voided.cancellation().transactionKey()).isEqualTo("DW-VOID-101");
+        assertThat(voided.cancellation().canceledAt()).isEqualTo(LocalDateTime.parse("2026-10-31T12:01:00"));
+
+        assertThat(gateway.find("DW-101").orElseThrow().cancellation()).isNull();
+    }
+
     @Test
     void find_heldOnlyWhenAuthorizedAndHeld() {
         when(client.find(101L)).thenReturn(response("HELD", true), response("CAPTURED"), response("HELD", false));
