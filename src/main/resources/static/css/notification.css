@@ -1,0 +1,132 @@
+/* 고객 알림 목록(/notifications) 전용 스타일.
+ * 목록 마크업은 화면 스크립트와 notification-websocket.js(실시간 알림)가 같은 구조로 만든다.
+ * 구조·클래스는 그대로 두고 .notification-list 안에서만 모양을 바꾼다. 관리자 알림 화면에는 영향이 없다. */
+
+.notification-page__intro {
+    color: var(--color-muted);
+    font-size: var(--font-sm);
+    margin: -4px 0 18px
+}
+
+.notification-list {
+    gap: 10px
+}
+
+/* 로딩·빈 목록·오류 문구 */
+.notification-list > p.text-muted {
+    background: #fff;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    margin: 0
+}
+
+.notification-list .notification-item {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 2px rgba(53, 43, 40, .04);
+    gap: 16px;
+    overflow: hidden;
+    padding: 16px 18px;
+    position: relative;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease
+}
+
+.notification-list .notification-item:hover {
+    border-color: var(--color-border);
+    box-shadow: 0 8px 20px rgba(53, 43, 40, .08);
+    transform: translateY(-1px)
+}
+
+/* 읽지 않은 알림: 왼쪽 강조 줄 + 연한 배경 */
+.notification-list .notification-item.is-unread {
+    background: #fff8fa;
+    border-color: #efd3dc;
+    cursor: pointer
+}
+
+.notification-list .notification-item.is-unread::before {
+    background: var(--color-brand);
+    bottom: 0;
+    content: "";
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 4px
+}
+
+.notification-list .notification-item > .cluster {
+    align-items: flex-start;
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 12px;
+    min-width: 0
+}
+
+.notification-list .notification-dot {
+    background: var(--color-brand);
+    box-shadow: 0 0 0 3px rgba(158, 64, 95, .16);
+    flex: none;
+    height: 8px;
+    margin-top: 7px;
+    width: 8px
+}
+
+/* 제목은 테두리 배지 대신 굵은 글자로 */
+.notification-list .notification-item .badge {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    color: var(--color-text);
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+    padding: 0
+}
+
+.notification-list .notification-item.is-unread .badge {
+    color: var(--color-brand-dark)
+}
+
+.notification-list .notification-item p {
+    color: var(--color-text);
+    font-size: var(--font-sm);
+    line-height: 1.6;
+    margin: 3px 0 4px;
+    overflow-wrap: anywhere
+}
+
+.notification-list .notification-item time {
+    display: block;
+    font-size: 12px;
+    line-height: 1.4
+}
+
+/* 읽은 알림은 한 단계 흐리게 */
+.notification-list .notification-item:not(.is-unread) .badge,
+.notification-list .notification-item:not(.is-unread) p {
+    color: var(--color-muted)
+}
+
+.notification-list .notification-item > .btn {
+    border-radius: 999px;
+    flex: none;
+    font-size: 13px;
+    min-height: 32px;
+    padding: 6px 14px;
+    white-space: nowrap
+}
+
+@media (max-width: 767px) {
+    .notification-list .notification-item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px 16px
+    }
+
+    .notification-list .notification-item > .btn {
+        margin-left: auto
+    }
+}
