@@ -104,12 +104,26 @@ class DonWorryPaymentGatewayTests {
     @Test
     void approve_authorizedHeldOrPendingPayment_isApproval() {
         // 카드 승인 뒤 보류·매입 대기는 결제 완료다. 직원 거절(VOIDED)은 이후 웹훅으로 처리한다.
+        // 보류(HELD)만 가맹점이 "결제 확인 중"으로 다루도록 따로 알린다(DonWorry ADR-0064 4절).
         when(client.find(101L)).thenReturn(response("HELD", true), response("PENDING", true));
 
-        assertThat(gateway.approve("DW-101", "ORD-100", 25_000L, "unused").status())
-                .isEqualTo(PaymentGatewayStatus.DONE);
-        assertThat(gateway.approve("DW-101", "ORD-100", 25_000L, "unused").status())
-                .isEqualTo(PaymentGatewayStatus.DONE);
+        ApprovalResult held = gateway.approve("DW-101", "ORD-100", 25_000L, "unused");
+        assertThat(held.status()).isEqualTo(PaymentGatewayStatus.DONE);
+        assertThat(held.heldForReview()).isTrue();
+        ApprovalResult pending = gateway.approve("DW-101", "ORD-100", 25_000L, "unused");
+        assertThat(pending.status()).isEqualTo(PaymentGatewayStatus.DONE);
+        assertThat(pending.heldForReview()).isFalse();
+    }
+
+    @Test
+    void find_heldOnlyWhenAuthorizedAndHeld() {
+        when(client.find(101L)).thenReturn(response("HELD", true), response("CAPTURED"), response("HELD", false));
+
+        assertThat(gateway.find("DW-101").orElseThrow().heldForReview()).isTrue();
+        assertThat(gateway.find("DW-101").orElseThrow().heldForReview()).isFalse();
+        PaymentLookupResult notAuthorized = gateway.find("DW-101").orElseThrow();
+        assertThat(notAuthorized.heldForReview()).isFalse();
+        assertThat(notAuthorized.status()).isEqualTo(PaymentGatewayStatus.IN_PROGRESS);
     }
 
     @Test

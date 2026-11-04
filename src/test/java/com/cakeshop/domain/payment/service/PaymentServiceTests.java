@@ -175,6 +175,64 @@ class PaymentServiceTests {
         verify(eventPublisher).publishEvent(new CustomPaymentChatCompletedEvent(1L));
     }
 
+    // PG가 매입을 보류하고 확인 중인 일반 주문은 픽업 준비 대신 주문 확인 중으로 둔다 (DonWorry ADR-0064 4절)
+    @Test
+    void completePayment_heldGeneralOrder_marksHeldAndKeepsOrderUnderReview() {
+        PaymentExecutionOrder order = order();
+        Payment payment = payment();
+        ApprovalResult approval = heldApproval();
+        when(productStockService.decreaseStock(100L, 2)).thenReturn(true);
+        when(paymentMapper.completeIfReady(20L, "payment-key", "카드", approval.approvedAt())).thenReturn(1);
+        when(paymentMapper.markGatewayHeld(20L, "payment-key", approval.approvedAt())).thenReturn(1);
+
+        paymentService.completePayment(order, payment, approval);
+
+        InOrder inOrder = inOrder(paymentMapper, orderPaymentCommandService, couponOrderCommandService);
+        inOrder.verify(paymentMapper).completeIfReady(20L, "payment-key", "카드", approval.approvedAt());
+        inOrder.verify(paymentMapper).markGatewayHeld(20L, "payment-key", approval.approvedAt());
+        inOrder.verify(orderPaymentCommandService).holdGeneralOrderForGatewayReview(1L, approval.approvedAt());
+        inOrder.verify(couponOrderCommandService).useReservedCouponForOrder(1L);
+        verify(orderPaymentCommandService, never()).completeGeneralOrderAfterPayment(1L, approval.approvedAt());
+        verify(eventPublisher).publishEvent(new GeneralPaymentCompletedEvent(1L));
+    }
+
+    @Test
+    void completePayment_heldCustomOrder_marksHeldAndUsesExistingReview() {
+        PaymentExecutionOrder order = new PaymentExecutionOrder(
+                1L,
+                OrderType.CUSTOM,
+                BigDecimal.valueOf(30_000),
+                NOW.plusMinutes(10),
+                List.of(new PaymentProduct(200L, 100L, 1))
+        );
+        Payment payment = payment();
+        ApprovalResult approval = heldApproval();
+        when(productStockService.decreaseStock(100L, 1)).thenReturn(true);
+        when(paymentMapper.completeIfReady(20L, "payment-key", "카드", approval.approvedAt())).thenReturn(1);
+        when(paymentMapper.markGatewayHeld(20L, "payment-key", approval.approvedAt())).thenReturn(1);
+
+        paymentService.completePayment(order, payment, approval);
+
+        verify(paymentMapper).markGatewayHeld(20L, "payment-key", approval.approvedAt());
+        verify(orderPaymentCommandService).completeCustomOrderAfterPayment(1L, approval.approvedAt());
+        verify(orderPaymentCommandService, never()).holdGeneralOrderForGatewayReview(1L, approval.approvedAt());
+    }
+
+    @Test
+    void completePayment_heldMarkFails_doesNotUpdateOrder() {
+        PaymentExecutionOrder order = order();
+        Payment payment = payment();
+        ApprovalResult approval = heldApproval();
+        when(productStockService.decreaseStock(100L, 2)).thenReturn(true);
+        when(paymentMapper.completeIfReady(20L, "payment-key", "카드", approval.approvedAt())).thenReturn(1);
+        when(paymentMapper.markGatewayHeld(20L, "payment-key", approval.approvedAt())).thenReturn(0);
+
+        assertThatThrownBy(() -> paymentService.completePayment(order, payment, approval))
+                .isInstanceOf(BusinessException.class);
+        verify(orderPaymentCommandService, never()).holdGeneralOrderForGatewayReview(1L, approval.approvedAt());
+        verify(orderPaymentCommandService, never()).completeGeneralOrderAfterPayment(1L, approval.approvedAt());
+    }
+
     @Test
     void completePayment_generalOrderPaymentUpdateFails_doesNotUpdateOrder() {
         PaymentExecutionOrder order = order();
@@ -298,6 +356,18 @@ class PaymentServiceTests {
                 PaymentGatewayStatus.DONE,
                 30_000L,
                 LocalDateTime.of(2026, 8, 1, 10, 1)
+        );
+    }
+
+    private ApprovalResult heldApproval() {
+        return new ApprovalResult(
+                "payment-key",
+                "ORD-100",
+                "카드",
+                PaymentGatewayStatus.DONE,
+                30_000L,
+                LocalDateTime.of(2026, 8, 1, 10, 1),
+                true
         );
     }
 }

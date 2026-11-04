@@ -65,3 +65,4 @@
 | 003 | [결제 생성 시 PG 고정과 기존 결제 라우팅](003-payment-provider-routing.md) | 일부 대체됨 (006으로) |
 | 004 | [복구 배치에서 PG별 처리 기회 분배](004-payment-recovery-batch-fairness.md) | 채택 |
 | 006 | [결제창에서 고객이 PG(Toss·DonWorry)를 고른다](006-customer-payment-gateway-choice.md) | 채택 |
+| 007 | [돈워리 보류(HELD) 결제를 가맹점에서 "결제 확인 중"으로 다룬다](007-donworry-held-payment-review.md) | 채택 |

@@ -126,7 +126,8 @@ public class DonWorryPaymentGateway implements PaymentGateway {
                 response.statusChangedAt() == null
                         ? null
                         : LocalDateTime.ofInstant(response.statusChangedAt(), clock.getZone()),
-                null
+                null,
+                response.heldForReview()
         ));
     }
 
@@ -204,8 +205,8 @@ public class DonWorryPaymentGateway implements PaymentGateway {
     }
 
     // 카드 승인이 끝났으면(매입 대기·보류 포함) 결제 완료로 본다. 실제 PG의 "승인 = 결제됨"과 같다.
-    // 보류 뒤 직원 거절(VOIDED)을 주문에 반영하는 일은 돈워리 결제 상태 웹훅(DonWorry ADR-0064 3절)을 받는 후속 PR에서 한다.
-    // 이 PR만으로는 거절돼도 주문이 결제 완료로 남는다.
+    // 보류(HELD)는 조회 결과의 heldForReview로 따로 알려 가맹점에서 "결제 확인 중"으로 다룬다(DonWorry ADR-0064 4절).
+    // 판정 결과(CAPTURED·VOIDED)는 결제 상태 웹훅·조회 배치(DonWorryPaymentSyncService)가 반영한다.
     static PaymentGatewayStatus toGatewayStatus(DonWorryPaymentResponse response) {
         if (response.approved()) {
             return PaymentGatewayStatus.DONE;

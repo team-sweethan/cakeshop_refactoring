@@ -28,8 +28,9 @@ import org.springframework.stereotype.Service;
  * 기능 : 돈워리 결제 상태를 CakeShop 결제·주문에 맞춘다 (웹훅 · 조회 배치 공통)
  * 설명 : 웹훅 본문은 믿지 않고 돈워리에 결제를 다시 조회해 반영한다.
  *        - 승인됐는데 CakeShop은 아직 READY(구매자가 결제창을 닫음 등) → 기존 승인 확인 흐름으로 결제 완료
+ *        - CAPTURED(보류 뒤 직원 승인)인데 CakeShop은 "결제 확인 중" → 확인 중을 끝내고 일반 주문은 픽업 준비로
  *        - VOIDED(보류 뒤 직원 거절)인데 CakeShop은 DONE → 주문 취소 · 재고·쿠폰 복구 · 고객 알림
- *        그 밖의 상태(매입 대기·매입 완료·보류 중)는 바꿀 것이 없다.
+ *        그 밖의 상태(매입 대기·보류 중)는 바꿀 것이 없다.
  * ******************************
  */
 @Slf4j
@@ -43,6 +44,7 @@ public class DonWorryPaymentSyncService {
     private final OrderPaymentQueryService orderPaymentQueryService;
     private final PaymentFacade paymentFacade;
     private final DonWorryPaymentVoidService voidService;
+    private final DonWorryPaymentCaptureService captureService;
     private final Clock clock;
 
     public DonWorryPaymentSyncService(
@@ -51,6 +53,7 @@ public class DonWorryPaymentSyncService {
             OrderPaymentQueryService orderPaymentQueryService,
             PaymentFacade paymentFacade,
             DonWorryPaymentVoidService voidService,
+            DonWorryPaymentCaptureService captureService,
             Clock clock
     ) {
         this.clientProvider = clientProvider;
@@ -58,11 +61,13 @@ public class DonWorryPaymentSyncService {
         this.orderPaymentQueryService = orderPaymentQueryService;
         this.paymentFacade = paymentFacade;
         this.voidService = voidService;
+        this.captureService = captureService;
         this.clock = clock;
     }
 
-    // VOIDED: 거절로 주문 취소, FULFILLED_KEPT: 거절됐지만 이행된 주문이라 유지(DonWorry ADR-0064 4-1)
-    public enum SyncResult { COMPLETED, VOIDED, FULFILLED_KEPT, UNCHANGED, NOT_FOUND }
+    // CAPTURED: 보류 뒤 승인돼 결제 확인 중을 끝냄(DonWorry ADR-0064 4절)
+    // VOIDED: 거절로 주문 취소, FULFILLED_KEPT: 거절됐지만 가맹점이 이미 진행한 주문이라 유지(손실은 가맹점 부담, 4-1)
+    public enum SyncResult { COMPLETED, CAPTURED, VOIDED, FULFILLED_KEPT, UNCHANGED, NOT_FOUND }
 
     /** 돈워리 결제 한 건을 다시 조회해 반영한다. 돈워리 조회 실패는 예외로 알려 웹훅 재전송을 받는다. */
     public SyncResult sync(long donWorryPaymentId) {
@@ -108,6 +113,13 @@ public class DonWorryPaymentSyncService {
                 return SyncResult.UNCHANGED;
             }
         }
+        if (response.captured()
+                && payment.getStatus() == PaymentStatus.DONE
+                && paymentKey.equals(payment.getPaymentKey())) {
+            return captureService.applyCapture(payment, LocalDateTime.now(clock))
+                    ? SyncResult.CAPTURED
+                    : SyncResult.UNCHANGED;
+        }
         if ("VOIDED".equals(response.paymentStatus())
                 && payment.getStatus() == PaymentStatus.DONE
                 && paymentKey.equals(payment.getPaymentKey())) {
@@ -120,7 +132,11 @@ public class DonWorryPaymentSyncService {
         return SyncResult.UNCHANGED;
     }
 
-    /** 조회 배치: 웹훅을 놓쳐도 최근 돈워리 결제의 승인·거절을 맞춘다. 바뀐 건수를 돌려준다. */
+    /**
+     * 조회 배치: 웹훅을 놓쳐도 돈워리 결제의 승인·판정을 맞춘다. 바뀐 건수를 돌려준다.
+     * 아직 바뀔 수 있는 결제만 본다 — 판정 대기(보류 중) 결제는 기간과 관계없이, 결제창을 닫아 READY인 결제는 최근 3일.
+     * 이미 끝난 정상 결제는 다시 묻지 않아 오래된 판정 대기 결제가 최신 결제에 밀려 빠지지 않는다.
+     */
     public int syncRecent(int limit) {
         DonWorryPaymentClient client = clientProvider.getIfAvailable();
         if (client == null) {
@@ -136,8 +152,8 @@ public class DonWorryPaymentSyncService {
                     continue;
                 }
                 SyncResult result = sync(latest.get().paymentId());
-                if (result == SyncResult.COMPLETED || result == SyncResult.VOIDED
-                        || result == SyncResult.FULFILLED_KEPT) {
+                if (result == SyncResult.COMPLETED || result == SyncResult.CAPTURED
+                        || result == SyncResult.VOIDED || result == SyncResult.FULFILLED_KEPT) {
                     changed++;
                 }
             } catch (RuntimeException exception) {

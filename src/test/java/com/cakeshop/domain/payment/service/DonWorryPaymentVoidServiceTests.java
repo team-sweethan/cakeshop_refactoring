@@ -37,8 +37,23 @@ class DonWorryPaymentVoidServiceTests {
     private final OrderPaymentRecoveryService recovery = mock(OrderPaymentRecoveryService.class);
     private final OrderNotificationService notifications = mock(OrderNotificationService.class);
     private final OrderPaymentQueryService orders = mock(OrderPaymentQueryService.class);
+    private final RefundService refunds = mock(RefundService.class);
     private final DonWorryPaymentVoidService service =
-            new DonWorryPaymentVoidService(paymentMapper, recovery, notifications, orders);
+            new DonWorryPaymentVoidService(paymentMapper, recovery, notifications, orders, refunds);
+
+    // 진행 중인 고객 · 관리자 취소 요청이 있으면 새 거절 기록 없이 그 요청을 완료한다 (#26 Codex 리뷰)
+    @Test
+    void pendingRefundRequest_isCompletedInsteadOfNewVoidRecord() {
+        Payment payment = payment();
+        when(orders.gatewayVoidHandling(5L)).thenReturn(Optional.of(GatewayVoidHandling.CANCEL_ORDER));
+        when(refunds.completeRequestedCancellationByGatewayVoid(payment, AT)).thenReturn(true);
+
+        assertThat(service.applyVoid(payment, 10L, AT)).isEqualTo(VoidOutcome.ORDER_CANCELED);
+
+        verify(paymentMapper, never()).insertGatewayVoidCancellation(anyLong(), anyString(), anyString(), any());
+        verify(paymentMapper, never()).cancelPaymentByGatewayVoid(anyLong(), anyString(), any());
+        verify(recovery, never()).cancelAfterPaymentCompensation(anyLong(), any(), anyString());
+    }
 
     @Test
     void beforeFulfillment_cancelsOrderOnce() {

@@ -564,6 +564,45 @@
           )
     </update>
 
+    <!-- PG(돈워리)가 매입을 보류하고 보안 검토 중인 결제의 일반 주문은 판정 전까지 주문 확인 중으로 둔다 (DonWorry ADR-0064 4절) -->
+    <update id="markGeneralUnderReviewAfterHeldPaymentIfPending">
+        UPDATE orders
+        SET status = 'UNDER_REVIEW',
+            under_review_at = #{underReviewAt}
+        WHERE id = #{orderId}
+          AND order_type = 'GENERAL'
+          AND status = 'PENDING_PAYMENT'
+          AND EXISTS (
+              SELECT 1
+              FROM payments AS payment
+              WHERE payment.order_id = orders.id
+                AND payment.status = 'DONE'
+          )
+    </update>
+
+    <update id="markGeneralReadyForPickupIfUnderReview">
+        UPDATE orders
+        SET status = 'READY_FOR_PICKUP',
+            ready_at = #{readyAt}
+        WHERE id = #{orderId}
+          AND order_type = 'GENERAL'
+          AND status = 'UNDER_REVIEW'
+          AND EXISTS (
+              SELECT 1
+              FROM payments AS payment
+              WHERE payment.order_id = orders.id
+                AND payment.status = 'DONE'
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM payments AS cancel_payment
+              INNER JOIN payment_cancellations AS cancellation
+                  ON cancellation.payment_id = cancel_payment.id
+              WHERE cancel_payment.order_id = orders.id
+                AND cancellation.status = 'REQUESTED'
+          )
+    </update>
+
     <update id="startProductionIfUnderReview">
         UPDATE orders
         SET status = 'IN_PRODUCTION',
@@ -703,7 +742,7 @@
                 AND payment.status = 'CANCELED'
           )
           AND order_type = 'GENERAL'
-          AND status = 'READY_FOR_PICKUP'
+          AND status IN ('READY_FOR_PICKUP', 'UNDER_REVIEW')
           AND #{requestedAt} &lt; pickup_at
     </update>
 

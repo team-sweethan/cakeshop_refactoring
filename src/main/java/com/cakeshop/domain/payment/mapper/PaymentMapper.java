@@ -152,7 +152,8 @@ public interface PaymentMapper {
     // 돈워리 웹훅·조회 배치: 주문 참조(gateway order id)로 결제를 찾는다.
     Optional<Payment> findPaymentByGatewayOrderId(@Param("gatewayOrderId") String gatewayOrderId);
 
-    // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id)
+    // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id). 아직 바뀔 수 있는 결제만이다:
+    // 판정 대기(보류 중) DONE 결제는 기간과 관계없이, 결제창을 닫아 READY로 남은 결제는 since 이후만. 판정 대기를 먼저 준다.
     List<String> findDonWorryGatewayOrderIdsToSync(
             @Param("since") LocalDateTime since,
             @Param("limit") int limit
@@ -178,5 +179,19 @@ public interface PaymentMapper {
             @Param("paymentId") long paymentId,
             @Param("paymentKey") String paymentKey,
             @Param("canceledAt") LocalDateTime canceledAt
+    );
+
+    // 돈워리가 매입을 보류(HELD)한 채 완료한 결제를 표시한다(DonWorry ADR-0064 4절). 바뀐 행 수 0이면 이미 표시했거나 대상이 아니다.
+    int markGatewayHeld(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("heldAt") LocalDateTime heldAt
+    );
+
+    // 보류했던 DONE 결제가 직원 승인으로 매입(CAPTURED)됐음을 한 번만 기록한다. 바뀐 행 수 0이면 보류가 아니었거나 이미 반영했다.
+    int markGatewayCaptured(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("capturedAt") LocalDateTime capturedAt
     );
 }

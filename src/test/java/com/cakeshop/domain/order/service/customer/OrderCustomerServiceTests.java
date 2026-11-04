@@ -118,6 +118,22 @@ class OrderCustomerServiceTests {
         assertThat(result.isAdminCancellationAvailable()).isFalse();
     }
 
+    // PG(돈워리)가 결제를 확인 중인 일반 주문: 구매자에게는 주문 확인 중, 픽업 전이면 고객·가맹점 취소 가능 (DonWorry ADR-0064 4절)
+    @Test
+    void getMemberOrder_heldGeneralOrderUnderReview_showsCheckingAndAllowsCancellation() {
+        Order order = order(10L, 3L);
+        order.setStatus(OrderStatus.UNDER_REVIEW);
+        when(orderMapper.findOrderById(10L)).thenReturn(Optional.of(order));
+        when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
+        when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
+
+        OrderDetailView result = orderQueryService.getMemberOrder(3L, 10L);
+
+        assertThat(result.statusLabel()).isEqualTo("주문 확인 중");
+        assertThat(result.cancelRequestAvailable()).isTrue();
+        assertThat(result.isAdminCancellationAvailable()).isTrue();
+    }
+
     @Test
     void getMemberOrder_expiredPayment_doesNotExposePaymentButton() {
         Order order = order(10L, 3L);

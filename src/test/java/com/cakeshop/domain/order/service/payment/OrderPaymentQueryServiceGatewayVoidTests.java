@@ -20,7 +20,7 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class OrderPaymentQueryServiceGatewayVoidTests {
 
-    // 이행 전: 승인 대기 · 결제 대기 · 만료 보상 주문은 유형과 관계없이 취소한다
+    // 이행 전: 주문 확인 중 · 결제 대기 · 만료 보상 주문은 유형과 관계없이 취소한다
     @ParameterizedTest
     @EnumSource(value = OrderStatus.class, names = {"PENDING_PAYMENT", "EXPIRED", "UNDER_REVIEW"})
     void beforeFulfillment_cancelsOrder(OrderStatus status) {
@@ -40,7 +40,7 @@ class OrderPaymentQueryServiceGatewayVoidTests {
                 .isEqualTo(GatewayVoidHandling.KEEP_FULFILLED);
     }
 
-    // 제작 중 · 픽업 완료는 이미 이행됐으므로 주문을 유지한다(손실은 PG 부담)
+    // 제작 중 · 픽업 완료는 이미 이행됐으므로 주문을 유지한다(가맹점이 판정 전에 진행한 것이라 손실은 가맹점 부담)
     @ParameterizedTest
     @EnumSource(value = OrderStatus.class, names = {"IN_PRODUCTION", "PICKED_UP"})
     void fulfillmentStarted_keepsOrder(OrderStatus status) {

@@ -282,6 +282,141 @@ class PaymentMapperTests {
         )).isZero();
     }
 
+    // 돈워리 보류(HELD) 표시와 직원 승인(CAPTURED) 기록은 각각 한 번만 된다 (DonWorry ADR-0064 4절)
+    @Test
+    void gatewayHoldAndCapture_recordOnceForMatchingDonePayment() {
+        Payment payment = insertPayment("GATEWAY-HELD");
+        String paymentKey = "PAYMENT-KEY-GATEWAY-HELD-" + suffix;
+        LocalDateTime heldAt = LocalDateTime.of(2026, 8, 1, 12, 1);
+        LocalDateTime capturedAt = LocalDateTime.of(2026, 8, 1, 12, 30);
+
+        // READY 결제와 보류 전 결제에는 기록하지 않는다
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt)).isZero();
+        completePayment(payment, "GATEWAY-HELD");
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt)).isZero();
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), "OTHER-KEY-" + suffix, heldAt)).isZero();
+
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt)).isEqualTo(1);
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt.plusMinutes(1))).isZero();
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt)).isEqualTo(1);
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt.plusMinutes(1)))
+                .isZero();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gateway_held_at FROM payments WHERE id = ?",
+                LocalDateTime.class,
+                payment.getId()
+        )).isEqualTo(heldAt);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gateway_captured_at FROM payments WHERE id = ?",
+                LocalDateTime.class,
+                payment.getId()
+        )).isEqualTo(capturedAt);
+    }
+
+    @Test
+    void markGatewayCaptured_canceledPayment_isNotRecorded() {
+        Payment payment = insertPayment("GATEWAY-HELD-CANCELED");
+        String paymentKey = "PAYMENT-KEY-GATEWAY-HELD-CANCELED-" + suffix;
+        completePayment(payment, "GATEWAY-HELD-CANCELED");
+        paymentMapper.markGatewayHeld(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 1));
+        paymentMapper.cancelIfDone(payment.getId(), LocalDateTime.of(2026, 8, 1, 12, 5));
+
+        assertThat(paymentMapper.markGatewayCaptured(
+                payment.getId(),
+                paymentKey,
+                LocalDateTime.of(2026, 8, 1, 12, 30)
+        )).isZero();
+    }
+
+    // 판정 대기가 많이 쌓여도 한 번에 절반까지만 써서 결제창을 닫은 READY 결제 복구가 밀리지 않는다 (#27 Codex 리뷰)
+    @Test
+    void findDonWorryGatewayOrderIdsToSync_heldPaymentsUseAtMostHalfOfBatch() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 4, 12, 0);
+        insertOwnPayment("CAP-HELD-1", "DONE", now.minusMinutes(40), now.minusMinutes(40), null);
+        String held2 = insertOwnPayment("CAP-HELD-2", "DONE", now.minusMinutes(30), now.minusMinutes(30), null);
+        String held3 = insertOwnPayment("CAP-HELD-3", "DONE", now.minusMinutes(20), now.minusMinutes(20), null);
+        String ready1 = insertOwnPayment("CAP-READY-1", "READY", now.minusMinutes(5), null, null);
+        String ready2 = insertOwnPayment("CAP-READY-2", "READY", now.minusMinutes(4), null, null);
+
+        // 이 테스트가 넣은 행이 가장 최신이라 각 종류의 맨 앞이다. 배치 4건 = 판정 대기 2건 + READY 2건
+        assertThat(paymentMapper.findDonWorryGatewayOrderIdsToSync(now.minusDays(3), 4))
+                .containsExactly(held3, held2, ready2, ready1);
+    }
+
+    // 조회 배치는 아직 바뀔 수 있는 돈워리 결제만 고른다. 끝난 정상 결제가 판정 대기 결제를 밀어내지 않는다
+    @Test
+    void findDonWorryGatewayOrderIdsToSync_onlyChangeablePayments_heldFirst() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 4, 12, 0);
+        LocalDateTime since = now.minusDays(3);
+        String oldHeld = insertOwnPayment("SYNC-OLD-HELD", "DONE", now.minusDays(10), now.minusDays(10), null);
+        String ready = insertOwnPayment("SYNC-READY", "READY", now.minusMinutes(5), null, null);
+        String oldReady = insertOwnPayment("SYNC-OLD-READY", "READY", now.minusDays(4), null, null);
+        String captured = insertOwnPayment("SYNC-CAPTURED", "DONE", now.minusMinutes(30), now.minusMinutes(30), now.minusMinutes(10));
+        String normalDone = insertOwnPayment("SYNC-NORMAL-DONE", "DONE", now.minusMinutes(20), null, null);
+        String canceledHeld = insertOwnPayment("SYNC-CANCELED-HELD", "CANCELED", now.minusMinutes(15), now.minusMinutes(15), null);
+        // 거절됐지만 가맹점이 이미 진행해 유지한 결제는 판정이 끝났다
+        String voidedKept = insertOwnPayment("SYNC-VOIDED-KEPT", "DONE", now.minusMinutes(12), now.minusMinutes(12), null);
+        jdbcTemplate.update("UPDATE payments SET failure_code = 'GATEWAY_VOIDED_KEPT' WHERE toss_order_id = ?", voidedKept);
+
+        // 다른 테스트가 남긴 행이 있을 수 있어 넉넉히 받고, 이 테스트의 행만 확인한다
+        java.util.List<String> targets = paymentMapper.findDonWorryGatewayOrderIdsToSync(since, 1_000);
+
+        assertThat(targets).contains(oldHeld, ready)
+                .doesNotContain(oldReady, captured, normalDone, canceledHeld, voidedKept);
+        // 판정 대기(오래됐어도)를 결제창을 닫은 READY보다 먼저 본다
+        assertThat(targets.indexOf(oldHeld)).isLessThan(targets.indexOf(ready));
+    }
+
+    // 돈워리(OWN) 결제를 주문과 함께 직접 넣는다. requested_at · approved_at은 같은 시각으로 둔다
+    private String insertOwnPayment(
+            String label,
+            String status,
+            LocalDateTime requestedAt,
+            LocalDateTime heldAt,
+            LocalDateTime capturedAt
+    ) {
+        String orderNumber = "PAYMENT-SYNC-" + label + "-" + suffix;
+        jdbcTemplate.update(
+                """
+                INSERT INTO orders (
+                    order_number, member_id, order_type, orderer_name, orderer_phone,
+                    pickup_name, pickup_phone, original_amount, discount_amount, final_amount,
+                    status, pickup_at, payment_expires_at
+                )
+                VALUES (?, ?, 'GENERAL', '주문자', '010-1111-2222', '수령자', '010-3333-4444',
+                        40000, 0, 40000, 'PENDING_PAYMENT',
+                        CURRENT_TIMESTAMP(6) + INTERVAL 1 DAY, CURRENT_TIMESTAMP(6) + INTERVAL 10 MINUTE)
+                """,
+                orderNumber,
+                memberId
+        );
+        long syncOrderId = jdbcTemplate.queryForObject(
+                "SELECT id FROM orders WHERE order_number = ?", Long.class, orderNumber);
+        String gatewayOrderId = "OWN-" + label + "-" + suffix;
+        boolean approved = !"READY".equals(status);
+        jdbcTemplate.update(
+                """
+                INSERT INTO payments (
+                    order_id, provider, toss_order_id, payment_key, idempotency_key, method, amount, status,
+                    requested_at, approved_at, gateway_held_at, gateway_captured_at
+                )
+                VALUES (?, 'OWN', ?, ?, ?, ?, 40000, ?, ?, ?, ?, ?)
+                """,
+                syncOrderId,
+                gatewayOrderId,
+                approved ? "DW-" + label + "-" + suffix : null,
+                "IDEMPOTENCY-" + label + "-" + suffix,
+                approved ? "카드" : null,
+                status,
+                requestedAt,
+                approved ? requestedAt : null,
+                heldAt,
+                capturedAt
+        );
+        return gatewayOrderId;
+    }
+
     @Test
     void cancelIfDone_doesNotCancelReadyPayment() {
         Payment payment = insertPayment("READY-CANNOT-CANCEL");

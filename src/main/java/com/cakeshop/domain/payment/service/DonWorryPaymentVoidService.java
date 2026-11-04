@@ -20,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 기능 : 돈워리 거절(VOIDED) 반영
  * 설명 : 카드 승인 뒤 보류된 결제를 돈워리 보안 직원이 거절하면 돈워리가 승인을 취소(VOIDED)한다.
  *        DonWorry ADR-0064 4-1에 따라 이행 전이면 주문을 취소하고(재고·쿠폰 복구, 고객 알림),
- *        이행(제작)이 시작됐으면 주문을 유지한다 — 손실은 PG(돈워리)가 부담한다. 유지한 결제는 한 번만 표시하고 기록한다.
+ *        가맹점이 "결제 확인 중"에 진행해 이행(제작·픽업)이 시작된 주문은 유지한다 — 손실은 가맹점이 부담하고 처리한다.
+ *        유지한 결제는 한 번만 표시하고 기록한다.
+ *        고객 · 관리자 취소나 수제 반려가 PG 응답을 기다리는 중이었으면 그 요청을 승인 취소 결과로 완료한다(RefundService).
  *        돈워리 쪽 승인은 이미 풀렸으므로 PG 취소 API를 부르지 않는다.
  * ******************************
  */
@@ -29,17 +31,20 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DonWorryPaymentVoidService {
 
-    static final String REASON = "결제 보안 검토 결과 결제가 승인되지 않아 주문이 취소되었습니다.";
+    // 구매자에게 보이는 취소 사유. 보안 검토 사실이나 거절 이유는 적지 않는다(#492 합의 2026-11-04).
+    static final String REASON = "결제 승인이 취소되어 주문이 취소되었습니다. 카드 청구는 되지 않습니다. "
+            + "다시 주문하시거나 궁금한 점은 가게로 문의해 주세요.";
 
     private final PaymentMapper paymentMapper;
     private final OrderPaymentRecoveryService orderPaymentRecoveryService;
     private final OrderNotificationService orderNotificationService;
     private final OrderPaymentQueryService orderPaymentQueryService;
+    private final RefundService refundService;
 
     public enum VoidOutcome {
         // 주문을 취소했다
         ORDER_CANCELED,
-        // 이행이 시작돼 주문을 유지했다(처음 한 번)
+        // 가맹점이 이미 진행해 주문을 유지했다(처음 한 번)
         ORDER_KEPT,
         // 이미 반영했거나 할 일이 없다
         UNCHANGED
@@ -56,10 +61,15 @@ public class DonWorryPaymentVoidService {
             if (paymentMapper.markGatewayVoidKept(payment.getId(), payment.getPaymentKey()) != 1) {
                 return VoidOutcome.UNCHANGED;
             }
-            // 돈워리에 "이행됨"을 알리는 경로와 정산 처리는 DonWorry P6와 정하는 중이다. 지금은 관리자 확인용으로 남긴다
-            log.warn("돈워리 승인 취소됐으나 이행된 주문이라 유지 orderId={} paymentId={}",
+            // 카드 청구는 이미 풀렸다. 대금 회수 등 후속 처리는 가맹점 몫이다(DonWorry ADR-0064 4-1). 관리자 확인용으로 남긴다
+            log.warn("돈워리 승인 취소됐으나 가맹점이 이미 진행한 주문이라 유지(가맹점 부담) orderId={} paymentId={}",
                     payment.getOrderId(), payment.getId());
             return VoidOutcome.ORDER_KEPT;
+        }
+        // 고객 · 관리자 취소나 수제 반려 요청이 PG 응답을 기다리는 중이면, 새 거절 기록을 만들지 않고 그 요청을
+        // 돈워리 승인 취소 결과로 완료한다. 결제 · 주문은 요청 종류대로 확정된다(#26 Codex 리뷰). 알림은 주문 상태 알림 배치가 보낸다.
+        if (refundService.completeRequestedCancellationByGatewayVoid(payment, canceledAt)) {
+            return VoidOutcome.ORDER_CANCELED;
         }
         // DONE 결제에만 기록되므로 0이면 이미 반영된 거절이다(웹훅·조회 배치 중복).
         if (paymentMapper.insertGatewayVoidCancellation(
