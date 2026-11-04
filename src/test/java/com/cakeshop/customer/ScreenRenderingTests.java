@@ -1225,6 +1225,36 @@ class ScreenRenderingTests {
         );
     }
 
+    // 회원 헤더는 종 버튼(알림 페이지 링크)과 최근 알림 펼침 창, 읽음 처리용 CSRF 값을 함께 그린다
+    @Test
+    @WithUserDetails(
+        value = "user@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void commonHeader_memberAccount_rendersNotificationBellPanel() throws Exception {
+        mockMvc.perform(get("/products"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-notification-toggle")))
+            .andExpect(content().string(containsString("aria-controls=\"notification-panel\"")))
+            .andExpect(content().string(containsString("id=\"notification-panel\"")))
+            .andExpect(content().string(containsString("data-csrf-header=\"X-CSRF-TOKEN\"")))
+            .andExpect(content().string(containsString("/js/notification-panel.js")))
+            .andExpect(content().string(containsString("전체 알림 보기")));
+    }
+
+    // 관리자 헤더에는 고객 알림 종 버튼과 펼침 창 스크립트가 없다
+    @Test
+    @WithUserDetails(
+        value = "admin@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void commonHeader_adminAccount_doesNotRenderNotificationBellPanel() throws Exception {
+        mockMvc.perform(get("/products"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-notification-bell"))))
+            .andExpect(content().string(not(containsString("/js/notification-panel.js"))));
+    }
+
     // 시드 상품에는 정적 이미지가 있으므로 이미지 유무를 보는 테스트는 먼저 지운다
     private void deleteProductImages(long productId) {
         jdbcTemplate.update("DELETE FROM product_images WHERE product_id = ?", productId);
