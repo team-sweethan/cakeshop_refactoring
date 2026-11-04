@@ -61,7 +61,11 @@
     const list = root.querySelector("[data-panel-list]");
     const readAll = root.querySelector("[data-panel-read-all]");
     let loaded = false;
+    let loading = false;
     let loadSeq = 0;
+    // 목록을 불러오기 전이나 불러오는 중에 받은 실시간 알림. 불러온 목록과 ID 기준으로 합친다.
+    // (조회 뒤에 생긴 알림은 응답에 없고, 응답으로 목록을 다시 그리면 그 사이 넣은 알림이 지워진다)
+    const pending = new Map();
 
     function message(text) {
       list.innerHTML = `<p class="text-muted text-center">${escapeHtml(text)}</p>`;
@@ -100,6 +104,7 @@
 
     async function load() {
       const seq = ++loadSeq;
+      loading = true;
       message("알림을 불러오는 중입니다...");
       if (readAll) readAll.hidden = true;
       try {
@@ -110,12 +115,23 @@
         if (!response.ok) throw new Error("load failed");
         const data = await response.json();
         if (seq !== loadSeq) return;
-        const unread = Array.isArray(data) ? data.filter((item) => !isRead(item)) : [];
-        list.innerHTML = unread.map((item) => itemHtml(item, formatTime(item.lastEventAt || item.createdAt))).join("");
+        // 그동안 받은 실시간 알림을 최신순으로 맨 위에 두고, 같은 ID 의 조회 결과는 뺀다.
+        const received = Array.from(pending.values()).reverse();
+        const receivedIds = new Set(received.map((item) => String(item.id)));
+        const unread = Array.isArray(data)
+          ? data.filter((item) => !isRead(item) && !receivedIds.has(String(item.id)))
+          : [];
+        list.innerHTML = received.map((item) => itemHtml({ ...item, isRead: false }, "방금 전")).join("")
+          + unread.map((item) => itemHtml(item, formatTime(item.lastEventAt || item.createdAt))).join("");
+        pending.clear();
         syncEmptyState();
         loaded = true;
+        loading = false;
       } catch (error) {
-        if (seq === loadSeq) message("알림을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        if (seq === loadSeq) {
+          loading = false;
+          message("알림을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        }
       }
     }
 
@@ -181,9 +197,17 @@
     }
 
     // 실시간 알림: 목록을 이미 불러왔으면 맨 위에 넣고, 같은 알림(묶음 갱신)은 위로 올린다.
+    // 아직 불러오기 전이거나 불러오는 중이면 보관했다가 load() 가 조회 결과와 합친다.
     window.notificationPanel = {
       receive(notification) {
-        if (!loaded || !notification) return;
+        if (!notification) return;
+        if (!loaded || loading) {
+          if (notification.id != null) {
+            pending.delete(String(notification.id));
+            pending.set(String(notification.id), notification);
+          }
+          return;
+        }
         if (list.querySelector("p.text-muted")) list.innerHTML = "";
         const existing = notification.id != null
           ? list.querySelector(`.notification-panel__item[data-id="${CSS.escape(String(notification.id))}"]`)
