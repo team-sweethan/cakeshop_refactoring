@@ -135,8 +135,9 @@ public class DonWorryPaymentGateway implements PaymentGateway {
      * 결과 대기(PROCESSING·UNKNOWN)·진행 중(PAYMENT_IN_PROGRESS)·준비 안 됨(CANCELLATION_NOT_READY)·일시 장애는
      * PAYMENT_RECOVERY_PENDING으로 알려, CakeShop 취소 요청을 REQUESTED로 두고 복구 배치가 같은 키로 다시 보낸다.
      * 취소할 거래가 없음·확인 필요·키 충돌·실패 확정은 PAYMENT_CANCEL_FAILED다.
-     * 2026-11-02 돈워리: 보류(HELD) 결제는 승인 취소가 실제로 실행된다(DonWorry #382). 매입된(CAPTURED) 결제의 환불은
-     * DonWorry #383 전까지 503 CANCELLATION_NOT_READY라, 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 다시 보낸다.
+     * 보류(HELD) 결제는 승인 취소가 실제로 실행된다(DonWorry #382). 매입된(CAPTURED) 결제의 환불은 DonWorry #383으로
+     * 기반만 들어가고 환불 실행 연결이 아직 없어 503 CANCELLATION_NOT_READY다(2026-11-04 DonWorry dev 기준).
+     * 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 다시 보낸다.
      */
     @Override
     public CancellationResult cancel(String paymentKey, String reason, String idempotencyKey) {
