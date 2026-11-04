@@ -64,10 +64,20 @@
               <span th:text="${order.orderTypeLabel}">일반 상품</span>
               <span class="badge" th:classappend="${order.statusClass}"
                     th:text="${order.statusLabel}">픽업 준비</span>
+              <span class="badge badge--danger" th:if="${order.paymentUnderReview}">결제 확인 중</span>
             </span>
           </summary>
 
           <div class="fulfillment-order__body">
+            <div class="fulfillment-order__section" th:if="${order.paymentUnderReview}">
+              <h2 class="section-title">결제 확인 중</h2>
+              <p>결제는 승인됐지만 돈워리가 결제를 확인하고 있습니다. 확인이 끝나면 자동으로 다음 단계로 넘어갑니다.</p>
+              <p class="text-muted">
+                기다리기 · 고객에게 확인한 뒤 진행 · 주문 취소 중에서 선택할 수 있습니다.
+                확인 중에 진행했다가 결제가 거절되면 손실은 가맹점이 부담합니다.
+              </p>
+            </div>
+
             <div class="fulfillment-order__section">
               <h2 class="section-title">픽업자 연락처</h2>
               <strong th:text="${order.pickupName}">픽업자</strong>
@@ -111,9 +121,21 @@
                 <input type="hidden" name="status"
                        th:if="${fulfillment.selectedStatus != null}"
                        th:value="${fulfillment.selectedStatus}">
+                <input type="hidden" name="reviewAcknowledged" value="true" th:if="${order.paymentUnderReview}">
                 <button class="btn btn--primary" type="submit"
-                        data-confirm="제작을 시작하면 고객 취소가 불가능합니다. 계속하시겠습니까?">
+                        th:data-confirm="${order.confirmMessage('제작을 시작하면 고객 취소가 불가능합니다. 계속하시겠습니까?')}">
                   제작 승인·시작
+                </button>
+              </form>
+              <form th:if="${order.readyForPickupMovable}" method="post"
+                    th:action="@{/admin/fulfillment/{id}/ready(id=${order.orderId})}">
+                <input type="hidden" name="status"
+                       th:if="${fulfillment.selectedStatus != null}"
+                       th:value="${fulfillment.selectedStatus}">
+                <input type="hidden" name="reviewAcknowledged" value="true" th:if="${order.paymentUnderReview}">
+                <button class="btn btn--primary" type="submit"
+                        th:data-confirm="${order.confirmMessage('고객에게 확인한 뒤 픽업 준비로 넘기시겠습니까?')}">
+                  픽업 준비로 넘기기
                 </button>
               </form>
               <form class="stack" th:if="${order.rejectionAvailable}" method="post"
@@ -133,8 +155,9 @@
                 <input type="hidden" name="status"
                        th:if="${fulfillment.selectedStatus != null}"
                        th:value="${fulfillment.selectedStatus}">
+                <input type="hidden" name="reviewAcknowledged" value="true" th:if="${order.paymentUnderReview}">
                 <button class="btn btn--primary" type="submit"
-                        data-confirm="제작을 완료하고 픽업 대기로 변경하시겠습니까?">
+                        th:data-confirm="${order.confirmMessage('제작을 완료하고 픽업 대기로 변경하시겠습니까?')}">
                   제작 완료
                 </button>
               </form>
@@ -143,8 +166,9 @@
                 <input type="hidden" name="status"
                        th:if="${fulfillment.selectedStatus != null}"
                        th:value="${fulfillment.selectedStatus}">
+                <input type="hidden" name="reviewAcknowledged" value="true" th:if="${order.paymentUnderReview}">
                 <button class="btn btn--primary" type="submit"
-                        data-confirm="픽업 완료 처리 후에는 되돌릴 수 없습니다. 처리하시겠습니까?">
+                        th:data-confirm="${order.confirmMessage('픽업 완료 처리 후에는 되돌릴 수 없습니다. 처리하시겠습니까?')}">
                   픽업 완료 처리
                 </button>
               </form>

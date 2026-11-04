@@ -145,6 +145,27 @@ public class OrderNotificationSender {
         }
     }
 
+    /**
+     * ******************************
+     * 작성자 : 수민
+     * 담당자 : 주환
+     * 작성일 : 2026-11-04
+     * 기능 : PG 결제 확인 중 관리자 알림
+     * 설명 : 결제는 승인됐지만 PG(돈워리)가 확인 중인 주문을 활성 관리자에게 알린다(DonWorry ADR-0064 4절).
+     *        고객에게는 보내지 않는다(구매자에게는 결제 완료로 보인다).
+     * ******************************
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendPaymentUnderReview(long orderId, String orderNumber) {
+        try {
+            String ordNum = (orderNumber != null && !orderNumber.isBlank()) ? orderNumber : String.valueOf(orderId);
+            sendToActiveAdmins(orderId, null, NotificationType.ADMIN_PAYMENT_UNDER_REVIEW,
+                    "ADMIN_PAYMENT_UNDER_REVIEW:ALL_ADMINS:" + orderId, new Object[]{ordNum});
+        } catch (Exception e) {
+            log.error("결제 확인 중 관리자 알림 발송 오류 (orderId={}):", orderId, e);
+        }
+    }
+
     public void sendPickupReminderTomorrow(long orderId, long customerId, String orderNumber) {
         sendPickupReminderTomorrowToCustomer(orderId, customerId);
         sendPickupReminderTomorrowToAdmins(orderId, customerId, orderNumber);

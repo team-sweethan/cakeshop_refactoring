@@ -4,6 +4,9 @@ import com.cakeshop.domain.order.service.admin.FulfillmentService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -138,6 +141,86 @@ class FulfillmentServiceTests {
 
         assertThat(result.orders().getContent()).singleElement()
                 .satisfies(view -> assertThat(view.pickupCompletable()).isFalse());
+    }
+
+    // PG(돈워리)가 결제를 확인 중이면 확인 창 동의 없이는 픽업 완료로 넘어가지 않는다 (DonWorry ADR-0064 4절)
+    @Test
+    void markPickedUp_paymentUnderReviewWithoutAcknowledgement_rejectsAndKeepsOrder() {
+        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> fulfillmentService.markPickedUp(10L, 7L, false))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(OrderErrorCode.PAYMENT_UNDER_REVIEW_CONFIRM_REQUIRED)
+                );
+        verify(orderMapper, never()).markPickedUpIfReady(anyLong(), anyLong(), any());
+        verify(orderMapper, never()).recordGatewayReviewProceed(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void markPickedUp_paymentUnderReviewAcknowledged_recordsProceedAndCompletes() {
+        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(orderMapper.markPickedUpIfReady(10L, 7L, NOW)).thenReturn(1);
+
+        fulfillmentService.markPickedUp(10L, 7L, true);
+
+        verify(orderMapper).recordGatewayReviewProceed(10L, 7L, NOW);
+        verify(orderMapper).markPickedUpIfReady(10L, 7L, NOW);
+    }
+
+    // 판정이 끝난 결제는 동의 없이 진행하고 기록도 남기지 않는다
+    @Test
+    void markPickedUp_paymentNotUnderReview_doesNotRecordProceed() {
+        when(orderMapper.markPickedUpIfReady(10L, 7L, NOW)).thenReturn(1);
+
+        fulfillmentService.markPickedUp(10L, 7L, true);
+
+        verify(orderMapper, never()).recordGatewayReviewProceed(anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void moveToReadyForPickup_acknowledged_recordsProceedAndMovesGeneralOrder() {
+        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(orderMapper.markGeneralReadyForPickupIfUnderReview(10L, NOW)).thenReturn(1);
+
+        fulfillmentService.moveToReadyForPickup(10L, 7L, true);
+
+        verify(orderMapper).recordGatewayReviewProceed(10L, 7L, NOW);
+        verify(orderMapper).markGeneralReadyForPickupIfUnderReview(10L, NOW);
+    }
+
+    @Test
+    void moveToReadyForPickup_notUnderReviewGeneralOrder_rejectsStateTransition() {
+        when(orderMapper.markGeneralReadyForPickupIfUnderReview(10L, NOW)).thenReturn(0);
+
+        assertThatThrownBy(() -> fulfillmentService.moveToReadyForPickup(10L, 7L, true))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        error -> assertThat(error.getErrorCode())
+                                .isEqualTo(OrderErrorCode.INVALID_STATUS_TRANSITION)
+                );
+    }
+
+    @Test
+    void getFulfillments_heldGeneralOrder_exposesReviewBadgeAndReadyAction() {
+        Order order = order(OrderStatus.UNDER_REVIEW);
+        when(orderMapper.countFulfillmentOrders(null)).thenReturn(1L);
+        when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
+        when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
+        when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
+        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+
+        FulfillmentListView result = fulfillmentService.getFulfillments(null, new PageRequest(null, null));
+
+        assertThat(result.orders().getContent()).singleElement().satisfies(view -> {
+            assertThat(view.paymentUnderReview()).isTrue();
+            assertThat(view.readyForPickupMovable()).isTrue();
+            assertThat(view.productionStartable()).isFalse();
+            assertThat(view.confirmMessage("진행할까요?"))
+                    .startsWith(FulfillmentListView.PAYMENT_UNDER_REVIEW_WARNING)
+                    .endsWith("진행할까요?");
+        });
     }
 
     @Test

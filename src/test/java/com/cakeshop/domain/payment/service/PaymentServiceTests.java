@@ -194,6 +194,9 @@ class PaymentServiceTests {
         inOrder.verify(couponOrderCommandService).useReservedCouponForOrder(1L);
         verify(orderPaymentCommandService, never()).completeGeneralOrderAfterPayment(1L, approval.approvedAt());
         verify(eventPublisher).publishEvent(new GeneralPaymentCompletedEvent(1L));
+        // 커밋 뒤 관리자에게 "결제 확인 중"을 알리는 이벤트
+        verify(eventPublisher).publishEvent(
+                new com.cakeshop.domain.payment.event.PaymentUnderGatewayReviewEvent(1L));
     }
 
     @Test

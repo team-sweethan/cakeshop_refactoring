@@ -132,7 +132,7 @@ class FulfillmentAdminControllerTests {
                 .andExpect(redirectedUrl("/admin/fulfillment?status=READY_FOR_PICKUP"))
                 .andExpect(flash().attribute("successMessage", "픽업 완료로 변경했습니다."));
 
-        verify(fulfillmentService).markPickedUp(10L, 7L);
+        verify(fulfillmentService).markPickedUp(10L, 7L, false);
     }
 
     @Test
@@ -145,7 +145,33 @@ class FulfillmentAdminControllerTests {
                 .andExpect(redirectedUrl("/admin/fulfillment?status=UNDER_REVIEW"))
                 .andExpect(flash().attribute("successMessage", "제작을 시작했습니다."));
 
-        verify(adminCustomOrderService).startProduction(10L, 7L);
+        verify(adminCustomOrderService).startProduction(10L, 7L, false);
+    }
+
+    // 화면 확인 창에 동의한 진행은 reviewAcknowledged=true로 서비스에 전달된다
+    @Test
+    void moveToReadyForPickup_acknowledged_passesConfirmationToService() throws Exception {
+        authenticateAdmin();
+
+        mockMvc.perform(post("/admin/fulfillment/10/ready")
+                        .param("status", "UNDER_REVIEW")
+                        .param("reviewAcknowledged", "true"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/fulfillment?status=UNDER_REVIEW"))
+                .andExpect(flash().attribute("successMessage", "픽업 준비로 변경했습니다."));
+
+        verify(fulfillmentService).moveToReadyForPickup(10L, 7L, true);
+    }
+
+    @Test
+    void markPickedUp_acknowledged_passesConfirmationToService() throws Exception {
+        authenticateAdmin();
+
+        mockMvc.perform(post("/admin/fulfillment/10/pickup")
+                        .param("reviewAcknowledged", "true"))
+                .andExpect(status().is3xxRedirection());
+
+        verify(fulfillmentService).markPickedUp(10L, 7L, true);
     }
 
     @Test

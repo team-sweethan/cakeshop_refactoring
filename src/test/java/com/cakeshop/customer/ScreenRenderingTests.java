@@ -743,6 +743,76 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString("style=\"white-space:pre-wrap\"")));
     }
 
+    // PG(돈워리)가 결제를 확인 중인 일반 주문: 오너 화면에 "결제 확인 중"과 확인 창, 동의 없이는 진행 거절,
+    // 동의하면 픽업 준비로 넘기고 진행 기록을 남긴다 (DonWorry ADR-0064 4절)
+    @Test
+    @Transactional
+    @WithUserDetails(
+        value = "admin@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void fulfillmentAdminScreen_paymentUnderReview_requiresConfirmationAndRecordsProceed()
+            throws Exception {
+        long orderId = createGeneralOrder();
+        jdbcTemplate.update(
+            """
+            UPDATE payments
+            SET status = 'DONE',
+                payment_key = ?,
+                approved_at = CURRENT_TIMESTAMP(6),
+                gateway_held_at = CURRENT_TIMESTAMP(6)
+            WHERE order_id = ?
+            """,
+            "SCREEN-HELD-" + orderId,
+            orderId
+        );
+        jdbcTemplate.update(
+            """
+            UPDATE orders
+            SET status = 'UNDER_REVIEW',
+                under_review_at = CURRENT_TIMESTAMP(6),
+                pickup_at = DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 1 DAY)
+            WHERE id = ?
+            """,
+            orderId
+        );
+
+        mockMvc.perform(get("/admin/fulfillment"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("결제 확인 중")))
+            .andExpect(content().string(containsString("픽업 준비로 넘기기")))
+            .andExpect(content().string(containsString("/admin/fulfillment/" + orderId + "/ready")))
+            .andExpect(content().string(containsString("name=\"reviewAcknowledged\" value=\"true\"")))
+            .andExpect(content().string(containsString(
+                "돈워리가 확인 중인 결제입니다. 진행 후 거절되면 손실은 가맹점이 부담합니다."
+            )));
+        mockMvc.perform(get("/admin/orders/{orderId}", orderId))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("결제 확인 중")));
+
+        // 확인 창 동의 없이 오면 진행하지 않는다
+        mockMvc.perform(post("/admin/fulfillment/{orderId}/ready", orderId).with(csrf()))
+            .andExpect(status().isConflict());
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM orders WHERE id = ?", String.class, orderId
+        )).isEqualTo("UNDER_REVIEW");
+
+        mockMvc.perform(post("/admin/fulfillment/{orderId}/ready", orderId)
+                .with(csrf())
+                .param("reviewAcknowledged", "true"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/admin/fulfillment"));
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM orders WHERE id = ?", String.class, orderId
+        )).isEqualTo("READY_FOR_PICKUP");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT review_proceeded_by FROM orders WHERE id = ?", Long.class, orderId
+        )).isEqualTo(jdbcTemplate.queryForObject(
+            "SELECT id FROM members WHERE email = ?", Long.class, "admin@cakeshop.local"
+        ));
+    }
+
     @Test
     @Transactional
     @WithUserDetails(

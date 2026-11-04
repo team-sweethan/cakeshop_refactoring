@@ -3,6 +3,7 @@ package com.cakeshop.domain.order.service;
 import com.cakeshop.domain.order.dto.view.OrderChatView;
 import com.cakeshop.domain.payment.event.CustomPaymentChatCompletedEvent;
 import com.cakeshop.domain.payment.event.GeneralPaymentCompletedEvent;
+import com.cakeshop.domain.payment.event.PaymentUnderGatewayReviewEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -37,6 +38,21 @@ public class OrderNotificationEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleCustomPaymentCompleted(CustomPaymentChatCompletedEvent event) {
         handlePaymentCompleted(event.orderId());
+    }
+
+    /** PG(돈워리)가 결제를 확인 중인 주문을 관리자에게 알린다 (DonWorry ADR-0064 4절). */
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handlePaymentUnderGatewayReview(PaymentUnderGatewayReviewEvent event) {
+        try {
+            OrderChatView orderView = orderChatQueryService.findOrder(event.orderId());
+            orderNotificationService.notifyPaymentUnderReview(
+                    event.orderId(),
+                    orderView == null ? null : orderView.orderNumber()
+            );
+        } catch (Exception e) {
+            log.error("결제 확인 중 알림 이벤트 수신 처리 실패 (orderId={}):", event.orderId(), e);
+        }
     }
 
     private void handlePaymentCompleted(long orderId) {

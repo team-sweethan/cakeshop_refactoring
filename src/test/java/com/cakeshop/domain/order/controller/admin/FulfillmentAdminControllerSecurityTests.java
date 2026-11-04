@@ -47,6 +47,14 @@ class FulfillmentAdminControllerSecurityTests {
                 .andExpect(status().isForbidden());
     }
 
+    // PG 결제 확인 중 주문을 픽업 준비로 넘기는 동작도 관리자 전용이다
+    @Test
+    @WithMockUser(roles = "USER")
+    void moveToReadyForPickup_customer_isForbidden() throws Exception {
+        mockMvc.perform(post("/admin/fulfillment/10/ready").with(csrf()).param("reviewAcknowledged", "true"))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     @WithMockUser(roles = "ADMIN")
     void markPickedUp_missingCsrf_isForbidden() throws Exception {
@@ -75,6 +83,6 @@ class FulfillmentAdminControllerSecurityTests {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/fulfillment"));
 
-        verify(fulfillmentService).markPickedUp(10L, 7L);
+        verify(fulfillmentService).markPickedUp(10L, 7L, false);
     }
 }
