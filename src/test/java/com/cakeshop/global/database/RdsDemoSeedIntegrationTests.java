@@ -128,6 +128,9 @@ class RdsDemoSeedIntegrationTests {
                 """
         )).isZero();
 
+        assertSeedImagesAreAddedOnceToIdentifiedProducts();
+        assertProductWithUploadedImageIsSkipped();
+
         assertInvalidAdminHashIsRejected(INVALID_ADMIN_HASH);
         assertInvalidAdminHashIsRejected(TEST_ADMIN_HASH + "\n");
         assertInvalidAdminHashIsRejected(COST_31_ADMIN_HASH);
@@ -150,6 +153,7 @@ class RdsDemoSeedIntegrationTests {
                 try (Statement cleanup = connection.createStatement()) {
                     cleanup.execute("ROLLBACK");
                     cleanup.execute("DROP TEMPORARY TABLE IF EXISTS _rds_demo_seed_option_groups");
+                    cleanup.execute("DROP TEMPORARY TABLE IF EXISTS _rds_demo_seed_image_products");
                     cleanup.execute("DROP TEMPORARY TABLE IF EXISTS _rds_demo_seed_products");
                     cleanup.execute("DROP TEMPORARY TABLE IF EXISTS _rds_demo_seed_config");
                     cleanup.execute("SET @rds_demo_admin_password_hash = NULL");
@@ -158,6 +162,74 @@ class RdsDemoSeedIntegrationTests {
             }
             return null;
         });
+    }
+
+    // 두 번 실행해도 시드 상품(카테고리별 동명 상품 중 가장 먼저 생성된 행)에만 5장씩 한 번 들어간다
+    private void assertSeedImagesAreAddedOnceToIdentifiedProducts() {
+        assertThat(count(
+                """
+                SELECT COUNT(*)
+                FROM product_images pi
+                INNER JOIN products p ON p.id = pi.product_id
+                INNER JOIN categories c ON c.id = p.category_id
+                WHERE c.code = 'CAKE'
+                  AND pi.image_url LIKE '/images/products/%'
+                  AND p.id = (
+                      SELECT MIN(seed_product.id)
+                      FROM products seed_product
+                      WHERE seed_product.category_id = p.category_id
+                        AND seed_product.name = p.name
+                  )
+                """
+        )).isEqualTo(160);
+        assertThat(count(
+                """
+                SELECT COUNT(*)
+                FROM product_images pi
+                INNER JOIN products p ON p.id = pi.product_id
+                INNER JOIN categories c ON c.id = p.category_id
+                WHERE p.name = '레터링 생크림 케이크'
+                  AND (
+                      c.code = 'OTHER'
+                      OR p.id <> (
+                          SELECT MIN(seed_product.id)
+                          FROM products seed_product
+                          WHERE seed_product.category_id = p.category_id
+                            AND seed_product.name = p.name
+                      )
+                  )
+                """
+        )).isZero();
+    }
+
+    // 관리자가 이미지를 올린 상품은 다시 실행해도 시드 이미지를 더하지 않는다
+    private void assertProductWithUploadedImageIsSkipped() {
+        Long productId = jdbcTemplate.queryForObject(
+                """
+                SELECT MIN(p.id)
+                FROM products p
+                INNER JOIN categories c ON c.id = p.category_id
+                WHERE c.code = 'CAKE'
+                  AND p.name = '말차 팥 케이크'
+                """,
+                Long.class
+        );
+        jdbcTemplate.update("DELETE FROM product_images WHERE product_id = ?", productId);
+        jdbcTemplate.update(
+                """
+                INSERT INTO product_images (product_id, image_url, sort_order)
+                VALUES (?, '/uploads/product/admin-uploaded.jpg', 0)
+                """,
+                productId
+        );
+
+        runSeed();
+
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT image_url FROM product_images WHERE product_id = ?",
+                String.class,
+                productId
+        )).containsExactly("/uploads/product/admin-uploaded.jpg");
     }
 
     private void assertInvalidAdminHashIsRejected(String invalidHash) {

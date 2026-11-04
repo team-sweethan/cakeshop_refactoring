@@ -9,6 +9,7 @@ import com.cakeshop.global.config.MariaDbIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.jdbc.Sql;
@@ -118,6 +119,45 @@ class ProductSeedIntegrationTests {
                    OR review_count <> 0
                 """
         )).isZero();
+    }
+
+    // 모든 시드 상품은 정적 이미지 5장을 순서 0~4로 가진다
+    @Test
+    void products_haveFiveStaticImagesInOrder() {
+        assertThat(count("SELECT COUNT(*) FROM products")).isEqualTo(32);
+        assertThat(count(
+                """
+                SELECT COUNT(*)
+                FROM products p
+                WHERE 5 <> (SELECT COUNT(*) FROM product_images pi WHERE pi.product_id = p.id)
+                   OR 10 <> (SELECT SUM(pi.sort_order) FROM product_images pi WHERE pi.product_id = p.id)
+                """
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT pi.image_url
+                FROM product_images pi
+                JOIN products p ON p.id = pi.product_id
+                WHERE p.name = '딸기 생크림 케이크 3호'
+                  AND pi.sort_order = 0
+                """,
+                String.class
+        )).isEqualTo("/images/products/strawberry-cream/01.jpg");
+    }
+
+    // 시드 이미지 경로는 모두 저장소의 정적 파일을 가리킨다
+    @Test
+    void productImageUrls_pointToBundledStaticFiles() {
+        List<String> imageUrls = jdbcTemplate.queryForList(
+                "SELECT DISTINCT image_url FROM product_images",
+                String.class
+        );
+
+        assertThat(imageUrls).hasSize(140);
+        assertThat(imageUrls)
+                .allSatisfy(imageUrl -> assertThat(
+                        new ClassPathResource("static" + imageUrl).exists()
+                ).as(imageUrl).isTrue());
     }
 
     private int count(String sql) {

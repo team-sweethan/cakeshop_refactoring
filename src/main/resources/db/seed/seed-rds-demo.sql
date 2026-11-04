@@ -748,9 +748,97 @@ WHERE NOT EXISTS (
       AND po.`name` = sample.`option_name`
 );
 
+-- =========================================================
+-- 상품 이미지
+--
+-- 파일은 src/main/resources/static/images/products/<폴더>/01.jpg~05.jpg 에 있다.
+-- 01은 대표 이미지, 02~05는 단면·상단 장식·질감·연출 상세 이미지다.
+-- 크기만 다른 상품(딸기 생크림 2·3호, 초코 가나슈 2호)은 1호 이미지를 함께 쓴다.
+-- 이미지가 한 장이라도 있는 상품은 건너뛴다. 관리자가 올린 이미지를 덮어쓰거나
+-- 상품당 최대 5장 제한을 넘기지 않기 위해서다.
+-- =========================================================
+
+CREATE TEMPORARY TABLE `_rds_demo_seed_image_products` (
+    `product_id` BIGINT NOT NULL PRIMARY KEY,
+    `image_folder` VARCHAR(100) NOT NULL
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 상품 INSERT가 기존 동명 상품을 채택하는 규칙과 맞춰 가장 먼저 생성된 한 행만 식별한다.
+INSERT INTO `_rds_demo_seed_image_products` (`product_id`, `image_folder`)
+SELECT
+    MIN(p.`id`),
+    sample.`image_folder`
+FROM `products` p
+INNER JOIN `categories` c
+        ON c.`id` = p.`category_id`
+       AND c.`code` = 'CAKE'
+INNER JOIN (
+    SELECT
+        '딸기 생크림 케이크 1호' AS `product_name`,
+        'strawberry-cream' AS `image_folder`
+    UNION ALL SELECT '딸기 생크림 케이크 2호', 'strawberry-cream'
+    UNION ALL SELECT '딸기 생크림 케이크 3호', 'strawberry-cream'
+    UNION ALL SELECT '초코 가나슈 케이크 1호 다크초코', 'chocolate-ganache-dark'
+    UNION ALL SELECT '초코 가나슈 케이크 1호 화이트', 'chocolate-ganache-white'
+    UNION ALL SELECT '초코 가나슈 케이크 2호 다크초코', 'chocolate-ganache-dark'
+    UNION ALL SELECT '초코 가나슈 케이크 2호 화이트', 'chocolate-ganache-white'
+    UNION ALL SELECT '말차 팥 케이크', 'matcha-red-bean'
+    UNION ALL SELECT '얼그레이 오렌지 케이크', 'earl-grey-orange'
+    UNION ALL SELECT '호두 당근 케이크', 'walnut-carrot'
+    UNION ALL SELECT '레터링 생크림 케이크', 'custom-lettering-cream'
+    UNION ALL SELECT '바닐라 빈 케이크', 'vanilla-bean'
+    UNION ALL SELECT '애플망고 요거트 케이크', 'apple-mango-yogurt'
+    UNION ALL SELECT '마스카포네 티라미수 케이크', 'mascarpone-tiramisu'
+    UNION ALL SELECT '레드벨벳 크림치즈 케이크', 'red-velvet-cream-cheese'
+    UNION ALL SELECT '레몬 바스크 치즈케이크', 'lemon-basque-cheesecake'
+    UNION ALL SELECT '흑임자 인절미 케이크', 'black-sesame-injeolmi'
+    UNION ALL SELECT '복숭아 우유 생크림 케이크', 'peach-milk-cream'
+    UNION ALL SELECT '몽블랑 밤 케이크', 'mont-blanc-chestnut'
+    UNION ALL SELECT '미니 도시락 케이크', 'mini-lunchbox'
+    UNION ALL SELECT '프리미엄 3단 기념일 케이크', 'premium-three-tier-anniversary'
+    UNION ALL SELECT '럭셔리 웨딩 케이크', 'custom-luxury-wedding'
+    UNION ALL SELECT '포토 이미지 주문 제작 케이크', 'custom-photo'
+    UNION ALL SELECT '캐릭터 입체 주문 제작 케이크', 'custom-character'
+    UNION ALL SELECT '2단 파티 주문 제작 케이크', 'custom-two-tier-party'
+    UNION ALL SELECT '돌잔치 한복 주문 제작 케이크', 'custom-dol-hanbok'
+    UNION ALL SELECT '반려동물 초상화 주문 제작 케이크', 'custom-pet-portrait'
+    UNION ALL SELECT '기업 로고 주문 제작 케이크', 'custom-corporate-logo'
+    UNION ALL SELECT '플라워 데코 주문 제작 케이크', 'custom-flower-deco'
+    UNION ALL SELECT '백설기 생화 케이크', 'baekseolgi-flower'
+    UNION ALL SELECT '블루베리 요거트 케이크', 'blueberry-yogurt'
+    UNION ALL SELECT '단종 체리 초콜릿 케이크', 'cherry-chocolate'
+) sample
+        ON sample.`product_name` = p.`name`
+GROUP BY p.`name`, sample.`image_folder`;
+
+INSERT INTO `product_images` (
+    `product_id`,
+    `image_url`,
+    `sort_order`
+)
+SELECT
+    seed_product.`product_id`,
+    CONCAT('/images/products/', seed_product.`image_folder`, '/0', image_slot.`image_number`, '.jpg'),
+    image_slot.`image_number` - 1
+FROM `_rds_demo_seed_image_products` seed_product
+CROSS JOIN (
+    SELECT 1 AS `image_number`
+    UNION ALL SELECT 2
+    UNION ALL SELECT 3
+    UNION ALL SELECT 4
+    UNION ALL SELECT 5
+) image_slot
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `product_images` pi
+    WHERE pi.`product_id` = seed_product.`product_id`
+)
+ORDER BY seed_product.`product_id`, image_slot.`image_number`;
+
 COMMIT;
 
 DROP TEMPORARY TABLE `_rds_demo_seed_option_groups`;
+DROP TEMPORARY TABLE `_rds_demo_seed_image_products`;
 DROP TEMPORARY TABLE `_rds_demo_seed_products`;
 DROP TEMPORARY TABLE `_rds_demo_seed_config`;
 SET @rds_demo_admin_password_hash = NULL;
