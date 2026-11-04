@@ -17,7 +17,7 @@
 | `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>`. `approve`는 새 승인 없이 조회로 `authorized`를 확인한다 |
 | `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제 준비(`…/donworry/session`), 결제창 성공 복귀(`…/donworry/return`). 결제 준비에 웹훅 주소 `{쇼핑몰 주소}/webhooks/donworry`를 보낸다 |
 | `DonWorryWebhookController` | 돈워리 결제 상태 웹훅 수신 `POST /webhooks/donworry`. 서명(`DONWORRY-WEBHOOK-V1`) · 시각(±300초) 확인 뒤 본문은 믿지 않고 `paymentId`로 다시 조회해 반영 |
-| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 최근 3일) 공통 반영. 승인됐는데 READY면 결제 완료, 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
+| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 50건) 공통 반영. 배치는 아직 바뀔 수 있는 결제만 다시 조회한다 — 판정 대기(`gateway_held_at` 있고 `gateway_captured_at` 없음) DONE 결제는 기간과 관계없이 먼저, 결제창을 닫아 READY로 남은 결제는 최근 3일. 승인됐는데 READY면 결제 완료, 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
 | `DonWorryPaymentCaptureService` | 보류 뒤 승인 반영 — `payments.gateway_captured_at` 기록, 주문 확인 중인 일반 주문은 픽업 준비로 |
 | `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 가맹점이 이미 진행한 주문은 유지(손실은 가맹점 부담) |
 

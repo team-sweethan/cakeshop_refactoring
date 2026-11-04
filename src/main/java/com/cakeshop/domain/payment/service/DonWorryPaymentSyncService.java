@@ -132,7 +132,11 @@ public class DonWorryPaymentSyncService {
         return SyncResult.UNCHANGED;
     }
 
-    /** 조회 배치: 웹훅을 놓쳐도 최근 돈워리 결제의 승인·거절을 맞춘다. 바뀐 건수를 돌려준다. */
+    /**
+     * 조회 배치: 웹훅을 놓쳐도 돈워리 결제의 승인·판정을 맞춘다. 바뀐 건수를 돌려준다.
+     * 아직 바뀔 수 있는 결제만 본다 — 판정 대기(보류 중) 결제는 기간과 관계없이, 결제창을 닫아 READY인 결제는 최근 3일.
+     * 이미 끝난 정상 결제는 다시 묻지 않아 오래된 판정 대기 결제가 최신 결제에 밀려 빠지지 않는다.
+     */
     public int syncRecent(int limit) {
         DonWorryPaymentClient client = clientProvider.getIfAvailable();
         if (client == null) {
