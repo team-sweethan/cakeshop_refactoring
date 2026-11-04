@@ -17,7 +17,7 @@
 | `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>`. `approve`는 새 승인 없이 조회로 `authorized`를 확인한다 |
 | `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제 준비(`…/donworry/session`), 결제창 성공 복귀(`…/donworry/return`). 결제 준비에 웹훅 주소 `{쇼핑몰 주소}/webhooks/donworry`를 보낸다 |
 | `DonWorryWebhookController` | 돈워리 결제 상태 웹훅 수신 `POST /webhooks/donworry`. 서명(`DONWORRY-WEBHOOK-V1`) · 시각(±300초) 확인 뒤 본문은 믿지 않고 `paymentId`로 다시 조회해 반영 |
-| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 50건) 공통 반영. 배치는 아직 바뀔 수 있는 결제만 다시 조회한다 — 판정 대기(`gateway_held_at` 있고 `gateway_captured_at` 없음) DONE 결제는 기간과 관계없이 먼저, 결제창을 닫아 READY로 남은 결제는 최근 3일, 보상 요청 없이 만료된 결제는 생성 후 1시간. 승인됐는데 READY면 결제 완료(기한이 지났으면 늦은 승인 보상 취소, 4절), 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
+| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 50건) 공통 반영. 배치는 아직 바뀔 수 있는 결제만 다시 조회한다 — 판정 대기(`gateway_held_at` 있고 `gateway_captured_at` 없음) DONE 결제는 기간과 관계없이 먼저, 결제창을 닫아 READY로 남은 결제는 최근 3일, 진행 중(REQUESTED) 보상 요청 없이 만료된 결제는 생성 후 1시간. 승인됐는데 READY면 결제 완료(기한이 지났으면 늦은 승인 보상 취소, 4절), 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
 | `DonWorryPaymentCaptureService` | 보류 뒤 승인 반영 — `payments.gateway_captured_at` 기록, 주문 확인 중인 일반 주문은 픽업 준비로 |
 | `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 가맹점이 이미 진행한 주문은 유지(손실은 가맹점 부담) |
 
@@ -118,6 +118,7 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
   기존 보상 취소(`SYSTEM_COMPENSATION`, 키 `COMPENSATE-{결제 ID}`)로 돈워리 승인을 취소한다.
   - 결과: 결제 `CANCELED`(`failure_code=INTERNAL_COMPLETION_FAILED`), 주문 `CANCELED`. 보류 · 매입 대기는 승인 취소로 청구가 사라진다
   - 취소가 바로 안 끝나면(매입 결제 환불 503 등) 보상 요청이 REQUESTED로 남고 복구 배치가 같은 키로 다시 보낸다. 그동안 만료 배치는 그 주문을 건드리지 않는다
-  - 조회 배치는 보상 요청 없이 만료된 돈워리 결제를 생성 후 1시간 동안 다시 조회한다(웹훅이 닿지 않는 환경 대비)
+  - 조회 배치는 진행 중(REQUESTED) 보상 요청 없이 만료된 돈워리 결제를 생성 후 1시간 동안 다시 조회한다(웹훅이 닿지 않는 환경 대비). 실패로 닫힌 옛 보상 기록은 막지 않는다
+  - 보상 요청 저장 자체가 실패하면 웹훅은 500으로 응답해 돈워리 재전송을 받고, 조회 배치는 다음 주기에 다시 본다
   - 보상 복구는 돈워리 `VOIDED`(승인 취소 완료)를 "승인 안 됨"이 아니라 취소 완료로 본다(조회 결과에 승인 취소 기록 `DW-VOID-{id}`를 싣는다)
 - 위 구조(성공 콜백 재사용, `approve` = 조회)는 `pg-decisions` ADR로 남길 대상이다.

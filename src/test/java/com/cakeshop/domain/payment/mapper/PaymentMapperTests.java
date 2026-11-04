@@ -357,12 +357,25 @@ class PaymentMapperTests {
                 """,
                 expiredCompensated
         );
+        // 실패(FAILED)로 닫힌 옛 보상 기록만 있으면 복구 배치가 보지 않으므로 조회 배치가 계속 본다 (#30 Codex 리뷰)
+        String expiredFailedHistory = insertOwnPayment("SYNC-EXP-FAIL", "EXPIRED", now.minusMinutes(25), null, null);
+        jdbcTemplate.update(
+                """
+                INSERT INTO payment_cancellations (
+                    payment_id, idempotency_key, cancel_amount, cancel_reason, request_type, status, failure_code
+                )
+                SELECT id, CONCAT('COMPENSATE-', id), amount, '자동 결제 취소', 'SYSTEM_COMPENSATION', 'FAILED',
+                       'PAYMENT_NOT_APPROVED'
+                FROM payments WHERE toss_order_id = ?
+                """,
+                expiredFailedHistory
+        );
 
         // 다른 테스트가 남긴 행이 있을 수 있어 넉넉히 받고, 이 테스트의 행만 확인한다
         java.util.List<String> targets =
                 paymentMapper.findDonWorryGatewayOrderIdsToSync(since, now.minusHours(1), 1_000);
 
-        assertThat(targets).contains(oldHeld, ready, expiredRecent)
+        assertThat(targets).contains(oldHeld, ready, expiredRecent, expiredFailedHistory)
                 .doesNotContain(oldReady, captured, normalDone, canceledHeld, voidedKept, expiredOld, expiredCompensated);
         // 판정 대기(오래됐어도) → 결제창을 닫은 READY → 만료 순으로 본다
         assertThat(targets.indexOf(oldHeld)).isLessThan(targets.indexOf(ready));

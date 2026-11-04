@@ -94,18 +94,30 @@ class DonWorryPaymentSyncServiceTests {
         verify(paymentFacade, never()).confirmPayment(anyLong(), anyLong(), any());
     }
 
-    // 취소가 바로 끝나지 않으면(매입 결제 환불 503 등) 보상 요청을 남기고 복구 배치에 맡긴다
+    // 보상 요청은 저장됐는데 취소가 바로 끝나지 않으면(매입 결제 환불 503 등) 복구 배치에 맡긴다
     @Test
     void sync_lateApprovalCancelNotFinished_isPending() {
         Payment expired = local(PaymentStatus.EXPIRED, null);
         when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
         when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(expired));
         when(compensationProcessor.compensateApproved(expired, "DW-101"))
-                .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING))
-                .thenReturn(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
+                .thenThrow(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
 
         assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCEL_PENDING);
-        assertThat(service.sync(101L)).isEqualTo(SyncResult.LATE_APPROVAL_CANCEL_PENDING);
+    }
+
+    // 보상 요청조차 저장하지 못하면 실패로 알려 웹훅이 500으로 재전송을 받게 한다 (#30 Codex 리뷰)
+    @Test
+    void sync_lateApprovalCompensationNotPersisted_fails() {
+        Payment expired = local(PaymentStatus.EXPIRED, null);
+        when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(expired));
+        when(compensationProcessor.compensateApproved(expired, "DW-101"))
+                .thenReturn(new BusinessException(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.sync(101L))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(PaymentErrorCode.PAYMENT_RECOVERY_PENDING));
     }
 
     // 승인되지 않은 시도나 다른 이유의 완료 실패는 취소하지 않는다

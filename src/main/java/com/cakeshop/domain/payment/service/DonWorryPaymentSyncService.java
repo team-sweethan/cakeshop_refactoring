@@ -163,16 +163,23 @@ public class DonWorryPaymentSyncService {
     private SyncResult cancelLateApproval(Payment payment, String paymentKey) {
         log.warn("donworry late approval: cancel requested orderId={} paymentId={}",
                 payment.getOrderId(), payment.getId());
+        BusinessException outcome;
         try {
-            BusinessException outcome = compensationProcessor.compensateApproved(payment, paymentKey);
-            if (outcome.getErrorCode() == PaymentErrorCode.PAYMENT_COMPENSATED) {
-                return SyncResult.LATE_APPROVAL_CANCELED;
-            }
+            outcome = compensationProcessor.compensateApproved(payment, paymentKey);
         } catch (BusinessException exception) {
+            // 보상 요청은 저장됐고 돈워리 취소만 끝나지 않았다(매입 결제 환불 503 등). 복구 배치가 같은 키로 다시 보낸다.
             log.warn("donworry late approval cancel pending orderId={} code={}",
                     payment.getOrderId(), exception.getErrorCode());
+            return SyncResult.LATE_APPROVAL_CANCEL_PENDING;
         }
-        return SyncResult.LATE_APPROVAL_CANCEL_PENDING;
+        if (outcome.getErrorCode() == PaymentErrorCode.PAYMENT_COMPENSATED) {
+            return SyncResult.LATE_APPROVAL_CANCELED;
+        }
+        // 보상 요청조차 저장하지 못했다. 정상으로 끝내면 웹훅 재전송이 멈추고 복구 배치가 볼 기록도 없으므로
+        // 실패로 알려 웹훅은 500(돈워리 재전송), 조회 배치는 다음 주기에 다시 보게 한다 (#30 Codex 리뷰).
+        log.warn("donworry late approval cancel not persisted orderId={} code={}",
+                payment.getOrderId(), outcome.getErrorCode());
+        throw outcome;
     }
 
     /**
