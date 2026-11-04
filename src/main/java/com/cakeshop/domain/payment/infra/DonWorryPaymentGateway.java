@@ -28,7 +28,9 @@ import org.springframework.stereotype.Component;
 public class DonWorryPaymentGateway implements PaymentGateway {
 
     public static final String PAYMENT_KEY_PREFIX = "DW-";
-    public static final String USER_CANCELED = "DONWORRY_USER_CANCELED";
+    // 돈워리 결제창이 failUrl에 붙이는 code 값 (DonWorry ADR-0064 2절). 구매자가 결제창을 닫으면 USER_CANCELED,
+    // 카드 거절이면 결제의 declineCode(AUTHORIZATION_DECLINED), 그 밖에는 결제 상태 이름이다.
+    public static final String USER_CANCELED = "USER_CANCELED";
     public static final String AUTHORIZATION_DECLINED = "AUTHORIZATION_DECLINED";
     private static final int ORDER_NAME_MAX_LENGTH = 100;
     private static final String METHOD = "카드";

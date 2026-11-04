@@ -27,6 +27,15 @@ class DonWorryPaymentGatewayTests {
         assertThat(gateway.isAvailable()).isTrue();
     }
 
+    // 돈워리 결제창이 failUrl에 붙이는 실제 code 값과 맞아야 실패 안내가 갈린다 (DonWorry PaymentSessionService)
+    @Test
+    void failureCodes_matchDonWorryCheckoutFailUrl() {
+        assertThat(gateway.isUserCanceled("USER_CANCELED")).isTrue();
+        assertThat(gateway.isCardRejected("AUTHORIZATION_DECLINED")).isTrue();
+        assertThat(gateway.isUserCanceled("DENIED")).isFalse();
+        assertThat(gateway.isCardRejected("DENIED")).isFalse();
+    }
+
     @Test
     void paymentKey_roundTripsOnlyValidFormat() {
         assertThat(DonWorryPaymentGateway.paymentKey(101L)).isEqualTo("DW-101");

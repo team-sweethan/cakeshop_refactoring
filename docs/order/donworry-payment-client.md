@@ -43,7 +43,7 @@
 - `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
 - 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
 - PG 선택은 승인 시도 전 READY 결제에만 저장된다. DonWorry 결제가 진행 중이면 Toss로 바꿀 수 없다.
-  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (제안).
+  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (채택).
 
 ## 3. 로컬 실행
 
