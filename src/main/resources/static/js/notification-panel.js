@@ -104,6 +104,7 @@
 
     async function load() {
       const seq = ++loadSeq;
+      const startedAt = Date.now();
       loading = true;
       message("알림을 불러오는 중입니다...");
       if (readAll) readAll.hidden = true;
@@ -115,12 +116,17 @@
         if (!response.ok) throw new Error("load failed");
         const data = await response.json();
         if (seq !== loadSeq) return;
+        const rows = Array.isArray(data) ? data : [];
+        const readIds = new Set(rows.filter((item) => isRead(item)).map((item) => String(item.id)));
         // 그동안 받은 실시간 알림을 최신순으로 맨 위에 두고, 같은 ID 의 조회 결과는 뺀다.
-        const received = Array.from(pending.values()).reverse();
+        // 조회를 시작하기 전에 받았고 서버가 이미 읽음이라고 하면(다른 화면에서 읽음) 버린다.
+        // 조회 중에 받은 알림은 응답이 그보다 오래됐을 수 있어 그대로 둔다.
+        const received = Array.from(pending.values())
+          .filter((entry) => !(entry.at < startedAt && readIds.has(String(entry.notification.id))))
+          .map((entry) => entry.notification)
+          .reverse();
         const receivedIds = new Set(received.map((item) => String(item.id)));
-        const unread = Array.isArray(data)
-          ? data.filter((item) => !isRead(item) && !receivedIds.has(String(item.id)))
-          : [];
+        const unread = rows.filter((item) => !isRead(item) && !receivedIds.has(String(item.id)));
         list.innerHTML = received.map((item) => itemHtml({ ...item, isRead: false }, "방금 전")).join("")
           + unread.map((item) => itemHtml(item, formatTime(item.lastEventAt || item.createdAt))).join("");
         pending.clear();
@@ -183,16 +189,23 @@
     });
 
     if (readAll) {
+      // 요청 중에 받은 알림은 보관했다가, 성공하면 창을 직접 비우지 않고 서버에서 다시 불러와 맞춘다.
+      // (모두 읽음은 UPDATE 시점의 알림만 읽음 처리하므로 그 뒤에 온 알림은 남아 있어야 한다)
       readAll.addEventListener("click", () => {
+        loading = true;
         fetch("/api/notifications/read-all", { method: "PATCH", headers: csrfHeaders(panel) })
           .then((response) => {
-            if (!response.ok) return;
-            list.querySelectorAll(".notification-panel__item").forEach((item) => item.remove());
-            syncEmptyState();
+            if (!response.ok) {
+              loading = false;
+              return;
+            }
+            load();
             refreshCount();
             if (typeof window.loadNotifications === "function") window.loadNotifications();
           })
-          .catch(() => {});
+          .catch(() => {
+            loading = false;
+          });
       });
     }
 
@@ -204,7 +217,7 @@
         if (!loaded || loading) {
           if (notification.id != null) {
             pending.delete(String(notification.id));
-            pending.set(String(notification.id), notification);
+            pending.set(String(notification.id), { notification, at: Date.now() });
           }
           return;
         }
