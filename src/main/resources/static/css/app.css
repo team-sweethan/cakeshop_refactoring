@@ -3313,9 +3313,10 @@ h2.section-title {
 /* 상품 카드와 목록 */
 .product-card {
     background: #fff;
-    border-color: var(--color-border-light);
+    /* 크림 배경 위에서도 카드 경계가 보이도록 테두리를 한 단계 진하게 둔다 */
+    border-color: #e6d5c9;
     border-radius: var(--radius-md);
-    box-shadow: 0 7px 24px rgba(68, 43, 34, .06);
+    box-shadow: 0 6px 20px rgba(68, 43, 34, .08);
     min-width: 0;
     overflow: hidden;
     transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease
