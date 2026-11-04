@@ -168,7 +168,8 @@ SOURCE src/main/resources/db/seed/seed-review.sql;
 클라이언트를 시작한 위치에 맞게 절대 경로로 바꿔도 됩니다.
 
 상품 이미지는 `src/main/resources/static/images/products/`의 정적 파일을 가리킵니다. 업로드 폴더나 S3에 따로
-올릴 필요가 없고, 관리자 화면에서 이미지를 지워도 파일은 남습니다.
+올릴 필요가 없고, 관리자 화면에서 이미지를 지워도 파일은 남습니다. 대표 매장 사진도 비어 있을 때만
+`src/main/resources/static/images/home/store.jpg`로 채우고, 관리자가 올린 사진은 덮어쓰지 않습니다.
 
 ### 6. 빌드와 테스트
 

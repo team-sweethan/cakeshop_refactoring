@@ -130,6 +130,7 @@ class RdsDemoSeedIntegrationTests {
 
         assertSeedImagesAreAddedOnceToIdentifiedProducts();
         assertProductWithUploadedImageIsSkipped();
+        assertStoreImageFilledOnlyWhenEmpty();
 
         assertInvalidAdminHashIsRejected(INVALID_ADMIN_HASH);
         assertInvalidAdminHashIsRejected(TEST_ADMIN_HASH + "\n");
@@ -230,6 +231,24 @@ class RdsDemoSeedIntegrationTests {
                 String.class,
                 productId
         )).containsExactly("/uploads/product/admin-uploaded.jpg");
+    }
+
+    // 대표 매장 사진은 비어 있을 때만 정적 사진으로 채우고, 관리자가 올린 사진은 덮어쓰지 않는다
+    private void assertStoreImageFilledOnlyWhenEmpty() {
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT image_url FROM store WHERE id = 1",
+                String.class
+        )).isEqualTo("/images/home/store.jpg");
+
+        jdbcTemplate.update(
+                "UPDATE store SET image_url = '/uploads/store/admin-uploaded.jpg' WHERE id = 1");
+
+        runSeed();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT image_url FROM store WHERE id = 1",
+                String.class
+        )).isEqualTo("/uploads/store/admin-uploaded.jpg");
     }
 
     private void assertInvalidAdminHashIsRejected(String invalidHash) {
