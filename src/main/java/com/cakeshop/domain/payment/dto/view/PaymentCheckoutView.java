@@ -18,6 +18,9 @@ public record PaymentCheckoutView(
         String customerName,
         String customerEmail,
         String customerPhone,
+        // 픽업자. 돈워리 결제 준비 요청에 주문자와 함께 보낸다.
+        String pickupName,
+        String pickupPhone,
         String clientKey,
         boolean paymentAvailable,
         List<ItemView> items,

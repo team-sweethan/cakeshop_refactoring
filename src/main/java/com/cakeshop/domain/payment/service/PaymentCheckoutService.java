@@ -82,6 +82,8 @@ public class PaymentCheckoutService {
                 order.ordererName(),
                 memberEmail,
                 order.ordererPhone(),
+                order.pickupName(),
+                order.pickupPhone(),
                 paymentGateway.clientKey(),
                 tossAvailable || donWorryAvailable,
                 items,

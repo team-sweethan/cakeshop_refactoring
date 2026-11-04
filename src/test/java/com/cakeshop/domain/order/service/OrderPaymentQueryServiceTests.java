@@ -58,6 +58,8 @@ class OrderPaymentQueryServiceTests {
         when(order.paymentExpiresAt()).thenReturn(paymentExpiresAt);
         when(order.ordererName()).thenReturn("홍길동");
         when(order.ordererPhone()).thenReturn("010-1111-2222");
+        when(order.pickupName()).thenReturn("김픽업");
+        when(order.pickupPhone()).thenReturn("010-3333-4444");
         when(order.items()).thenReturn(List.of(item));
         when(item.productName()).thenReturn("딸기 생크림 케이크");
         when(item.quantity()).thenReturn(1);
@@ -76,6 +78,11 @@ class OrderPaymentQueryServiceTests {
 
         assertThat(result.generalOrder()).isTrue();
         assertThat(result.pendingPayment()).isTrue();
+        // 돈워리 결제 준비 요청에 실을 주문자·픽업자
+        assertThat(result.ordererName()).isEqualTo("홍길동");
+        assertThat(result.ordererPhone()).isEqualTo("010-1111-2222");
+        assertThat(result.pickupName()).isEqualTo("김픽업");
+        assertThat(result.pickupPhone()).isEqualTo("010-3333-4444");
         assertThat(result.finalAmount()).isEqualByComparingTo("30000");
         assertThat(result.items()).singleElement().satisfies(savedItem -> {
             assertThat(savedItem.productName()).isEqualTo("딸기 생크림 케이크");

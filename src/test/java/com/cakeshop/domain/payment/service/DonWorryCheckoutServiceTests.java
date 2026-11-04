@@ -78,6 +78,11 @@ class DonWorryCheckoutServiceTests {
         assertThat(request.successUrl()).isEqualTo("http://localhost:8080/orders/1/payment/donworry/return");
         assertThat(request.failUrl()).isEqualTo("http://localhost:8080/orders/1/payment/fail");
         assertThat(request.notifyUrl()).isEqualTo("http://localhost:8080/webhooks/donworry");
+        // 주문자·픽업자는 주문 당시 값 그대로, 전화번호는 하이픈 포함 형식 그대로 보낸다
+        assertThat(request.ordererName()).isEqualTo("김주문");
+        assertThat(request.ordererPhone()).isEqualTo("010-1111-2222");
+        assertThat(request.pickupName()).isEqualTo("이픽업");
+        assertThat(request.pickupPhone()).isEqualTo("010-3333-4444");
         assertThat(session.checkoutUrl()).isEqualTo("http://localhost:5174/checkout/pss_1");
         assertThat(session.checkoutOrigin()).isEqualTo("http://localhost:5174");
     }
@@ -145,6 +150,7 @@ class DonWorryCheckoutServiceTests {
                 ORDER_ID, "ORD-100", "ORD-100", "딸기 케이크",
                 BigDecimal.valueOf(25_000), BigDecimal.ZERO, BigDecimal.valueOf(25_000),
                 LocalDateTime.parse("2026-11-02T15:00:00"), LocalDateTime.parse("2026-10-31T12:08:00"),
-                "회원", EMAIL, "01000000000", "", true, List.of(), donWorry, false, true, "");
+                "김주문", EMAIL, "010-1111-2222", "이픽업", "010-3333-4444", "", true, List.of(), donWorry, false,
+                true, "");
     }
 }

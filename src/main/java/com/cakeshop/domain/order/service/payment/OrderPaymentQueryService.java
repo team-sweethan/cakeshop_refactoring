@@ -97,6 +97,8 @@ public class OrderPaymentQueryService {
                 order.paymentExpiresAt(),
                 order.ordererName(),
                 order.ordererPhone(),
+                order.pickupName(),
+                order.pickupPhone(),
                 order.items().stream()
                         .map(item -> new PaymentOrderItem(
                                 item.productName(),
@@ -179,6 +181,12 @@ public class OrderPaymentQueryService {
         );
     }
 
+    /**
+     * 결제 대상 주문 정보.
+     *
+     * <p>2026-11-04 (수민): 돈워리 결제 준비 요청에 픽업자를 함께 보내려고 pickupName·pickupPhone을 추가했다.
+     * 기존 생성자는 픽업자 없이(null) 만든다.</p>
+     */
     public record PaymentOrder(
             long orderId,
             String orderNumber,
@@ -191,8 +199,43 @@ public class OrderPaymentQueryService {
             LocalDateTime paymentExpiresAt,
             String ordererName,
             String ordererPhone,
+            String pickupName,
+            String pickupPhone,
             List<PaymentOrderItem> items
     ) {
+
+        /** 픽업자 정보가 필요 없는 호출부의 호환용 생성자다. */
+        public PaymentOrder(
+                long orderId,
+                String orderNumber,
+                OrderType orderType,
+                boolean pendingPayment,
+                BigDecimal originalAmount,
+                BigDecimal discountAmount,
+                BigDecimal finalAmount,
+                LocalDateTime pickupAt,
+                LocalDateTime paymentExpiresAt,
+                String ordererName,
+                String ordererPhone,
+                List<PaymentOrderItem> items
+        ) {
+            this(
+                    orderId,
+                    orderNumber,
+                    orderType,
+                    pendingPayment,
+                    originalAmount,
+                    discountAmount,
+                    finalAmount,
+                    pickupAt,
+                    paymentExpiresAt,
+                    ordererName,
+                    ordererPhone,
+                    null,
+                    null,
+                    items
+            );
+        }
 
         /** 기존 일반 주문 조회 호출부의 호환용 상태다. */
         public boolean generalOrder() {

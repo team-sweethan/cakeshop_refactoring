@@ -223,6 +223,43 @@ class DonWorryPaymentClientTests {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    // 돈워리(P4)와 맞춘 JSON 이름: ordererName · ordererPhone · pickupName · pickupPhone. 픽업자가 없으면 키 자체를 빼고 보낸다
+    @Test
+    void createSession_sendsOrdererAndPickupWithAgreedNames() {
+        AtomicReference<MockClientHttpRequest> captured = new AtomicReference<>();
+        for (int i = 0; i < 2; i++) {
+            server.expect(requestTo(BASE_URL + "/api/payment-sessions"))
+                    .andExpect(request -> captured.set((MockClientHttpRequest) request))
+                    .andRespond(withStatus(HttpStatus.OK).contentType(MediaType.APPLICATION_JSON)
+                            .body("{\"sessionKey\":\"pss_1\",\"checkoutUrl\":\"http://localhost:5174/checkout/pss_1\","
+                                    + "\"expiresAt\":\"2026-10-31T03:09:00Z\"}"));
+        }
+
+        client().createSession(withPeople("김주문", "010-1111-2222", "이픽업", "010-3333-4444"), "idem-1");
+        String body = new String(captured.get().getBodyAsBytes(), StandardCharsets.UTF_8);
+        assertThat(body)
+                .contains("\"ordererName\":\"김주문\"")
+                .contains("\"ordererPhone\":\"010-1111-2222\"")
+                .contains("\"pickupName\":\"이픽업\"")
+                .contains("\"pickupPhone\":\"010-3333-4444\"");
+
+        client().createSession(withPeople("김주문", "010-1111-2222", null, " "), "idem-2");
+        String withoutPickup = new String(captured.get().getBodyAsBytes(), StandardCharsets.UTF_8);
+        assertThat(withoutPickup).contains("\"ordererName\":\"김주문\"")
+                .doesNotContain("pickupName")
+                .doesNotContain("pickupPhone");
+        server.verify();
+    }
+
+    private static DonWorryPaymentSessionRequest withPeople(
+            String ordererName, String ordererPhone, String pickupName, String pickupPhone) {
+        return new DonWorryPaymentSessionRequest("ORD-100", "42", 25_000L, Instant.parse("2026-10-31T02:59:00Z"),
+                "딸기 케이크", null,
+                "http://localhost:8080/orders/1/payment/donworry/return",
+                "http://localhost:8080/orders/1/payment/fail", null,
+                ordererName, ordererPhone, pickupName, pickupPhone);
+    }
+
     private static DonWorryPaymentSessionRequest sessionRequest(Instant orderCreatedAt) {
         return new DonWorryPaymentSessionRequest("ORD-100", "42", 25_000L, orderCreatedAt, "딸기 케이크", null,
                 "http://localhost:8080/orders/1/payment/donworry/return",
