@@ -832,3 +832,17 @@ CROSS JOIN (
     UNION ALL SELECT 5
 ) image_slot
 ORDER BY p.`id`, image_slot.`image_number`;
+
+
+-- =========================================================
+-- 대표 매장 사진
+--
+-- 대표 매장은 migration(provision_default_store)이 만든다. 매장 정보는 지우거나 덮어쓰지 않고
+-- 사진이 비어 있을 때만 정적 파일 경로를 채운다. 관리자가 올린 사진은 그대로 둔다.
+-- 파일은 src/main/resources/static/images/home/store.jpg 에 있다.
+-- =========================================================
+
+UPDATE `store`
+   SET `image_url` = '/images/home/store.jpg'
+ WHERE `id` = 1
+   AND (`image_url` IS NULL OR `image_url` = '');
