@@ -161,11 +161,16 @@ Google·카카오 소셜 로그인은 `.env`에 각 서비스의 Client ID와 Cl
 SOURCE src/main/resources/db/seed/seed-local.sql;
 SOURCE src/main/resources/db/seed/seed-community.sql;
 SOURCE src/main/resources/db/seed/seed-review.sql;
+SOURCE src/main/resources/db/seed/seed-notice.sql;
 ```
 
 `seed-local.sql`이 회원·상품을 먼저 준비하므로 실행 순서를 바꾸지 않습니다. `seed-community.sql`과
 `seed-review.sql`은 각각 커뮤니티와 후기 확인용 데이터가 필요할 때만 실행해도 됩니다. 경로는 MariaDB
 클라이언트를 시작한 위치에 맞게 절대 경로로 바꿔도 됩니다.
+
+`seed-notice.sql`은 홈과 공지사항 화면에 보일 실제 매장 공지 5건을 넣습니다. 기존 공지를 지우지 않고 같은
+제목이 없을 때만 넣으므로 공용 개발·시연 DB에도 `seed-rds-demo.sql` 다음에 그대로 실행할 수 있습니다.
+`seed-community.sql`은 공지를 전부 지우고 상태 확인용 공지를 다시 넣으므로 반드시 그보다 먼저 실행합니다.
 
 상품 이미지는 `src/main/resources/static/images/products/`의 정적 파일을 가리킵니다. 업로드 폴더나 S3에 따로
 올릴 필요가 없고, 관리자 화면에서 이미지를 지워도 파일은 남습니다. 대표 매장 사진도 비어 있을 때만
