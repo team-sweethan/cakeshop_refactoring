@@ -663,6 +663,121 @@ class OrderMapperTests {
         assertThat(unchanged.getCanceledBy()).isNull();
     }
 
+    // PG(돈워리)가 결제를 확인 중인 일반 주문은 주문 확인 중으로 두고, 승인(매입)되면 픽업 준비로 넘긴다 (DonWorry ADR-0064 4절)
+    @Test
+    void heldGeneralOrder_staysUnderReviewUntilGatewayCapture() {
+        Order order = newOrder();
+        order.setOrderType(OrderType.GENERAL);
+        orderMapper.insertOrder(order);
+        LocalDateTime underReviewAt = LocalDateTime.of(2026, 8, 1, 12, 1);
+        LocalDateTime readyAt = LocalDateTime.of(2026, 8, 1, 12, 20);
+
+        assertThat(orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(
+                order.getId(),
+                underReviewAt
+        )).isZero();
+        insertPayment(order.getId(), "DONE", "GENERAL-HELD");
+        assertThat(orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(
+                order.getId(),
+                underReviewAt
+        )).isEqualTo(1);
+        Order underReview = orderMapper.findOrderById(order.getId()).orElseThrow();
+        assertThat(underReview.getStatus()).isEqualTo(OrderStatus.UNDER_REVIEW);
+        assertThat(underReview.getUnderReviewAt()).isEqualTo(underReviewAt);
+        assertThat(underReview.getReadyAt()).isNull();
+        // 주문 확인 중에는 픽업 완료로 넘어가지 않는다
+        assertThat(orderMapper.markPickedUpIfReady(order.getId(), memberId, readyAt)).isZero();
+
+        assertThat(orderMapper.markGeneralReadyForPickupIfUnderReview(
+                order.getId(),
+                readyAt
+        )).isEqualTo(1);
+        Order ready = orderMapper.findOrderById(order.getId()).orElseThrow();
+        assertThat(ready.getStatus()).isEqualTo(OrderStatus.READY_FOR_PICKUP);
+        assertThat(ready.getReadyAt()).isEqualTo(readyAt);
+        assertThat(orderMapper.markGeneralReadyForPickupIfUnderReview(
+                order.getId(),
+                readyAt.plusMinutes(1)
+        )).isZero();
+    }
+
+    @Test
+    void heldGeneralOrderTransitions_doNotApplyToCustomOrder() {
+        Order order = newOrder();
+        orderMapper.insertOrder(order);
+        insertPayment(order.getId(), "DONE", "CUSTOM-HELD");
+
+        assertThat(orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 1)
+        )).isZero();
+        assertThat(orderMapper.markUnderReviewAfterPaymentIfPending(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 1)
+        )).isEqualTo(1);
+        // 수제 주문은 관리자 제작 승인을 거쳐야 하므로 PG 승인만으로 픽업 준비가 되지 않는다
+        assertThat(orderMapper.markGeneralReadyForPickupIfUnderReview(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 20)
+        )).isZero();
+        assertThat(orderMapper.findOrderById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.UNDER_REVIEW);
+    }
+
+    @Test
+    void markGeneralReadyForPickupIfUnderReview_requestedCancellation_keepsOrderUnderReview() {
+        Order order = newOrder();
+        order.setOrderType(OrderType.GENERAL);
+        orderMapper.insertOrder(order);
+        long paymentId = insertPayment(order.getId(), "DONE", "HELD-CANCEL-IN-PROGRESS");
+        orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 1)
+        );
+        insertRequestedCancellation(paymentId, "HELD-RELEASE-GUARD");
+
+        assertThat(orderMapper.markGeneralReadyForPickupIfUnderReview(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 20)
+        )).isZero();
+        assertThat(orderMapper.findOrderById(order.getId()).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.UNDER_REVIEW);
+    }
+
+    @Test
+    void cancelIfCurrent_heldGeneralOrderUnderReview_cancelsBeforePickupTime() {
+        Order order = newOrder();
+        order.setOrderType(OrderType.GENERAL);
+        orderMapper.insertOrder(order);
+        LocalDateTime requestedAt = LocalDateTime.of(2026, 8, 1, 12, 5);
+        long paymentId = insertPayment(order.getId(), "DONE", "HELD-GENERAL-CANCEL");
+        orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(
+                order.getId(),
+                LocalDateTime.of(2026, 8, 1, 12, 1)
+        );
+        cancelPayment(paymentId, requestedAt);
+
+        assertThat(orderMapper.cancelIfCurrent(
+                order.getId(),
+                OrderStatus.READY_FOR_PICKUP,
+                "CUSTOMER",
+                "상태가 다른 취소",
+                requestedAt,
+                requestedAt
+        )).isZero();
+        assertThat(orderMapper.cancelIfCurrent(
+                order.getId(),
+                OrderStatus.UNDER_REVIEW,
+                "CUSTOMER",
+                "주문 확인 중 취소",
+                requestedAt,
+                requestedAt
+        )).isEqualTo(1);
+        Order canceled = orderMapper.findOrderById(order.getId()).orElseThrow();
+        assertThat(canceled.getStatus()).isEqualTo(OrderStatus.CANCELED);
+        assertThat(canceled.getCancelReason()).isEqualTo("주문 확인 중 취소");
+    }
+
     @Test
     void expireIfPendingPayment_doesNotExpireOrderWithDonePayment() {
         Order order = newOrder();

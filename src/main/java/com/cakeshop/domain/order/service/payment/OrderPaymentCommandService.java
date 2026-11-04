@@ -73,6 +73,36 @@ public class OrderPaymentCommandService {
         requireOneRow(orderMapper.markUnderReviewAfterPaymentIfPending(orderId, underReviewAt));
     }
 
+    /**
+     * ******************************
+     * 작성자 : 수민
+     * 담당자 : 주환
+     * 작성일 : 2026-11-04
+     * 기능 : PG 결제 확인 중인 일반 주문을 주문 확인 중으로 둔다
+     * 설명 : 결제는 완료됐지만 PG(돈워리)가 매입을 보류하고 보안 검토 중이면 PENDING_PAYMENT 일반 주문을
+     *        픽업 준비 대신 UNDER_REVIEW로 바꾼다. 판정 전에 상품이 나가지 않게 한다(DonWorry ADR-0064 4절).
+     * ******************************
+     */
+    @Transactional
+    public void holdGeneralOrderForGatewayReview(long orderId, LocalDateTime underReviewAt) {
+        requireOneRow(orderMapper.markGeneralUnderReviewAfterHeldPaymentIfPending(orderId, underReviewAt));
+    }
+
+    /**
+     * ******************************
+     * 작성자 : 수민
+     * 담당자 : 주환
+     * 작성일 : 2026-11-04
+     * 기능 : PG 결제 확인이 끝난 일반 주문을 픽업 준비로 넘긴다
+     * 설명 : PG 보안 검토가 승인(매입)으로 끝나면 UNDER_REVIEW 일반 주문을 READY_FOR_PICKUP으로 바꾼다.
+     *        넘겼으면 true, 이미 넘겼거나(가맹점이 먼저 진행 등) 수제 주문이면 false다.
+     * ******************************
+     */
+    @Transactional
+    public boolean releaseGeneralOrderAfterGatewayCapture(long orderId, LocalDateTime readyAt) {
+        return orderMapper.markGeneralReadyForPickupIfUnderReview(orderId, readyAt) == 1;
+    }
+
     /** 실제 유한 재고를 차감한 주문 항목에만 차감 시각을 한 번 기록한다. */
     @Transactional
     public void recordStockDeduction(long orderItemId, LocalDateTime deductedAt) {

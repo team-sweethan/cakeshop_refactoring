@@ -162,6 +162,26 @@ public interface OrderMapper {
     );
 
     /**
+     * PG가 매입을 보류한 DONE 결제가 있는 PENDING_PAYMENT 일반 주문을 UNDER_REVIEW(주문 확인 중)로 변경한다.
+     *
+     * @return 상태를 변경했으면 1, 조건이 맞지 않으면 0
+     */
+    int markGeneralUnderReviewAfterHeldPaymentIfPending(
+            @Param("orderId") long orderId,
+            @Param("underReviewAt") LocalDateTime underReviewAt
+    );
+
+    /**
+     * DONE 결제가 유지되고 취소 요청이 없는 UNDER_REVIEW 일반 주문을 READY_FOR_PICKUP으로 변경한다.
+     *
+     * @return 상태를 변경했으면 1, 조건이 맞지 않으면 0
+     */
+    int markGeneralReadyForPickupIfUnderReview(
+            @Param("orderId") long orderId,
+            @Param("readyAt") LocalDateTime readyAt
+    );
+
+    /**
      * DONE 결제가 유지되는 UNDER_REVIEW 주문제작을 승인하고 제작 중 상태로 변경한다.
      *
      * @return 상태를 변경했으면 1, 조건이 맞지 않으면 0
@@ -223,7 +243,7 @@ public interface OrderMapper {
     /**
      * 결제가 CANCELED이고 취소 가능한 현재 상태가 일치하는 주문을 CANCELED로 변경한다.
      *
-     * <p>일반 주문은 픽업 예정 시각 전의 READY_FOR_PICKUP 상태에서만 변경한다.</p>
+     * <p>일반 주문은 픽업 예정 시각 전의 READY_FOR_PICKUP 또는 PG 결제 확인 중(UNDER_REVIEW) 상태에서만 변경한다.</p>
      *
      * @return 상태를 변경했으면 1, 조건이 맞지 않으면 0
      */

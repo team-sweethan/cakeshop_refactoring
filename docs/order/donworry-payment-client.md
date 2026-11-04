@@ -17,8 +17,9 @@
 | `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>`. `approve`는 새 승인 없이 조회로 `authorized`를 확인한다 |
 | `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제 준비(`…/donworry/session`), 결제창 성공 복귀(`…/donworry/return`). 결제 준비에 웹훅 주소 `{쇼핑몰 주소}/webhooks/donworry`를 보낸다 |
 | `DonWorryWebhookController` | 돈워리 결제 상태 웹훅 수신 `POST /webhooks/donworry`. 서명(`DONWORRY-WEBHOOK-V1`) · 시각(±300초) 확인 뒤 본문은 믿지 않고 `paymentId`로 다시 조회해 반영 |
-| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 최근 3일) 공통 반영. 승인됐는데 READY면 결제 완료, 보류 뒤 거절(VOIDED)이면 아래 4-1 처리 |
-| `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 이행이 시작됐으면 주문 유지 |
+| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 최근 3일) 공통 반영. 승인됐는데 READY면 결제 완료, 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
+| `DonWorryPaymentCaptureService` | 보류 뒤 승인 반영 — `payments.gateway_captured_at` 기록, 주문 확인 중인 일반 주문은 픽업 준비로 |
+| `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 가맹점이 이미 진행한 주문은 유지(손실은 가맹점 부담) |
 
 서명 규칙은 픽업 송신(PR #20 `DonWorryPickupClient`)과 같다. 둘 다 병합되면 서명 코드를 한곳으로 모은다.
 
@@ -39,16 +40,29 @@
 ```
 
 - 복귀 주소의 값은 믿지 않는다. `confirm`에서 DonWorry 서명 조회로 금액 · 상태를 다시 확인한다.
-- **보류(HELD)도 결제 완료로 본다.** 카드 승인이 끝났기 때문이다(실제 PG의 "승인 = 결제됨"과 같다, DonWorry ADR-0064 4절).
+- **보류(HELD)는 구매자에게 결제 완료, 가맹점에는 "결제 확인 중"이다** (DonWorry ADR-0064 4절, #492 합의 2026-11-04).
+  카드 승인은 끝났지만 돈워리가 매입을 보류하고 보안 직원 판정을 기다리는 결제다. 판정 목표는 Case 접수 후 1시간 이내다.
+  근거와 대안은 [pg-decisions 007](pg-decisions/007-donworry-held-payment-review.md).
+
+  | 돈워리 상태 | CakeShop 결제 | 일반 주문 | 수제 주문 |
+  | --- | --- | --- | --- |
+  | 보류(HELD, 승인됨) | DONE + `gateway_held_at` | **주문 확인 중**(`UNDER_REVIEW`). 픽업 준비로 바로 넘기지 않는다 | 원래대로 주문 확인 중(`UNDER_REVIEW`) |
+  | 보류 뒤 승인(CAPTURED) | `gateway_captured_at` 기록 | 아직 주문 확인 중이면 **픽업 준비**로 | 상태 그대로(관리자 제작 승인을 기다림) |
+  | 보류 뒤 거절(VOIDED) | CANCELED(`GATEWAY_VOIDED`) | 아래 표 | 아래 표 |
+
+  - 구매자 화면에는 결제 검토 사실을 보이지 않는다. 주문 상태 이름만 "주문 확인 중"이다.
+  - 주문 확인 중인 일반 주문도 픽업 전이면 고객 · 가맹점이 취소할 수 있다. 보류 결제 취소는 돈워리가 승인을 취소한다(DonWorry #382).
+  - 가맹점 화면의 "결제 확인 중" 표시 · 알림, 고객 확인 후 진행(확인 창 · 기록)은 후속 PR(PR B)에서 한다.
+
   보류 뒤 보안 직원이 거절(VOIDED)하면 돈워리가 상태 웹훅을 보내고(웹훅을 놓쳐도 60초 조회 배치가 맞춘다) 주문을 이렇게 처리한다(DonWorry ADR-0064 4-1).
 
   | 거절 때 주문 상태 | 처리 |
   | --- | --- |
-  | 승인 대기 · 일반 상품 픽업 준비 · 결제 대기 · 만료 보상 | 주문 취소 — 재고 · 쿠폰 복구, 고객 알림. 결제 취소 기록 `request_type=GATEWAY_VOID`(관리자 화면 "결제 보안 거절") |
-  | 제작 중 · 수제 케이크 픽업 준비(제작 완료) · 픽업 완료 | **주문 유지** — 이미 이행돼 손실은 PG(돈워리)가 부담. 결제는 DONE 그대로, `failure_code=GATEWAY_VOIDED_KEPT` 표시와 경고 로그를 한 번 남긴다 |
+  | 주문 확인 중 · 일반 상품 픽업 준비 · 결제 대기 · 만료 보상 | 주문 취소 — 재고 · 쿠폰 복구, 고객 알림. 결제 취소 기록 `request_type=GATEWAY_VOID`(관리자 화면 "결제 보안 거절"). 고객에게 보이는 사유: "결제 승인이 취소되어 주문이 취소되었습니다. 카드 청구는 되지 않습니다. 다시 주문하시거나 궁금한 점은 가게로 문의해 주세요." |
+  | 제작 중 · 수제 케이크 픽업 준비(제작 완료) · 픽업 완료 | **주문 유지** — 가맹점이 판정 전에 진행한 주문이라 **손실은 가맹점 부담**. 결제는 DONE 그대로, `failure_code=GATEWAY_VOIDED_KEPT` 표시와 경고 로그를 한 번 남긴다 |
   | 이미 취소 · 반려 | 할 일 없음 |
 
-  판단은 주문 공개 서비스 `OrderPaymentQueryService.gatewayVoidHandling`이 한다. "이행됨"을 돈워리에 알리는 경로와 정산은 DonWorry P6와 정하는 중이다.
+  판단은 주문 공개 서비스 `OrderPaymentQueryService.gatewayVoidHandling`이 한다.
 - CakeShop이 보내는 값: 주문번호, 회원 ID, 서버가 확정한 금액, 결제 창 시작 시각, 주문명, 회원 이메일(돈워리 형식 `[^@\s]+@[^@\s]+`에
   맞을 때만), 복귀 주소. 카드 · 기기 · IP는 보내지 않는다. 돈워리 결제창이 구매자에게서 직접 받는다.
 - `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
@@ -86,7 +100,8 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
 
 ## 4. 알려진 한계 (결정 필요)
 
-- **보류 뒤 거절 · 이행된 주문**: 주문을 유지한 경우(위 2절 표) 돈워리에 "이행됨"을 알리는 경로와 가맹점 정산 보장은 DonWorry P6 확인이 남았다. 지금은 CakeShop 표시 · 로그까지만 한다.
+- **보류 뒤 거절 · 이행된 주문**: 주문을 유지한 경우(위 2절 표) 손실은 가맹점 부담이다(DonWorry ADR-0064 4-1 개정, 2026-11-04).
+  돈워리에 "이행됨"을 알리지 않고 PG 보상 · 정산도 없다. CakeShop은 표시 · 로그를 남기고, 관리자 화면 표시는 후속 PR(PR B)에서 한다.
 - **고객 · 관리자 취소** (`DonWorryPaymentGateway.cancel` → DonWorry `POST /api/payments/{id}/cancellations`, 계약 DonWorry #381):
   - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
   - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")

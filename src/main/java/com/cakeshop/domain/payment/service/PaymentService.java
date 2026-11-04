@@ -112,10 +112,19 @@ public class PaymentService {
                 approval.approvedAt()
         ));
 
-        orderPaymentCommandService.completeGeneralOrderAfterPayment(
-                order.orderId(),
-                approval.approvedAt()
-        );
+        if (approval.heldForReview()) {
+            // PG 판정 전에는 상품이 나가지 않도록 픽업 준비 대신 주문 확인 중으로 둔다(DonWorry ADR-0064 4절).
+            markGatewayHeld(payment, approval);
+            orderPaymentCommandService.holdGeneralOrderForGatewayReview(
+                    order.orderId(),
+                    approval.approvedAt()
+            );
+        } else {
+            orderPaymentCommandService.completeGeneralOrderAfterPayment(
+                    order.orderId(),
+                    approval.approvedAt()
+            );
+        }
         couponOrderCommandService.useReservedCouponForOrder(order.orderId());
         paymentRecoveryService.discardApprovalRecovery(payment);
         // 장바구니에서 생성한 일반 주문만 결제 커밋 후 연결된 장바구니 항목을 정리한다.
@@ -140,6 +149,10 @@ public class PaymentService {
                 approval.method(),
                 approval.approvedAt()
         ));
+        if (approval.heldForReview()) {
+            // 수제 주문은 원래 관리자 검토(UNDER_REVIEW)로 가므로 결제 확인 중 표시만 남긴다.
+            markGatewayHeld(payment, approval);
+        }
 
         orderPaymentCommandService.completeCustomOrderAfterPayment(
                 order.orderId(),
@@ -170,6 +183,14 @@ public class PaymentService {
         orderPaymentCommandService.completeGeneralOrderAfterPayment(order.orderId(), completedAt);
         couponOrderCommandService.useReservedCouponForOrder(order.orderId());
         eventPublisher.publishEvent(new GeneralPaymentCompletedEvent(order.orderId()));
+    }
+
+    private void markGatewayHeld(Payment payment, ApprovalResult approval) {
+        requireOneRow(paymentMapper.markGatewayHeld(
+                payment.getId(),
+                approval.paymentKey(),
+                approval.approvedAt()
+        ));
     }
 
     private void requireOneRow(int affectedRows) {

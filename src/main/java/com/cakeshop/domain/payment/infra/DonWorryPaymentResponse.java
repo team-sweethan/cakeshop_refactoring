@@ -11,7 +11,8 @@ import java.time.Instant;
  * 기능 : DonWorry 결제 단건 응답
  * 설명 : paymentStatus는 DonWorry 상태 문자열을 그대로 둔다.
  *        authorized = 카드 승인 완료. 승인되면(매입 전 PENDING·보류 HELD 포함) CakeShop은 결제 완료로 본다.
- *        보류 뒤 직원이 거절하면 VOIDED가 되고 그때 주문을 취소한다.
+ *        보류(HELD)는 구매자에게 결제 완료지만 가맹점에는 "결제 확인 중"이다(DonWorry ADR-0064 4절).
+ *        직원이 승인하면 CAPTURED, 거절하면 VOIDED가 되고 거절이면 주문을 취소한다.
  * ******************************
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -36,6 +37,16 @@ public record DonWorryPaymentResponse(
     public boolean approved() {
         return Boolean.TRUE.equals(authorized) && ("PENDING".equals(paymentStatus) || "HELD".equals(paymentStatus)
                 || "CAPTURED".equals(paymentStatus));
+    }
+
+    /** 승인됐지만 매입이 보류돼 돈워리 보안 직원 판정을 기다리는 결제 */
+    public boolean heldForReview() {
+        return Boolean.TRUE.equals(authorized) && "HELD".equals(paymentStatus);
+    }
+
+    /** 직원 승인 등으로 매입까지 끝난 결제 */
+    public boolean captured() {
+        return Boolean.TRUE.equals(authorized) && "CAPTURED".equals(paymentStatus);
     }
 
     /** 청구 없이 끝난 시도. 이 상태면 같은 주문으로 새 시도나 다른 PG 결제를 해도 이중 청구가 없다. */

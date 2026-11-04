@@ -282,6 +282,53 @@ class PaymentMapperTests {
         )).isZero();
     }
 
+    // 돈워리 보류(HELD) 표시와 직원 승인(CAPTURED) 기록은 각각 한 번만 된다 (DonWorry ADR-0064 4절)
+    @Test
+    void gatewayHoldAndCapture_recordOnceForMatchingDonePayment() {
+        Payment payment = insertPayment("GATEWAY-HELD");
+        String paymentKey = "PAYMENT-KEY-GATEWAY-HELD-" + suffix;
+        LocalDateTime heldAt = LocalDateTime.of(2026, 8, 1, 12, 1);
+        LocalDateTime capturedAt = LocalDateTime.of(2026, 8, 1, 12, 30);
+
+        // READY 결제와 보류 전 결제에는 기록하지 않는다
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt)).isZero();
+        completePayment(payment, "GATEWAY-HELD");
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt)).isZero();
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), "OTHER-KEY-" + suffix, heldAt)).isZero();
+
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt)).isEqualTo(1);
+        assertThat(paymentMapper.markGatewayHeld(payment.getId(), paymentKey, heldAt.plusMinutes(1))).isZero();
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt)).isEqualTo(1);
+        assertThat(paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, capturedAt.plusMinutes(1)))
+                .isZero();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gateway_held_at FROM payments WHERE id = ?",
+                LocalDateTime.class,
+                payment.getId()
+        )).isEqualTo(heldAt);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gateway_captured_at FROM payments WHERE id = ?",
+                LocalDateTime.class,
+                payment.getId()
+        )).isEqualTo(capturedAt);
+    }
+
+    @Test
+    void markGatewayCaptured_canceledPayment_isNotRecorded() {
+        Payment payment = insertPayment("GATEWAY-HELD-CANCELED");
+        String paymentKey = "PAYMENT-KEY-GATEWAY-HELD-CANCELED-" + suffix;
+        completePayment(payment, "GATEWAY-HELD-CANCELED");
+        paymentMapper.markGatewayHeld(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 1));
+        paymentMapper.cancelIfDone(payment.getId(), LocalDateTime.of(2026, 8, 1, 12, 5));
+
+        assertThat(paymentMapper.markGatewayCaptured(
+                payment.getId(),
+                paymentKey,
+                LocalDateTime.of(2026, 8, 1, 12, 30)
+        )).isZero();
+    }
+
     @Test
     void cancelIfDone_doesNotCancelReadyPayment() {
         Payment payment = insertPayment("READY-CANNOT-CANCEL");

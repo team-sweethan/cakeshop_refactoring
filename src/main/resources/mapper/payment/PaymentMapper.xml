@@ -647,4 +647,25 @@
           AND status = 'DONE'
           AND payment_key = #{paymentKey}
     </update>
+
+    <!-- 돈워리가 매입을 보류(HELD)한 채 완료한 결제. 가맹점에는 판정 전까지 "결제 확인 중"이다(DonWorry ADR-0064 4절). -->
+    <update id="markGatewayHeld">
+        UPDATE payments
+        SET gateway_held_at = #{heldAt}
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND gateway_held_at IS NULL
+    </update>
+
+    <!-- 보류했던 결제를 돈워리 직원이 승인해 매입(CAPTURED)됐다. 판정 대기가 끝난다. -->
+    <update id="markGatewayCaptured">
+        UPDATE payments
+        SET gateway_captured_at = #{capturedAt}
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND gateway_held_at IS NOT NULL
+          AND gateway_captured_at IS NULL
+    </update>
 </mapper>

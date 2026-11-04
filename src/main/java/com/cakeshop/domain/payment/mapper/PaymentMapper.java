@@ -179,4 +179,18 @@ public interface PaymentMapper {
             @Param("paymentKey") String paymentKey,
             @Param("canceledAt") LocalDateTime canceledAt
     );
+
+    // 돈워리가 매입을 보류(HELD)한 채 완료한 결제를 표시한다(DonWorry ADR-0064 4절). 바뀐 행 수 0이면 이미 표시했거나 대상이 아니다.
+    int markGatewayHeld(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("heldAt") LocalDateTime heldAt
+    );
+
+    // 보류했던 DONE 결제가 직원 승인으로 매입(CAPTURED)됐음을 한 번만 기록한다. 바뀐 행 수 0이면 보류가 아니었거나 이미 반영했다.
+    int markGatewayCaptured(
+            @Param("paymentId") long paymentId,
+            @Param("paymentKey") String paymentKey,
+            @Param("capturedAt") LocalDateTime capturedAt
+    );
 }

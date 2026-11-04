@@ -43,6 +43,10 @@ public class AdminCustomOrderService {
     public void completeProduction(long orderId, long adminMemberId) {
         requireActiveAdmin(adminMemberId);
         Order order = findCustomOrderForUpdate(orderId);
+        // UNDER_REVIEW → READY_FOR_PICKUP은 PG 결제 확인이 끝난 일반 주문용이다. 수제 주문은 제작 중에서만 넘긴다.
+        if (order.getStatus() != OrderStatus.IN_PRODUCTION) {
+            throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
+        }
         requireTransition(order, OrderStatus.READY_FOR_PICKUP);
         requireOneRow(orderMapper.markReadyForPickupIfInProduction(
                 orderId,

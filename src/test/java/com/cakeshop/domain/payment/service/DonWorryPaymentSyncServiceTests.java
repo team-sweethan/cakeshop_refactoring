@@ -40,8 +40,9 @@ class DonWorryPaymentSyncServiceTests {
     private final OrderPaymentQueryService orderPaymentQueryService = mock(OrderPaymentQueryService.class);
     private final PaymentFacade paymentFacade = mock(PaymentFacade.class);
     private final DonWorryPaymentVoidService voidService = mock(DonWorryPaymentVoidService.class);
+    private final DonWorryPaymentCaptureService captureService = mock(DonWorryPaymentCaptureService.class);
     private final DonWorryPaymentSyncService service = new DonWorryPaymentSyncService(
-            clientProvider, paymentMapper, orderPaymentQueryService, paymentFacade, voidService, CLOCK);
+            clientProvider, paymentMapper, orderPaymentQueryService, paymentFacade, voidService, captureService, CLOCK);
 
     @BeforeEach
     void setUp() {
@@ -87,16 +88,39 @@ class DonWorryPaymentSyncServiceTests {
     }
 
     @Test
-    void sync_heldOrCapturedAfterShopCompleted_changesNothing() {
-        when(client.find(101L)).thenReturn(donWorry("HELD", true), donWorry("CAPTURED", true));
+    void sync_heldAfterShopCompleted_changesNothing() {
+        when(client.find(101L)).thenReturn(donWorry("HELD", true));
         when(paymentMapper.findPaymentByGatewayOrderId("ORD-100"))
                 .thenReturn(Optional.of(local(PaymentStatus.DONE, "DW-101")));
 
         assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
-        assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
 
         verify(paymentFacade, never()).confirmPayment(anyLong(), anyLong(), any());
         verify(voidService, never()).applyVoid(any(), anyLong(), any());
+        verify(captureService, never()).applyCapture(any(), any());
+    }
+
+    // 보류 뒤 직원 승인(CAPTURED)은 "결제 확인 중"을 한 번만 끝낸다 (DonWorry ADR-0064 4절)
+    @Test
+    void sync_capturedAfterShopCompleted_endsReviewOnce() {
+        Payment done = local(PaymentStatus.DONE, "DW-101");
+        when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100")).thenReturn(Optional.of(done));
+        when(captureService.applyCapture(eq(done), any())).thenReturn(true).thenReturn(false);
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.CAPTURED);
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
+        verify(voidService, never()).applyVoid(any(), anyLong(), any());
+    }
+
+    @Test
+    void sync_captureOfOtherAttempt_isIgnored() {
+        when(client.find(101L)).thenReturn(donWorry("CAPTURED", true));
+        when(paymentMapper.findPaymentByGatewayOrderId("ORD-100"))
+                .thenReturn(Optional.of(local(PaymentStatus.DONE, "DW-100")));
+
+        assertThat(service.sync(101L)).isEqualTo(SyncResult.UNCHANGED);
+        verify(captureService, never()).applyCapture(any(), any());
     }
 
     @Test

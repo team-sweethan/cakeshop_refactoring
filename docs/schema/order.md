@@ -37,7 +37,7 @@
 | `created_at` | DATETIME(6) | INDEX | X | `CURRENT_TIMESTAMP(6)` | 생성 시각 |
 | `updated_at` | DATETIME(6) | INDEX | X | `CURRENT_TIMESTAMP(6)` | 수정 시각, 수정 시 자동 갱신 |
 | `order_type` | VARCHAR(30) | INDEX | X | 없음 | 주문 유형 |
-| `under_review_at` | DATETIME(6) |  | O | NULL | 주문 제작 검토 시작 시각 |
+| `under_review_at` | DATETIME(6) |  | O | NULL | 주문 확인 중(`UNDER_REVIEW`) 시작 시각. 주문 제작 검토, 또는 PG가 결제를 확인 중인 일반 주문 |
 | `expired_at` | DATETIME(6) |  | O | NULL | 주문 만료 시각 |
 | `approved_by` | BIGINT | FK | O | NULL | 승인 처리 회원 식별자 |
 | `rejected_by` | BIGINT | FK | O | NULL | 거절 처리 회원 식별자 |

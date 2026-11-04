@@ -155,10 +155,11 @@ public class OrderPaymentCancellationCommandService {
         }
 
         int affectedRows = switch (requestType) {
+            // 일반 주문은 픽업 준비 또는 PG 결제 확인 중(UNDER_REVIEW)일 때 취소된다. 가용성 검사가 상태를 이미 확인했다.
             case CUSTOMER -> order.getOrderType() == OrderType.GENERAL
                     ? orderMapper.cancelIfCurrent(
                             orderId,
-                            OrderStatus.READY_FOR_PICKUP,
+                            order.getStatus(),
                             CUSTOMER,
                             reason,
                             requestedAt,
@@ -172,7 +173,7 @@ public class OrderPaymentCancellationCommandService {
                     );
             case ADMIN -> orderMapper.cancelIfCurrent(
                     orderId,
-                    OrderStatus.READY_FOR_PICKUP,
+                    order.getStatus(),
                     ADMIN,
                     reason,
                     requestedAt,
@@ -288,9 +289,11 @@ public class OrderPaymentCancellationCommandService {
         };
     }
 
+    // 일반 주문의 UNDER_REVIEW는 PG가 결제를 확인 중인 주문이다(DonWorry ADR-0064 4절). 픽업 준비와 같은 규칙으로 취소한다.
     private boolean isGeneralPaymentCancellationAvailable(Order order, LocalDateTime requestedAt) {
         return order.getOrderType() == OrderType.GENERAL
-                && order.getStatus() == OrderStatus.READY_FOR_PICKUP
+                && (order.getStatus() == OrderStatus.READY_FOR_PICKUP
+                || order.getStatus() == OrderStatus.UNDER_REVIEW)
                 && requestedAt != null
                 && order.getPickupAt() != null
                 && requestedAt.isBefore(order.getPickupAt());

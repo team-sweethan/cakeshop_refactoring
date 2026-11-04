@@ -28,7 +28,7 @@ class OrderStatusTests {
     void providesStatusLabelsInOnePlace() {
         assertThat(Map.of(
                 OrderStatus.PENDING_PAYMENT, "결제 대기",
-                OrderStatus.UNDER_REVIEW, "승인 대기",
+                OrderStatus.UNDER_REVIEW, "주문 확인 중",
                 OrderStatus.IN_PRODUCTION, "제작 중",
                 OrderStatus.READY_FOR_PICKUP, "픽업 준비",
                 OrderStatus.PICKED_UP, "픽업 완료",
@@ -48,6 +48,8 @@ class OrderStatusTests {
         assertThat(OrderStatus.UNDER_REVIEW.canTransitionTo(OrderStatus.IN_PRODUCTION)).isTrue();
         assertThat(OrderStatus.UNDER_REVIEW.canTransitionTo(OrderStatus.REJECTED)).isTrue();
         assertThat(OrderStatus.UNDER_REVIEW.canTransitionTo(OrderStatus.CANCELED)).isTrue();
+        // PG 결제 확인이 끝난 일반 주문 (DonWorry ADR-0064 4절)
+        assertThat(OrderStatus.UNDER_REVIEW.canTransitionTo(OrderStatus.READY_FOR_PICKUP)).isTrue();
 
         assertThat(OrderStatus.IN_PRODUCTION.canTransitionTo(OrderStatus.READY_FOR_PICKUP)).isTrue();
 
