@@ -2758,6 +2758,16 @@ h2.section-title {
 .customer-header__actions { gap: 7px }
 .customer-header__actions form { display: flex }
 .customer-header__actions .btn { min-height: 34px; padding: 7px 12px }
+/* 알림 수 배지가 공용 .badge 여백(4px 10px)을 쓰면 버튼만 40px로 커진다. 헤더 버튼 높이(34px) 안에 맞춘다 */
+.customer-header__actions .btn .badge {
+    font-size: 11px;
+    line-height: 16px;
+    margin-left: 2px;
+    min-width: 18px;
+    padding: 0 6px;
+    text-align: center;
+    vertical-align: middle
+}
 .customer-header__search { color: var(--color-brand) }
 
 /* 고객 공통 푸터 */
@@ -2765,13 +2775,13 @@ h2.section-title {
     background: #34272b;
     border: 0;
     color: #dfd3d5;
-    margin-top: 72px;
-    padding: 54px 20px 0
+    margin-top: 48px;
+    padding: 36px 20px 0
 }
 
 .customer-footer__inner {
     display: grid;
-    gap: 64px;
+    gap: 56px;
     grid-template-columns: minmax(260px, 1.4fr) minmax(130px, .6fr) minmax(280px, 1fr)
 }
 
@@ -2783,14 +2793,14 @@ h2.section-title {
 .customer-footer__brand strong {
     color: #fff;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: 27px;
-    margin: 8px 0 12px
+    font-size: 24px;
+    margin: 6px 0 8px
 }
 
-.customer-footer__brand p, .customer-footer__store p { color: #c6b8ba; line-height: 1.8 }
+.customer-footer__brand p, .customer-footer__store p { color: #c6b8ba; line-height: 1.65 }
 .customer-footer__eyebrow { color: #e9b5c5; font-size: 10px; font-weight: 800; letter-spacing: .2em }
-.customer-footer__nav strong, .customer-footer__store strong { color: #fff; font-size: 13px; margin-bottom: 14px }
-.customer-footer__nav { gap: 7px }
+.customer-footer__nav strong, .customer-footer__store strong { color: #fff; font-size: 13px; margin-bottom: 10px }
+.customer-footer__nav { gap: 5px }
 .customer-footer__nav a { color: #c6b8ba; width: fit-content }
 .customer-footer__nav a:hover { color: #fff }
 .customer-footer__store p + p { margin-top: 3px }
@@ -2800,9 +2810,9 @@ h2.section-title {
     border-top: 1px solid rgba(255, 255, 255, .1);
     display: flex;
     justify-content: space-between;
-    margin: 40px auto 0;
+    margin: 24px auto 0;
     max-width: var(--content-width);
-    padding: 18px 0
+    padding: 14px 0
 }
 
 .customer-footer__bottom p { color: #95878a; font-size: 10px; letter-spacing: .06em }
@@ -3179,7 +3189,7 @@ h2.section-title {
     .product-detail-layout { grid-template-columns: 1fr }
     .placeholder-image.product-gallery__main-image { min-height: 330px }
     .product-summary { padding: 24px }
-    .customer-footer { margin-top: 48px; padding-top: 40px }
+    .customer-footer { margin-top: 36px; padding-top: 28px }
     .customer-footer__inner { gap: 30px; grid-template-columns: 1fr }
     .customer-footer__store { grid-column: auto }
     .customer-footer__bottom { align-items: flex-start; flex-direction: column; gap: 6px }
