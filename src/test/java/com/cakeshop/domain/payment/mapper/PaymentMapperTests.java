@@ -340,12 +340,15 @@ class PaymentMapperTests {
         String captured = insertOwnPayment("SYNC-CAPTURED", "DONE", now.minusMinutes(30), now.minusMinutes(30), now.minusMinutes(10));
         String normalDone = insertOwnPayment("SYNC-NORMAL-DONE", "DONE", now.minusMinutes(20), null, null);
         String canceledHeld = insertOwnPayment("SYNC-CANCELED-HELD", "CANCELED", now.minusMinutes(15), now.minusMinutes(15), null);
+        // 거절됐지만 가맹점이 이미 진행해 유지한 결제는 판정이 끝났다
+        String voidedKept = insertOwnPayment("SYNC-VOIDED-KEPT", "DONE", now.minusMinutes(12), now.minusMinutes(12), null);
+        jdbcTemplate.update("UPDATE payments SET failure_code = 'GATEWAY_VOIDED_KEPT' WHERE toss_order_id = ?", voidedKept);
 
         // 다른 테스트가 남긴 행이 있을 수 있어 넉넉히 받고, 이 테스트의 행만 확인한다
         java.util.List<String> targets = paymentMapper.findDonWorryGatewayOrderIdsToSync(since, 1_000);
 
         assertThat(targets).contains(oldHeld, ready)
-                .doesNotContain(oldReady, captured, normalDone, canceledHeld);
+                .doesNotContain(oldReady, captured, normalDone, canceledHeld, voidedKept);
         // 판정 대기(오래됐어도)를 결제창을 닫은 READY보다 먼저 본다
         assertThat(targets.indexOf(oldHeld)).isLessThan(targets.indexOf(ready));
     }
