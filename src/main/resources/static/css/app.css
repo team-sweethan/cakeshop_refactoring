@@ -3230,12 +3230,15 @@ h2.section-title {
     gap: 16px;
     height: 56px;
     justify-content: space-between;
+    padding: 0 10px;
     text-decoration: none
 }
 
 .home-notices__item[hidden] { display: none }
 .home-notices__item:hover { text-decoration: none }
 .home-notices__item:hover .home-notices__title { color: var(--color-brand) }
+/* 공지 칸은 넘치는 부분을 잘라 내므로(overflow: hidden) 공통 포커스 표시(바깥 3px)가 잘린다. 안쪽에 그린다 */
+.home-notices__item:focus-visible { border-radius: 10px; outline: 2px solid var(--color-brand); outline-offset: -2px }
 
 .home-notices__title {
     font-size: 15px;
