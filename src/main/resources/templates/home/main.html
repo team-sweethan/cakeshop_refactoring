@@ -61,34 +61,35 @@
       공지가 없으면 영역과 전체보기 링크를 유지하고 빈 상태 문구를 보여 준다.
       등록 개수에는 제한이 없고 화면 건수에만 있으므로 전체보기 링크가 반드시 함께 있어야
       한다 — 없으면 4번째부터는 접근 경로가 사라진다.
+
+      한 줄짜리 공지 바다. 왼쪽 "공지"와 오른쪽 "전체보기"는 고정이고, 가운데 공지만
+      home-notice-rotation.js 가 위로 밀어 올리며 바꾼다. 스크립트가 없으면 첫 공지만 보인다.
     */-->
     <section id="notices"
              class="section home-section home-notices"
              aria-labelledby="notices-title">
 
-      <div class="cluster cluster--between">
-        <h2 id="notices-title" class="section-title">공지사항</h2>
-        <a class="btn btn--ghost" th:href="@{/community/notices}">전체보기 →</a>
-      </div>
+      <h2 id="notices-title" class="home-notices__label">공지</h2>
 
-      <div class="stack"
+      <div class="home-notices__viewport"
            data-notice-rotation="true">
-        <a class="panel cluster cluster--between"
+        <a class="home-notices__item"
            data-notice-item="true"
            th:each="notice, noticeStat : ${noticeSection.notices}"
            th:hidden="${!noticeStat.first}"
            th:href="@{/community/notices/{noticeId}(noticeId=${notice.id})}">
-          <strong th:text="${notice.title}">제목</strong>
-          <span class="text-muted"
+          <span class="home-notices__title" th:text="${notice.title}">제목</span>
+          <span class="home-notices__date"
                 th:text="${#temporals.format(notice.displayedAt, 'yyyy.MM.dd')}">2026.01.01</span>
         </a>
 
-        <div class="panel panel--dashed text-muted"
-             th:if="${noticeSection.isEmpty()}"
-             style="text-align:center">
+        <p class="home-notices__empty"
+           th:if="${noticeSection.isEmpty()}">
           등록된 공지가 없습니다.
-        </div>
+        </p>
       </div>
+
+      <a class="home-notices__more" th:href="@{/community/notices}">전체보기 →</a>
     </section>
 
     <section class="section home-section" aria-labelledby="category-title">
