@@ -2496,7 +2496,7 @@ body > main {
     --color-muted: #756762;
     --color-border: #dfd1c8;
     --color-border-light: #eee3dc;
-    --color-background: #fffdfb;
+    --color-background: #fbf5ee;
     --color-background-soft: #f9f1eb;
     --color-background-faint: #fcf8f4;
     --color-dark: #8f3f59;
@@ -2678,7 +2678,7 @@ h2.section-title {
 
 /* 고객 공통 헤더 */
 .customer-header {
-    background: rgba(255, 253, 251, .9);
+    background: rgba(251, 245, 238, .92);
     border-bottom-color: rgba(223, 209, 200, .8);
     box-shadow: 0 4px 22px rgba(68, 43, 34, .05);
     position: sticky;
@@ -3189,15 +3189,88 @@ h2.section-title {
 .section-heading .section-title { margin: 7px 0 0 }
 .section-heading > p { color: var(--color-muted); font-size: 13px; text-align: right }
 
+/* 홈 공지 바: 한 줄 띠. 왼쪽 "공지"·오른쪽 "전체보기"는 고정, 가운데 공지만 위로 넘어간다
+ * (home-notice-rotation.js). 모든 공지가 같은 높이·한 줄이라 바뀔 때 크기가 흔들리지 않는다. */
 .home-notices {
-    background: var(--color-background-faint);
+    align-items: center;
+    background: #fff;
     border: 1px solid var(--color-border-light);
-    border-radius: var(--radius-lg);
-    padding: 26px
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 2px rgba(53, 43, 40, .04);
+    display: flex;
+    gap: 18px;
+    padding: 0 22px
 }
 
-.home-notices .panel { align-items: center; box-shadow: none; min-height: 54px; padding: 12px 16px }
-.home-notices .panel:hover { border-color: #d9acbb }
+.home-notices__label {
+    background: var(--color-brand-soft);
+    border-radius: 999px;
+    color: var(--color-brand);
+    flex: none;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+    margin: 0;
+    padding: 4px 12px
+}
+
+.home-notices__viewport {
+    flex: 1;
+    height: 56px;
+    min-width: 0;
+    overflow: hidden
+}
+
+.home-notices__track { will-change: transform }
+
+.home-notices__item {
+    align-items: center;
+    color: var(--color-text);
+    display: flex;
+    gap: 16px;
+    height: 56px;
+    justify-content: space-between;
+    text-decoration: none
+}
+
+.home-notices__item[hidden] { display: none }
+.home-notices__item:hover { text-decoration: none }
+.home-notices__item:hover .home-notices__title { color: var(--color-brand) }
+
+.home-notices__title {
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.home-notices__date { color: var(--color-muted); flex: none; font-size: 13px }
+
+.home-notices__empty {
+    align-items: center;
+    color: var(--color-muted);
+    display: flex;
+    height: 56px;
+    margin: 0
+}
+
+.home-notices__more {
+    color: var(--color-brand);
+    flex: none;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap
+}
+
+.home-notices__more:hover { text-decoration: underline }
+
+@media (max-width: 767px) {
+    .home-notices { gap: 10px; padding: 0 14px }
+    .home-notices__date { display: none }
+}
+
 
 .category-card {
     background: linear-gradient(145deg, #fff 0%, var(--color-background-faint) 100%);
