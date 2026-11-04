@@ -6,6 +6,7 @@ import com.cakeshop.domain.order.entity.OrderStatus;
 import com.cakeshop.domain.order.entity.OrderType;
 import com.cakeshop.domain.order.error.OrderErrorCode;
 import com.cakeshop.domain.order.mapper.OrderMapper;
+import com.cakeshop.domain.payment.service.PaymentOrderQueryService;
 import com.cakeshop.global.error.BusinessException;
 import com.cakeshop.global.error.CommonErrorCode;
 import java.time.Clock;
@@ -22,6 +23,8 @@ public class AdminCustomOrderService {
     private final OrderMapper orderMapper;
     private final MemberOrderQueryService memberOrderQueryService;
     private final Clock clock;
+    // 결제 도메인 공개 계약: PG(돈워리) 결제 확인 중 여부 (conventions 12절)
+    private final PaymentOrderQueryService paymentOrderQueryService;
 
     /** UNDER_REVIEW 수제 주문을 승인하고 제작을 시작한다. */
     @Transactional
@@ -81,7 +84,7 @@ public class AdminCustomOrderService {
             boolean reviewAcknowledged,
             LocalDateTime proceededAt
     ) {
-        if (!orderMapper.hasPaymentUnderGatewayReview(orderId)) {
+        if (!paymentOrderQueryService.isUnderGatewayReview(orderId)) {
             return;
         }
         if (!reviewAcknowledged) {

@@ -8,6 +8,7 @@ import com.cakeshop.domain.order.entity.OrderItemOption;
 import com.cakeshop.domain.order.entity.OrderStatus;
 import com.cakeshop.domain.order.error.OrderErrorCode;
 import com.cakeshop.domain.order.mapper.OrderMapper;
+import com.cakeshop.domain.payment.service.PaymentOrderQueryService;
 import com.cakeshop.global.common.paging.PageRequest;
 import com.cakeshop.global.common.paging.PageResult;
 import com.cakeshop.global.error.BusinessException;
@@ -38,6 +39,8 @@ public class FulfillmentService {
 
     private final OrderMapper orderMapper;
     private final Clock clock;
+    // 결제 도메인 공개 계약: PG(돈워리) 결제 확인 중 여부 (conventions 12절)
+    private final PaymentOrderQueryService paymentOrderQueryService;
 
     /** 검토·제작·픽업 업무 전체를 페이지 단위로 조회하고 상품·옵션 스냅샷을 조합한다. */
     @Transactional(readOnly = true)
@@ -82,7 +85,7 @@ public class FulfillmentService {
     /** PG(돈워리)가 주문의 결제를 아직 확인 중인지(판정 전) 조회한다 (DonWorry ADR-0064 4절). */
     @Transactional(readOnly = true)
     public boolean isPaymentUnderGatewayReview(long orderId) {
-        return orderId > 0 && orderMapper.hasPaymentUnderGatewayReview(orderId);
+        return paymentOrderQueryService.isUnderGatewayReview(orderId);
     }
 
     /** DONE 결제가 유지되는 픽업 준비 주문만 수령 완료로 원자적으로 변경한다. */
@@ -142,7 +145,7 @@ public class FulfillmentService {
             boolean reviewAcknowledged,
             LocalDateTime proceededAt
     ) {
-        if (!orderMapper.hasPaymentUnderGatewayReview(orderId)) {
+        if (!paymentOrderQueryService.isUnderGatewayReview(orderId)) {
             return;
         }
         if (!reviewAcknowledged) {
@@ -179,7 +182,7 @@ public class FulfillmentService {
 
         boolean requestedRefund = orderMapper.hasRequestedRefundCancellation(order.getId());
         boolean paymentUnderReview = order.getStatus() != OrderStatus.PICKED_UP
-                && orderMapper.hasPaymentUnderGatewayReview(order.getId());
+                && paymentOrderQueryService.isUnderGatewayReview(order.getId());
         return new FulfillmentListView.FulfillmentOrder(
                 order.getId(),
                 order.getOrderNumber(),

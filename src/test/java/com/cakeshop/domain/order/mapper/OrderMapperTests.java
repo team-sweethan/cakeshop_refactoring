@@ -663,26 +663,13 @@ class OrderMapperTests {
         assertThat(unchanged.getCanceledBy()).isNull();
     }
 
-    // 결제 확인 중 = DONE 결제에 보류 시각은 있고 매입 시각은 없음. 판정 전 진행 기록은 처음 한 번만 남는다
+    // PG 결제 확인 중 판정 전 진행 기록은 처음 한 번만 남는다 (확인 중 판단은 결제 도메인 PaymentOrderMapperTests)
     @Test
-    void paymentUnderGatewayReview_andProceedRecord() {
+    void recordGatewayReviewProceed_recordsFirstProceedOnly() {
         Order order = newOrder();
         order.setOrderType(OrderType.GENERAL);
         orderMapper.insertOrder(order);
-        long paymentId = insertPayment(order.getId(), "DONE", "REVIEW-PROCEED");
         LocalDateTime proceededAt = LocalDateTime.of(2026, 8, 1, 12, 10);
-
-        // 보류가 아닌 완료 결제는 확인 중이 아니다. (같은 트랜잭션의 MyBatis 조회 캐시를 피하려고 다른 주문으로 확인)
-        Order notHeld = newOrder();
-        notHeld.setOrderNumber("REVIEW-NOT-HELD-" + suffix);
-        notHeld.setOrderType(OrderType.GENERAL);
-        orderMapper.insertOrder(notHeld);
-        insertPayment(notHeld.getId(), "DONE", "REVIEW-NOT-HELD");
-        assertThat(orderMapper.hasPaymentUnderGatewayReview(notHeld.getId())).isFalse();
-
-        jdbcTemplate.update("UPDATE payments SET gateway_held_at = ? WHERE id = ?",
-                LocalDateTime.of(2026, 8, 1, 12, 1), paymentId);
-        assertThat(orderMapper.hasPaymentUnderGatewayReview(order.getId())).isTrue();
 
         assertThat(orderMapper.recordGatewayReviewProceed(order.getId(), memberId, proceededAt)).isEqualTo(1);
         assertThat(orderMapper.recordGatewayReviewProceed(order.getId(), memberId, proceededAt.plusMinutes(5)))
@@ -693,10 +680,6 @@ class OrderMapperTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT review_proceeded_at FROM orders WHERE id = ?", LocalDateTime.class, order.getId()))
                 .isEqualTo(proceededAt);
-
-        jdbcTemplate.update("UPDATE payments SET gateway_captured_at = ? WHERE id = ?",
-                LocalDateTime.of(2026, 8, 1, 12, 30), paymentId);
-        assertThat(orderMapper.hasPaymentUnderGatewayReview(order.getId())).isFalse();
     }
 
     // PG(돈워리)가 결제를 확인 중인 일반 주문은 주문 확인 중으로 두고, 승인(매입)되면 픽업 준비로 넘긴다 (DonWorry ADR-0064 4절)

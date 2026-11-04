@@ -35,16 +35,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class PaymentMapperTests {
 
     private final PaymentMapper paymentMapper;
+    // 주문 도메인용 결제 조회 전용 Mapper (PaymentOrderQueryService)
+    private final PaymentOrderMapper paymentOrderMapper;
     private final JdbcTemplate jdbcTemplate;
     private final SqlSession sqlSession;
 
     @Autowired
     PaymentMapperTests(
             PaymentMapper paymentMapper,
+            PaymentOrderMapper paymentOrderMapper,
             JdbcTemplate jdbcTemplate,
             SqlSession sqlSession
     ) {
         this.paymentMapper = paymentMapper;
+        this.paymentOrderMapper = paymentOrderMapper;
         this.jdbcTemplate = jdbcTemplate;
         this.sqlSession = sqlSession;
     }
@@ -327,6 +331,34 @@ class PaymentMapperTests {
                 paymentKey,
                 LocalDateTime.of(2026, 8, 1, 12, 30)
         )).isZero();
+    }
+
+    // 결제 확인 중 = DONE 결제에 보류 시각은 있고 매입 시각은 없음 (PaymentOrderQueryService 판단 근거)
+    @Test
+    void existsPaymentUnderGatewayReview_onlyHeldAndNotCapturedDonePayment() {
+        Payment payment = insertPayment("UNDER-REVIEW");
+        String paymentKey = "PAYMENT-KEY-UNDER-REVIEW-" + suffix;
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
+
+        completePayment(payment, "UNDER-REVIEW");
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
+
+        paymentMapper.markGatewayHeld(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 1));
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isTrue();
+
+        paymentMapper.markGatewayCaptured(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 30));
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
+    }
+
+    @Test
+    void existsPaymentUnderGatewayReview_canceledHeldPayment_isNotUnderReview() {
+        Payment payment = insertPayment("UNDER-REVIEW-CANCELED");
+        String paymentKey = "PAYMENT-KEY-UNDER-REVIEW-CANCELED-" + suffix;
+        completePayment(payment, "UNDER-REVIEW-CANCELED");
+        paymentMapper.markGatewayHeld(payment.getId(), paymentKey, LocalDateTime.of(2026, 8, 1, 12, 1));
+        paymentMapper.cancelIfDone(payment.getId(), LocalDateTime.of(2026, 8, 1, 12, 5));
+
+        assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
     }
 
     @Test

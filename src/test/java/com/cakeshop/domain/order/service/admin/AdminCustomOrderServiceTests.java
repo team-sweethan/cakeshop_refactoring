@@ -31,6 +31,9 @@ class AdminCustomOrderServiceTests {
     );
 
     @Mock
+    private com.cakeshop.domain.payment.service.PaymentOrderQueryService paymentOrderQueryService;
+
+    @Mock
     private OrderMapper orderMapper;
 
     @Mock
@@ -40,7 +43,7 @@ class AdminCustomOrderServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new AdminCustomOrderService(orderMapper, memberOrderQueryService, CLOCK);
+        service = new AdminCustomOrderService(orderMapper, memberOrderQueryService, CLOCK, paymentOrderQueryService);
         when(memberOrderQueryService.isActiveAdmin(7L)).thenReturn(true);
     }
 
@@ -78,7 +81,7 @@ class AdminCustomOrderServiceTests {
     @Test
     void startProduction_paymentUnderReview_requiresAcknowledgementAndRecordsProceed() {
         when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(custom(OrderStatus.UNDER_REVIEW)));
-        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
 
         assertThatThrownBy(() -> service.startProduction(10L, 7L, false))
                 .isInstanceOfSatisfying(BusinessException.class, error -> org.assertj.core.api.Assertions

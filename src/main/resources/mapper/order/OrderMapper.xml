@@ -96,18 +96,6 @@
         )
     </select>
 
-    <!-- PG(돈워리)가 매입을 보류하고 판정 전인 완료 결제가 있는지 (DonWorry ADR-0064 4절) -->
-    <select id="hasPaymentUnderGatewayReview" resultType="boolean">
-        SELECT EXISTS (
-            SELECT 1
-            FROM payments payment
-            WHERE payment.order_id = #{orderId}
-              AND payment.status = 'DONE'
-              AND payment.gateway_held_at IS NOT NULL
-              AND payment.gateway_captured_at IS NULL
-        )
-    </select>
-
     <!-- 판정 전 진행은 확인 창에 동의하고 처음 진행한 관리자와 시각만 남긴다 -->
     <update id="recordGatewayReviewProceed">
         UPDATE orders

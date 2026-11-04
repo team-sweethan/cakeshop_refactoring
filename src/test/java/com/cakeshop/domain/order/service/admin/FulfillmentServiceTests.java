@@ -43,13 +43,16 @@ class FulfillmentServiceTests {
     );
 
     @Mock
+    private com.cakeshop.domain.payment.service.PaymentOrderQueryService paymentOrderQueryService;
+
+    @Mock
     private OrderMapper orderMapper;
 
     private FulfillmentService fulfillmentService;
 
     @BeforeEach
     void setUp() {
-        fulfillmentService = new FulfillmentService(orderMapper, CLOCK);
+        fulfillmentService = new FulfillmentService(orderMapper, CLOCK, paymentOrderQueryService);
     }
 
     @Test
@@ -146,7 +149,7 @@ class FulfillmentServiceTests {
     // PG(돈워리)가 결제를 확인 중이면 확인 창 동의 없이는 픽업 완료로 넘어가지 않는다 (DonWorry ADR-0064 4절)
     @Test
     void markPickedUp_paymentUnderReviewWithoutAcknowledgement_rejectsAndKeepsOrder() {
-        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
 
         assertThatThrownBy(() -> fulfillmentService.markPickedUp(10L, 7L, false))
                 .isInstanceOfSatisfying(
@@ -160,7 +163,7 @@ class FulfillmentServiceTests {
 
     @Test
     void markPickedUp_paymentUnderReviewAcknowledged_recordsProceedAndCompletes() {
-        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
         when(orderMapper.markPickedUpIfReady(10L, 7L, NOW)).thenReturn(1);
 
         fulfillmentService.markPickedUp(10L, 7L, true);
@@ -181,7 +184,7 @@ class FulfillmentServiceTests {
 
     @Test
     void moveToReadyForPickup_acknowledged_recordsProceedAndMovesGeneralOrder() {
-        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
         when(orderMapper.markGeneralReadyForPickupIfUnderReview(10L, NOW)).thenReturn(1);
 
         fulfillmentService.moveToReadyForPickup(10L, 7L, true);
@@ -209,7 +212,7 @@ class FulfillmentServiceTests {
         when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
         when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
         when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
-        when(orderMapper.hasPaymentUnderGatewayReview(10L)).thenReturn(true);
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
 
         FulfillmentListView result = fulfillmentService.getFulfillments(null, new PageRequest(null, null));
 

@@ -118,11 +118,6 @@ public interface OrderMapper {
     boolean hasRequestedRefundCancellation(@Param("orderId") long orderId);
 
     /**
-     * PG(돈워리)가 주문의 완료 결제를 아직 확인 중인지(매입 보류, 판정 전) 확인한다 (DonWorry ADR-0064 4절).
-     */
-    boolean hasPaymentUnderGatewayReview(@Param("orderId") long orderId);
-
-    /**
      * PG 결제 확인 중에 관리자가 주문을 진행한 기록을 처음 한 번만 남긴다.
      *
      * @return 기록했으면 1, 이미 기록이 있으면 0
