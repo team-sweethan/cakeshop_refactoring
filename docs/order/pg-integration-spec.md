@@ -3,11 +3,14 @@
 ## 1. 결제 승인
 
 - 결제 생성 시 `payments.provider`에 PG를 저장한다. `app.payment.gateway`의 기본값과 `toss`는
-  `TOSS`, `own`은 `OWN`을 선택하며, 요청의 PG 값은 받지 않는다.
-- 기존 결제는 결제 대기 상태를 포함해 모두 `TOSS`로 보존한다. 설정을 바꿔도 결제의 PG는 바꾸지 않는다.
+  `TOSS`, `own`은 `OWN`을 초기값으로 선택한다.
+- 고객은 결제 화면의 "결제 수단 선택"에서 토스페이먼츠·돈워리 중 하나를 고르고, 고른 PG를 그 주문의 READY 결제에
+  저장한다. 바꿀 수 있는 결제는 승인 시도 전(`status = 'READY' AND payment_key IS NULL`)뿐이며, 돈워리 시도가 진행 중이면
+  바꾸지 않는다 ([pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md), 003 일부 대체).
+- 기존 결제는 결제 대기 상태를 포함해 모두 `TOSS`로 보존한다. 설정을 바꿔도 기존 결제의 PG는 바꾸지 않는다.
 - 결제창 설정·주문명 규칙·실패 코드 해석·승인·승인 상태 조회는 저장된 PG로 처리한다.
-- 새 PG를 선택하려면 그 구현체가 있어야 한다. 자체 PG API·인증·상태 매핑·멱등성·결제창 계약은
-  아직 미확정이며, 실제 구현 없이 `own`을 선택하면 앱 시작을 중단한다.
+- 새 PG를 선택하려면 그 구현체가 있어야 한다. `own`(DonWorry)은 `donworry.payment.enabled=true`일 때만 구현체가 생기며,
+  연동이 꺼진 채 `own`을 선택하면 앱 시작을 중단한다. DonWorry 계약은 [DonWorry 결제 연동](donworry-payment-client.md).
 - 0원 결제도 생성 당시 선택값을 기록하지만 외부 승인·취소 API는 호출하지 않는다.
 
 ## 2. 결제 취소·환불
