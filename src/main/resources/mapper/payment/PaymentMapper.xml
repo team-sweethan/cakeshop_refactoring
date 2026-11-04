@@ -588,14 +588,25 @@
         WHERE toss_order_id = #{gatewayOrderId}
     </select>
 
-    <!-- 조회 배치 대상: 최근 완료한 돈워리 결제(보류 뒤 직원 거절 확인)와 결제창을 닫아 아직 READY인 결제의 주문 참조 -->
+    <!--
+        조회 배치 대상: 돈워리에서 아직 상태가 바뀔 수 있는 결제만 고른다(웹훅을 놓쳤을 때 복구용).
+        * 판정 대기 DONE 결제(보류 시각은 있고 매입 시각은 없음): 직원 승인(CAPTURED)·거절(VOIDED)을 기다린다. 기간과 관계없이 본다.
+        * READY 결제(최근 #{since} 이후): 구매자가 결제창을 닫아 성공 콜백이 오지 않았지만 돈워리에서는 승인됐을 수 있다.
+        이미 끝난 정상 결제(보류가 아니었거나 매입 확인된 DONE)는 다시 묻지 않는다. 거절(VOIDED)은 보류 결제에서만 생긴다.
+        판정 대기를 먼저 보고, 같은 종류 안에서는 최신순이다.
+    -->
     <select id="findDonWorryGatewayOrderIdsToSync" resultType="string">
         SELECT toss_order_id
         FROM payments
         WHERE provider = 'OWN'
-          AND status IN ('READY', 'DONE')
-          AND COALESCE(approved_at, requested_at) &gt;= #{since}
-        ORDER BY id DESC
+          AND (
+              (status = 'DONE'
+                  AND gateway_held_at IS NOT NULL
+                  AND gateway_captured_at IS NULL)
+              OR (status = 'READY'
+                  AND requested_at &gt;= #{since})
+          )
+        ORDER BY CASE WHEN status = 'DONE' THEN 0 ELSE 1 END, id DESC
         LIMIT #{limit}
     </select>
 

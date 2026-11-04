@@ -20,7 +20,9 @@ import org.springframework.stereotype.Component;
  * 설명 : 돈워리 결제창(호스팅)이 카드 승인을 마치면 기존 성공 콜백으로 돌아온다(paymentKey = DW-돈워리 결제 ID).
  *        approve는 새 승인을 요청하지 않고 돈워리 상태를 조회해 승인 완료(authorized)인지 확인한다.
  *        paymentKey는 "DW-" + DonWorry paymentId다.
- *        DonWorry에는 가맹점용 취소·환불 API가 아직 없어 cancel은 실패로 남기고 복구 대상으로 둔다.
+ *        cancel은 DonWorry 전액 취소 API(POST /api/payments/{paymentId}/cancellations, DonWorry #381)를 부른다.
+ *        보류·매입 대기 결제는 승인 취소(#382), 매입된 결제의 환불은 DonWorry 환불 실행 연결 전까지 503이라
+ *        취소 요청을 REQUESTED로 두고 복구 배치가 다시 보낸다(아래 cancel 설명).
  * ******************************
  */
 @Component
@@ -29,7 +31,9 @@ import org.springframework.stereotype.Component;
 public class DonWorryPaymentGateway implements PaymentGateway {
 
     public static final String PAYMENT_KEY_PREFIX = "DW-";
-    public static final String USER_CANCELED = "DONWORRY_USER_CANCELED";
+    // 돈워리 결제창이 failUrl에 붙이는 code 값 (DonWorry ADR-0064 2절). 구매자가 결제창을 닫으면 USER_CANCELED,
+    // 카드 거절이면 결제의 declineCode(AUTHORIZATION_DECLINED), 그 밖에는 결제 상태 이름이다.
+    public static final String USER_CANCELED = "USER_CANCELED";
     public static final String AUTHORIZATION_DECLINED = "AUTHORIZATION_DECLINED";
     private static final int ORDER_NAME_MAX_LENGTH = 100;
     private static final String METHOD = "카드";
@@ -132,8 +136,9 @@ public class DonWorryPaymentGateway implements PaymentGateway {
      * 결과 대기(PROCESSING·UNKNOWN)·진행 중(PAYMENT_IN_PROGRESS)·준비 안 됨(CANCELLATION_NOT_READY)·일시 장애는
      * PAYMENT_RECOVERY_PENDING으로 알려, CakeShop 취소 요청을 REQUESTED로 두고 복구 배치가 같은 키로 다시 보낸다.
      * 취소할 거래가 없음·확인 필요·키 충돌·실패 확정은 PAYMENT_CANCEL_FAILED다.
-     * 2026-11-02 돈워리: 보류(HELD) 결제는 승인 취소가 실제로 실행된다(DonWorry #382). 매입된(CAPTURED) 결제의 환불은
-     * DonWorry #383 전까지 503 CANCELLATION_NOT_READY라, 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 다시 보낸다.
+     * 보류(HELD) 결제는 승인 취소가 실제로 실행된다(DonWorry #382). 매입된(CAPTURED) 결제의 환불은 DonWorry #383으로
+     * 기반만 들어가고 환불 실행 연결이 아직 없어 503 CANCELLATION_NOT_READY다(2026-11-04 DonWorry dev 기준).
+     * 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 다시 보낸다.
      */
     @Override
     public CancellationResult cancel(String paymentKey, String reason, String idempotencyKey) {

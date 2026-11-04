@@ -17,7 +17,7 @@
 | `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>`. `approve`는 새 승인 없이 조회로 `authorized`를 확인한다 |
 | `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제 준비(`…/donworry/session`), 결제창 성공 복귀(`…/donworry/return`). 결제 준비에 웹훅 주소 `{쇼핑몰 주소}/webhooks/donworry`를 보낸다 |
 | `DonWorryWebhookController` | 돈워리 결제 상태 웹훅 수신 `POST /webhooks/donworry`. 서명(`DONWORRY-WEBHOOK-V1`) · 시각(±300초) 확인 뒤 본문은 믿지 않고 `paymentId`로 다시 조회해 반영 |
-| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 최근 3일) 공통 반영. 승인됐는데 READY면 결제 완료, 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
+| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 50건) 공통 반영. 배치는 아직 바뀔 수 있는 결제만 다시 조회한다 — 판정 대기(`gateway_held_at` 있고 `gateway_captured_at` 없음) DONE 결제는 기간과 관계없이 먼저, 결제창을 닫아 READY로 남은 결제는 최근 3일. 승인됐는데 READY면 결제 완료, 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
 | `DonWorryPaymentCaptureService` | 보류 뒤 승인 반영 — `payments.gateway_captured_at` 기록, 주문 확인 중인 일반 주문은 픽업 준비로 |
 | `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 가맹점이 이미 진행한 주문은 유지(손실은 가맹점 부담) |
 
@@ -76,7 +76,7 @@
 - `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
 - 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
 - PG 선택은 승인 시도 전 READY 결제에만 저장된다. DonWorry 결제가 진행 중이면 Toss로 바꿀 수 없다.
-  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (제안).
+  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (채택).
 
 ## 3. 로컬 실행
 
@@ -115,6 +115,10 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
   - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
   - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")
   - 결과 대기 · 진행 중 · 일시 장애는 `PAYMENT_RECOVERY_PENDING` — 취소 요청이 REQUESTED로 남고 복구 배치가 같은 키 · 같은 사유로 다시 보낸다
-  - **매입된(CAPTURED) 결제의 환불은 DonWorry #383 전까지 503 `CANCELLATION_NOT_READY`**다. 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 계속 다시 보낸다
+  - **매입된(CAPTURED) 결제의 환불은 503 `CANCELLATION_NOT_READY`**다. DonWorry #383으로 환불 기반은 들어갔지만
+    환불 실행 연결(`PaymentRefundCompletion` 구현)이 아직 없다(2026-11-04 DonWorry `dev` 기준). 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 계속 다시 보낸다
   - 돈워리 결제 상태에는 `REFUNDED`가 없다. 환불돼도 `CAPTURED`로 남는다(DonWorry ADR-0058)
+- **결제 기한이 지난 뒤 늦게 승인된 결제**: 구매자가 결제창을 닫아 성공 콜백이 오지 않은 채 CakeShop 결제 기한이 지나면,
+  주문 · 결제는 만료되고 웹훅 · 조회 배치의 결제 완료도 기한 검사로 실패한다. 돈워리에는 승인(청구)이 남을 수 있는데
+  지금은 경고 로그만 남기고 자동 취소하지 않는다. 누가 취소할지는 DonWorry ADR-0064 남은 결정에 열려 있다.
 - 위 구조(성공 콜백 재사용, `approve` = 조회)는 `pg-decisions` ADR로 남길 대상이다.

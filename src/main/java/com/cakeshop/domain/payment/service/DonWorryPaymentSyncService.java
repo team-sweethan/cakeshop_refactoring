@@ -105,7 +105,9 @@ public class DonWorryPaymentSyncService {
                         new PaymentConfirmForm(paymentKey, payment.getGatewayOrderId(), payment.getAmount()));
                 return SyncResult.COMPLETED;
             } catch (BusinessException exception) {
-                // 결제 기한이 지났거나 다른 결제가 먼저 완료된 경우. 돈워리 승인 취소는 취소 API 연결(3단계)에서 처리한다.
+                // 결제 기한이 지났거나 다른 결제가 먼저 완료된 경우. 돈워리에서는 승인돼 청구가 남아 있을 수 있지만
+                // 지금은 자동으로 취소하지 않고 경고만 남긴다. 누가 취소할지는 아직 정하지 않았다
+                // (DonWorry ADR-0064 남은 결정 "결제 접수 기한이 지난 뒤 늦게 승인된 결제").
                 log.warn("donworry sync could not complete orderId={} code={}",
                         payment.getOrderId(), exception.getErrorCode());
                 return SyncResult.UNCHANGED;
@@ -130,7 +132,11 @@ public class DonWorryPaymentSyncService {
         return SyncResult.UNCHANGED;
     }
 
-    /** 조회 배치: 웹훅을 놓쳐도 최근 돈워리 결제의 승인·거절을 맞춘다. 바뀐 건수를 돌려준다. */
+    /**
+     * 조회 배치: 웹훅을 놓쳐도 돈워리 결제의 승인·판정을 맞춘다. 바뀐 건수를 돌려준다.
+     * 아직 바뀔 수 있는 결제만 본다 — 판정 대기(보류 중) 결제는 기간과 관계없이, 결제창을 닫아 READY인 결제는 최근 3일.
+     * 이미 끝난 정상 결제는 다시 묻지 않아 오래된 판정 대기 결제가 최신 결제에 밀려 빠지지 않는다.
+     */
     public int syncRecent(int limit) {
         DonWorryPaymentClient client = clientProvider.getIfAvailable();
         if (client == null) {

@@ -152,7 +152,8 @@ public interface PaymentMapper {
     // 돈워리 웹훅·조회 배치: 주문 참조(gateway order id)로 결제를 찾는다.
     Optional<Payment> findPaymentByGatewayOrderId(@Param("gatewayOrderId") String gatewayOrderId);
 
-    // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id)
+    // 조회 배치 대상 돈워리 결제의 주문 참조(gateway order id). 아직 바뀔 수 있는 결제만이다:
+    // 판정 대기(보류 중) DONE 결제는 기간과 관계없이, 결제창을 닫아 READY로 남은 결제는 since 이후만. 판정 대기를 먼저 준다.
     List<String> findDonWorryGatewayOrderIdsToSync(
             @Param("since") LocalDateTime since,
             @Param("limit") int limit
