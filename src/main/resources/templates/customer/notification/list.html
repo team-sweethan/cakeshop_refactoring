@@ -7,6 +7,7 @@
   <meta name="_csrf_header" th:content="${_csrf?.headerName}"/>
   <title>알림 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/notification.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/customer-mockup.js}"></script>
 </head>
@@ -17,8 +18,9 @@
       <h1>알림</h1>
       <button class="btn" type="button" data-read-all>전체 읽음</button>
     </div>
+    <p class="notification-page__intro">주문·결제·픽업 소식을 알려 드려요. 알림을 누르면 읽음으로 표시됩니다.</p>
     <!-- 알림 목록이 들어갈 컨테이너 (JS가 이곳에 데이터를 동적으로 삽입합니다) -->
-    <div class="stack" id="notification-container">
+    <div class="stack notification-list" id="notification-container">
       <!-- 로딩 중 표시 (JS가 데이터를 받아오면 대체됩니다) -->
       <p class="text-muted text-center" style="padding: 2rem 0;">알림을 불러오는 중입니다...</p>
     </div>
