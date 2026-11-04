@@ -308,7 +308,10 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @Transactional
     void productDetail_imagesMissing_rendersPlaceholderWithoutImageTag() throws Exception {
+        deleteProductImages(generalProductId);
+
         mockMvc.perform(get("/products/{productId}", generalProductId))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("상품 이미지 준비 중")))
@@ -323,6 +326,7 @@ class ScreenRenderingTests {
             "SELECT id FROM products WHERE name = '딸기 생크림 케이크 1호'",
             Long.class
         );
+        deleteProductImages(productId);
         jdbcTemplate.update(
             """
             INSERT INTO product_images (
@@ -1025,12 +1029,15 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @Transactional
     @WithUserDetails(
         value = "admin@cakeshop.local",
         userDetailsServiceBeanName = "memberDetailsService"
     )
     void productEdit_imagesMissing_rendersUploadFormAndPlaceholder()
             throws Exception {
+        deleteProductImages(generalProductId);
+
         mockMvc.perform(get(
                 "/admin/products/{productId}/edit",
                 generalProductId
@@ -1069,6 +1076,7 @@ class ScreenRenderingTests {
             "SELECT id FROM products WHERE name = '딸기 생크림 케이크 1호'",
             Long.class
         );
+        deleteProductImages(productId);
         jdbcTemplate.update(
             """
             INSERT INTO product_images (
@@ -1213,6 +1221,11 @@ class ScreenRenderingTests {
                 productName,
                 orderType
         );
+    }
+
+    // 시드 상품에는 정적 이미지가 있으므로 이미지 유무를 보는 테스트는 먼저 지운다
+    private void deleteProductImages(long productId) {
+        jdbcTemplate.update("DELETE FROM product_images WHERE product_id = ?", productId);
     }
 
     private void assertScreensRender(String[] paths) throws Exception {
