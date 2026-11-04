@@ -44,8 +44,26 @@
 
   let moving = false;
 
+  // 넘어가는 도중 키보드 포커스가 들어오면 전환을 취소하고 지금 공지를 그대로 둔다.
+  // 그대로 마무리하면 포커스한 링크가 맨 뒤로 옮겨지고 숨김 처리되어 Enter 로 열 수 없다.
+  function cancelSlide() {
+    if (!moving) {
+      return;
+    }
+    track.style.transition = "none";
+    track.style.transform = "translateY(0)";
+    void track.offsetHeight;
+    moving = false;
+  }
+
+  rotation.addEventListener("focusin", cancelSlide);
+
   function finishSlide() {
     if (!moving) {
+      return;
+    }
+    if (rotation.contains(document.activeElement)) {
+      cancelSlide();
       return;
     }
     track.style.transition = "none";
