@@ -29,6 +29,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RefundService {
 
+    // PG가 먼저 승인을 취소해 닫은 요청의 거래 키 접두어 (돈워리 거절, completeRequestedCancellationByGatewayVoid)
+    static final String GATEWAY_VOID_TRANSACTION_PREFIX = "GATEWAY-VOID-";
+    // 고객 · 관리자가 만든 환불 요청 종류. 시스템 보상(SYSTEM_COMPENSATION)은 보상 복구가 맡는다
+    private static final java.util.Set<String> REFUND_REQUEST_TYPES = java.util.Set.of(
+            OrderPaymentCancellationCommandService.CUSTOMER,
+            OrderPaymentCancellationCommandService.ADMIN,
+            OrderPaymentCancellationCommandService.ADMIN_REJECTION
+    );
+
     private final PaymentMapper paymentMapper;
     private final PaymentRecoveryBatchCursor batchCursor = new PaymentRecoveryBatchCursor();
     private final OrderPaymentCancellationCommandService orderPaymentCancellationCommandService;
@@ -243,11 +252,16 @@ public class RefundService {
         }
 
         if (cancellation.getStatus() == PaymentCancellationStatus.DONE) {
+            // PG가 먼저 승인을 취소해 이 요청을 그 결과로 닫았으면(돈워리 거절, 아래 completeRequestedCancellationByGatewayVoid)
+            // 뒤늦게 도착한 PG 취소 응답의 거래 키는 다르다. 결제 · 주문이 이미 확정됐으면 같은 완료로 본다.
+            boolean closedByGatewayVoid = cancellation.getTransactionKey() != null
+                    && cancellation.getTransactionKey().startsWith(GATEWAY_VOID_TRANSACTION_PREFIX);
             if (payment.getStatus() != PaymentStatus.CANCELED
                     || !orderPaymentCancellationCommandService.isPaymentCancellationCompleted(
                             request.orderId(), request.canceledBy()
                     )
-                    || !Objects.equals(cancellation.getTransactionKey(), result.transactionKey())) {
+                    || (!closedByGatewayVoid
+                    && !Objects.equals(cancellation.getTransactionKey(), result.transactionKey()))) {
                 throw new BusinessException(PaymentErrorCode.PAYMENT_CANCEL_COMPLETE_FAILED);
             }
             completeOrderCancellation(
@@ -277,6 +291,40 @@ public class RefundService {
                 request.requestedAt(),
                 canceledAt
         );
+    }
+
+    /**
+     * ******************************
+     * 작성자 : 수민
+     * 담당자 : 주환
+     * 작성일 : 2026-11-04
+     * 기능 : PG가 먼저 승인을 취소했을 때 진행 중인 고객·관리자 취소 요청 완료
+     * 설명 : 고객 · 관리자 취소나 수제 반려 요청이 PG 응답을 기다리는(REQUESTED) 동안 돈워리가 승인을 취소(VOIDED)하면,
+     *        그 요청을 승인 취소 결과로 완료해 결제 · 주문을 요청 종류대로 확정한다(#26 Codex 리뷰).
+     *        요청을 남겨 두면 결제가 이미 CANCELED라 복구 배치가 영원히 완료하지 못한다.
+     *        진행 중인 요청이 없으면 false다.
+     * ******************************
+     */
+    @Transactional
+    public boolean completeRequestedCancellationByGatewayVoid(Payment payment, LocalDateTime canceledAt) {
+        if (payment == null || payment.getId() == null || payment.getPaymentKey() == null || canceledAt == null) {
+            return false;
+        }
+        PaymentCancellation requested = paymentMapper.findRequestedCancellationByPaymentId(payment.getId())
+                .filter(cancellation -> REFUND_REQUEST_TYPES.contains(cancellation.getRequestType()))
+                .orElse(null);
+        if (requested == null) {
+            return false;
+        }
+        completeCancellation(
+                toRefundRequest(requested),
+                new CancellationResult(
+                        PaymentGatewayStatus.CANCELED,
+                        GATEWAY_VOID_TRANSACTION_PREFIX + payment.getPaymentKey(),
+                        canceledAt
+                )
+        );
+        return true;
     }
 
     /** PG 오류로 남은 고객·관리자 취소·반려 요청을 같은 멱등키로 재처리한다. */

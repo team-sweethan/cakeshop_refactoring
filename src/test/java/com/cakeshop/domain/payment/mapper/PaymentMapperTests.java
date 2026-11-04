@@ -373,6 +373,21 @@ class PaymentMapperTests {
         assertThat(paymentOrderMapper.existsPaymentUnderGatewayReview(orderId)).isFalse();
     }
 
+    // 판정 대기가 많이 쌓여도 한 번에 절반까지만 써서 결제창을 닫은 READY 결제 복구가 밀리지 않는다 (#27 Codex 리뷰)
+    @Test
+    void findDonWorryGatewayOrderIdsToSync_heldPaymentsUseAtMostHalfOfBatch() {
+        LocalDateTime now = LocalDateTime.of(2026, 11, 4, 12, 0);
+        insertOwnPayment("CAP-HELD-1", "DONE", now.minusMinutes(40), now.minusMinutes(40), null);
+        String held2 = insertOwnPayment("CAP-HELD-2", "DONE", now.minusMinutes(30), now.minusMinutes(30), null);
+        String held3 = insertOwnPayment("CAP-HELD-3", "DONE", now.minusMinutes(20), now.minusMinutes(20), null);
+        String ready1 = insertOwnPayment("CAP-READY-1", "READY", now.minusMinutes(5), null, null);
+        String ready2 = insertOwnPayment("CAP-READY-2", "READY", now.minusMinutes(4), null, null);
+
+        // 이 테스트가 넣은 행이 가장 최신이라 각 종류의 맨 앞이다. 배치 4건 = 판정 대기 2건 + READY 2건
+        assertThat(paymentMapper.findDonWorryGatewayOrderIdsToSync(now.minusDays(3), 4))
+                .containsExactly(held3, held2, ready2, ready1);
+    }
+
     // 조회 배치는 아직 바뀔 수 있는 돈워리 결제만 고른다. 끝난 정상 결제가 판정 대기 결제를 밀어내지 않는다
     @Test
     void findDonWorryGatewayOrderIdsToSync_onlyChangeablePayments_heldFirst() {

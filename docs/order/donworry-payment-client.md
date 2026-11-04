@@ -115,6 +115,9 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
   - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
   - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")
   - 결과 대기 · 진행 중 · 일시 장애는 `PAYMENT_RECOVERY_PENDING` — 취소 요청이 REQUESTED로 남고 복구 배치가 같은 키 · 같은 사유로 다시 보낸다
+  - 요청이 REQUESTED인 동안 돈워리 거절(VOIDED)이 오면 새 거절 기록을 만들지 않고 그 요청을 승인 취소 결과
+    (거래 키 `GATEWAY-VOID-{paymentKey}`)로 완료한다. 결제 · 주문은 요청 종류대로(고객 · 관리자 취소는 CANCELED, 수제 반려는 REJECTED) 확정된다.
+    뒤늦게 돈워리 취소 응답이 와도 이미 확정된 완료로 본다(`RefundService.completeRequestedCancellationByGatewayVoid`)
   - **매입된(CAPTURED) 결제의 환불은 503 `CANCELLATION_NOT_READY`**다. DonWorry #383으로 환불 기반은 들어갔지만
     환불 실행 연결(`PaymentRefundCompletion` 구현)이 아직 없다(2026-11-04 DonWorry `dev` 기준). 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 계속 다시 보낸다
   - 돈워리 결제 상태에는 `REFUNDED`가 없다. 환불돼도 `CAPTURED`로 남는다(DonWorry ADR-0058)
