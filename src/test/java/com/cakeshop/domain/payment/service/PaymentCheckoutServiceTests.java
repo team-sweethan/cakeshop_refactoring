@@ -84,6 +84,26 @@ class PaymentCheckoutServiceTests {
         lenient().when(tossPaymentAvailability.isEnabled()).thenReturn(true);
     }
 
+    // 돈워리 결제 준비 요청에 보낼 픽업자를 결제 화면 정보에 싣는다
+    @Test
+    void getCheckout_pickupPerson_isCarriedToCheckoutView() {
+        PaymentOrder base = order(true, true);
+        PaymentOrder order = new PaymentOrder(
+                base.orderId(), base.orderNumber(), base.orderType(), base.pendingPayment(),
+                base.originalAmount(), base.discountAmount(), base.finalAmount(),
+                base.pickupAt(), base.paymentExpiresAt(),
+                base.ordererName(), base.ordererPhone(), "김픽업", "010-3333-4444",
+                base.items()
+        );
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(order);
+        when(paymentService.getReadyPayment(1L)).thenReturn(payment(PaymentStatus.READY, null));
+
+        PaymentCheckoutView checkout = paymentCheckoutService.getCheckout(10L, "member@example.com", 1L);
+
+        assertThat(checkout.pickupName()).isEqualTo("김픽업");
+        assertThat(checkout.pickupPhone()).isEqualTo("010-3333-4444");
+    }
+
     @Test
     void getCheckout_ownedPendingOrder_returnsActualPaymentView() {
         PaymentOrder order = order(true, true);
@@ -102,6 +122,8 @@ class PaymentCheckoutServiceTests {
         assertThat(checkout.orderName()).isEqualTo("딸기 생크림 케이크");
         assertThat(checkout.amount()).isEqualByComparingTo("30000");
         assertThat(checkout.customerEmail()).isEqualTo("member@example.com");
+        assertThat(checkout.customerName()).isEqualTo("홍길동");
+        assertThat(checkout.customerPhone()).isEqualTo("010-1111-2222");
         assertThat(checkout.paymentAvailable()).isTrue();
         assertThat(checkout.items()).singleElement().satisfies(item -> {
             assertThat(item.productName()).isEqualTo("딸기 생크림 케이크");

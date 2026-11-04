@@ -73,7 +73,12 @@ public class DonWorryCheckoutService {
                 shopBaseUrl + "/orders/" + orderId + "/payment/donworry/return",
                 shopBaseUrl + "/orders/" + orderId + "/payment/fail",
                 // 상태 변경 웹훅(보류 뒤 거절 등)을 받을 주소
-                shopBaseUrl + "/webhooks/donworry"
+                shopBaseUrl + "/webhooks/donworry",
+                // 주문 당시 입력한 주문자·픽업자(전화번호는 저장 형식 그대로)
+                payment.customerName(),
+                payment.customerPhone(),
+                payment.pickupName(),
+                payment.pickupPhone()
         );
         String key = UUID.randomUUID().toString();
         DonWorryPaymentSessionResponse session;

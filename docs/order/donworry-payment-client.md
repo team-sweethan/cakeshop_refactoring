@@ -50,7 +50,18 @@
 
   판단은 주문 공개 서비스 `OrderPaymentQueryService.gatewayVoidHandling`이 한다. "이행됨"을 돈워리에 알리는 경로와 정산은 DonWorry P6와 정하는 중이다.
 - CakeShop이 보내는 값: 주문번호, 회원 ID, 서버가 확정한 금액, 결제 창 시작 시각, 주문명, 회원 이메일(돈워리 형식 `[^@\s]+@[^@\s]+`에
-  맞을 때만), 복귀 주소. 카드 · 기기 · IP는 보내지 않는다. 돈워리 결제창이 구매자에게서 직접 받는다.
+  맞을 때만), 복귀 주소, 주문자 · 픽업자 이름과 전화번호. 카드 · 기기 · IP는 보내지 않는다. 돈워리 결제창이 구매자에게서 직접 받는다.
+- 주문자 · 픽업자 (2026-11-04, 돈워리 고객정보 접근 보안 시나리오. 돈워리 수신은 P4 현규)
+
+  | JSON 필드 | CakeShop 출처 | 비고 |
+  | --- | --- | --- |
+  | `ordererName` | `orders.orderer_name` | 최대 50자 |
+  | `ordererPhone` | `orders.orderer_phone` | 최대 30자, 하이픈 포함 저장 형식 그대로(예: `010-1234-5678`) |
+  | `pickupName` | `orders.pickup_name` | 최대 50자. 값이 없으면 키를 빼고 보낸다(픽업 없는 가맹점과 같음) |
+  | `pickupPhone` | `orders.pickup_phone` | 최대 30자, 하이픈 포함 그대로. 값이 없으면 키를 빼고 보낸다 |
+
+  돈워리가 이 필드를 모르면(배포 전) 무시하므로 CakeShop이 먼저 배포돼도 결제는 그대로다.
+  이름 · 전화번호 원문은 CakeShop 로그에 남기지 않는다.
 - `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
 - 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
 - PG 선택은 승인 시도 전 READY 결제에만 저장된다. DonWorry 결제가 진행 중이면 Toss로 바꿀 수 없다.
