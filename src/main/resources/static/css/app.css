@@ -2781,7 +2781,8 @@ h2.section-title {
     background: #fff;
     border: 1px dashed var(--color-border);
     border-radius: var(--radius-md);
-    margin: 0
+    margin: 0;
+    text-align: center
 }
 
 .notification-list .notification-item {
@@ -2978,7 +2979,7 @@ h2.section-title {
 .notification-panel__list .notification-item:hover { text-decoration: none; transform: none }
 .notification-panel__list .notification-item .badge { font-size: 14px }
 .notification-panel__list .notification-item p { font-size: 13px; line-height: 1.5 }
-.notification-panel__list > p.text-muted { border: 0; padding: 28px 12px }
+.notification-panel__list > p.text-muted { border: 0; color: var(--color-muted); font-size: 13px; padding: 28px 12px; text-align: center }
 
 .notification-panel__more {
     border-top: 1px solid var(--color-border-light);

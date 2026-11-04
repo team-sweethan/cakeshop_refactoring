@@ -1,8 +1,12 @@
-// 헤더 종 버튼을 누르면 최근 알림을 펼쳐 보여 준다.
+// 헤더 종 버튼을 누르면 읽지 않은 알림만 펼쳐 보여 준다. 읽은 알림은 창에서 빠지고, 지난 알림은
+// 알림 페이지(/notifications, "전체 알림 보기")에서 본다.
 // 버튼은 /notifications 링크라 스크립트가 없거나 실패해도 알림 페이지로 이동할 수 있다.
 // 실시간 알림(notification-websocket.js)은 window.notificationPanel.receive 로 이 목록 맨 위에 넣는다.
 (function () {
-  const PANEL_SIZE = 8;
+  // 알림 API 에는 '읽지 않은 것만' 조건이 없어 최근 알림을 넉넉히 받아 화면에서 거른다.
+  // 읽지 않은 알림은 최신 쪽에 몰리므로 이 범위면 충분하다.
+  const FETCH_SIZE = 50;
+  const EMPTY_MESSAGE = "알림이 없습니다.";
 
   function escapeHtml(value) {
     if (!value) return "";
@@ -77,27 +81,38 @@
       }).then((response) => response.ok).catch(() => false);
     }
 
-    function markItemRead(item) {
-      item.classList.remove("is-unread");
-      item.querySelector(".notification-dot")?.remove();
+    function isRead(item) {
+      return item.isRead !== undefined ? item.isRead : item.read;
+    }
+
+    // 읽지 않은 알림이 하나도 없으면 빈 문구를 띄우고 "모두 읽음"을 숨긴다.
+    function syncEmptyState() {
+      const hasItems = list.querySelector(".notification-panel__item") !== null;
+      if (!hasItems) message(EMPTY_MESSAGE);
+      if (readAll) readAll.hidden = !hasItems;
+    }
+
+    // 읽은 알림은 창에서 뺀다.
+    function removeItem(item) {
+      item.remove();
+      syncEmptyState();
     }
 
     async function load() {
       const seq = ++loadSeq;
       message("알림을 불러오는 중입니다...");
+      if (readAll) readAll.hidden = true;
       try {
-        const response = await fetch(`/api/notifications?page=1&size=${PANEL_SIZE}`, {
+        const response = await fetch(`/api/notifications?page=1&size=${FETCH_SIZE}`, {
           headers: { Accept: "application/json" }
         });
         if (seq !== loadSeq) return;
         if (!response.ok) throw new Error("load failed");
         const data = await response.json();
         if (seq !== loadSeq) return;
-        if (!Array.isArray(data) || data.length === 0) {
-          message("새로운 알림이 없습니다.");
-        } else {
-          list.innerHTML = data.map((item) => itemHtml(item, formatTime(item.lastEventAt || item.createdAt))).join("");
-        }
+        const unread = Array.isArray(data) ? data.filter((item) => !isRead(item)) : [];
+        list.innerHTML = unread.map((item) => itemHtml(item, formatTime(item.lastEventAt || item.createdAt))).join("");
+        syncEmptyState();
         loaded = true;
       } catch (error) {
         if (seq === loadSeq) message("알림을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
@@ -143,8 +158,9 @@
       if (href) event.preventDefault();
       markRead(id).then((ok) => {
         if (ok) {
-          markItemRead(item);
+          removeItem(item);
           refreshCount();
+          if (typeof window.loadNotifications === "function") window.loadNotifications();
         }
         if (href) location.href = href;
       });
@@ -155,7 +171,8 @@
         fetch("/api/notifications/read-all", { method: "PATCH", headers: csrfHeaders(panel) })
           .then((response) => {
             if (!response.ok) return;
-            list.querySelectorAll(".notification-panel__item.is-unread").forEach(markItemRead);
+            list.querySelectorAll(".notification-panel__item").forEach((item) => item.remove());
+            syncEmptyState();
             refreshCount();
             if (typeof window.loadNotifications === "function") window.loadNotifications();
           })
@@ -176,7 +193,8 @@
         const fresh = holder.firstElementChild;
         if (existing) existing.remove();
         list.insertBefore(fresh, list.firstChild);
-        while (list.children.length > PANEL_SIZE) list.lastElementChild.remove();
+        while (list.children.length > FETCH_SIZE) list.lastElementChild.remove();
+        syncEmptyState();
       }
     };
   }
