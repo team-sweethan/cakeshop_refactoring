@@ -48,6 +48,15 @@ class NoticeSeedIntegrationTests {
                   AND m.role = 'ADMIN'
                 """
         )).isEqualTo(5);
+        // 등록일은 실행 시각이 아니라 고정 날짜라 다섯 공지의 날짜가 모두 다르다
+        assertThat(jdbcTemplate.queryForList(
+                """
+                SELECT DATE_FORMAT(COALESCE(starts_at, created_at), '%Y-%m-%d')
+                FROM community_notices
+                ORDER BY COALESCE(starts_at, created_at) DESC, id DESC
+                """,
+                String.class
+        )).containsExactly("2026-11-04", "2026-11-01", "2026-10-15", "2026-09-10", "2026-08-20");
 
         jdbcTemplate.update(
                 """
