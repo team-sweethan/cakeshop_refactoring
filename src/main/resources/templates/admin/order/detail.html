@@ -64,7 +64,11 @@
           <div class="data-row"><span class="data-row__label">최종 결제 금액</span><strong th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">0원</strong></div>
         </div></section>
         <section><h2 class="section-title">주문 처리</h2><div class="panel stack">
-          <p>현재 상태: <strong th:text="${order.statusLabel}">결제 대기</strong></p>
+          <p>현재 상태: <strong th:text="${order.statusLabel}">결제 대기</strong>
+            <span class="badge badge--danger" th:if="${paymentUnderReview}">결제 확인 중</span></p>
+          <p class="note" th:if="${paymentUnderReview}">
+            결제는 승인됐지만 돈워리가 결제를 확인하고 있습니다. 확인 중에 진행했다가 결제가 거절되면 손실은 가맹점이 부담합니다.
+          </p>
           <a class="btn btn--primary" th:if="${order.fulfillmentManageable}"
              th:href="@{/admin/fulfillment(status=${order.status}, page=${fulfillmentPage})}">주문 처리에서 열기</a>
           <form class="stack" th:if="${order.adminCancellationAvailable}" method="post"

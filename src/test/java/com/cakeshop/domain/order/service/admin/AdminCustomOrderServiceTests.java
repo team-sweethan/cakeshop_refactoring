@@ -31,6 +31,9 @@ class AdminCustomOrderServiceTests {
     );
 
     @Mock
+    private com.cakeshop.domain.payment.service.PaymentOrderQueryService paymentOrderQueryService;
+
+    @Mock
     private OrderMapper orderMapper;
 
     @Mock
@@ -40,7 +43,7 @@ class AdminCustomOrderServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new AdminCustomOrderService(orderMapper, memberOrderQueryService, CLOCK);
+        service = new AdminCustomOrderService(orderMapper, memberOrderQueryService, CLOCK, paymentOrderQueryService);
         when(memberOrderQueryService.isActiveAdmin(7L)).thenReturn(true);
     }
 
@@ -72,6 +75,25 @@ class AdminCustomOrderServiceTests {
 
         assertThatThrownBy(() -> service.completeProduction(10L, 7L))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    // PG(돈워리)가 결제를 확인 중인 수제 주문은 확인 창 동의가 있어야 제작을 시작하고, 처음 진행을 기록한다
+    @Test
+    void startProduction_paymentUnderReview_requiresAcknowledgementAndRecordsProceed() {
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(custom(OrderStatus.UNDER_REVIEW)));
+        when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.startProduction(10L, 7L, false))
+                .isInstanceOfSatisfying(BusinessException.class, error -> org.assertj.core.api.Assertions
+                        .assertThat(error.getErrorCode())
+                        .isEqualTo(com.cakeshop.domain.order.error.OrderErrorCode.PAYMENT_UNDER_REVIEW_CONFIRM_REQUIRED));
+        verify(orderMapper, never()).startProductionIfUnderReview(10L, 7L, NOW);
+
+        when(orderMapper.startProductionIfUnderReview(10L, 7L, NOW)).thenReturn(1);
+        service.startProduction(10L, 7L, true);
+
+        verify(orderMapper).recordGatewayReviewProceed(10L, 7L, NOW);
+        verify(orderMapper).startProductionIfUnderReview(10L, 7L, NOW);
     }
 
     @Test

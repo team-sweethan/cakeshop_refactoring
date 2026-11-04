@@ -38,6 +38,9 @@ public class FulfillmentAdminController {
             OrderStatus.PICKED_UP
     );
 
+    // PG 결제 확인 중 진행에 대한 확인 창 동의 (화면 hidden 값)
+    static final String REVIEW_ACKNOWLEDGED = "reviewAcknowledged";
+
     private final FulfillmentService fulfillmentService;
     private final AdminCustomOrderService adminCustomOrderService;
     private final RefundFacade refundFacade;
@@ -60,21 +63,39 @@ public class FulfillmentAdminController {
         return "admin/fulfillment/list";
     }
 
-    /** 픽업 대기 -> 픽업 완료**/
+    /**
+     * 픽업 대기 -> 픽업 완료.
+     * reviewAcknowledged: PG(돈워리)가 결제를 확인 중일 때 화면 확인 창에 동의했는지. 확인 중이면 동의가 있어야 진행된다.
+     */
     @PostMapping("/admin/fulfillment/{orderId}/pickup")
     public String markPickedUp(
             @PathVariable("orderId") long orderId,
             @ModelAttribute FulfillmentSearchCondition condition,
             @AuthenticationPrincipal MemberDetails admin,
+            @RequestParam(name = REVIEW_ACKNOWLEDGED, defaultValue = "false") boolean reviewAcknowledged,
             RedirectAttributes redirectAttributes
     ) {
         if (admin == null || admin.getMemberId() == null) {
             throw new BusinessException(CommonErrorCode.FORBIDDEN);
         }
 
-        fulfillmentService.markPickedUp(orderId, admin.getMemberId());
+        fulfillmentService.markPickedUp(orderId, admin.getMemberId(), reviewAcknowledged);
 
         redirectAttributes.addFlashAttribute("successMessage", "픽업 완료로 변경했습니다.");
+        return "redirect:" + fulfillmentRedirectUrl(condition);
+    }
+
+    /** PG(돈워리)가 결제를 확인 중인 일반 주문을 고객 확인 뒤 픽업 준비로 넘긴다 (DonWorry ADR-0064 4절). */
+    @PostMapping("/admin/fulfillment/{orderId}/ready")
+    public String moveToReadyForPickup(
+            @PathVariable("orderId") long orderId,
+            @ModelAttribute FulfillmentSearchCondition condition,
+            @AuthenticationPrincipal MemberDetails admin,
+            @RequestParam(name = REVIEW_ACKNOWLEDGED, defaultValue = "false") boolean reviewAcknowledged,
+            RedirectAttributes redirectAttributes
+    ) {
+        fulfillmentService.moveToReadyForPickup(orderId, requireAdminMemberId(admin), reviewAcknowledged);
+        redirectAttributes.addFlashAttribute("successMessage", "픽업 준비로 변경했습니다.");
         return "redirect:" + fulfillmentRedirectUrl(condition);
     }
 
@@ -84,9 +105,10 @@ public class FulfillmentAdminController {
             @PathVariable("orderId") long orderId,
             @ModelAttribute FulfillmentSearchCondition condition,
             @AuthenticationPrincipal MemberDetails admin,
+            @RequestParam(name = REVIEW_ACKNOWLEDGED, defaultValue = "false") boolean reviewAcknowledged,
             RedirectAttributes redirectAttributes
     ) {
-        adminCustomOrderService.startProduction(orderId, requireAdminMemberId(admin));
+        adminCustomOrderService.startProduction(orderId, requireAdminMemberId(admin), reviewAcknowledged);
         redirectAttributes.addFlashAttribute("successMessage", "제작을 시작했습니다.");
         return "redirect:" + fulfillmentRedirectUrl(condition);
     }
@@ -97,9 +119,10 @@ public class FulfillmentAdminController {
             @PathVariable("orderId") long orderId,
             @ModelAttribute FulfillmentSearchCondition condition,
             @AuthenticationPrincipal MemberDetails admin,
+            @RequestParam(name = REVIEW_ACKNOWLEDGED, defaultValue = "false") boolean reviewAcknowledged,
             RedirectAttributes redirectAttributes
     ) {
-        adminCustomOrderService.completeProduction(orderId, requireAdminMemberId(admin));
+        adminCustomOrderService.completeProduction(orderId, requireAdminMemberId(admin), reviewAcknowledged);
         redirectAttributes.addFlashAttribute("successMessage", "제작 완료 후 픽업 대기로 변경했습니다.");
         return "redirect:" + fulfillmentRedirectUrl(condition);
     }

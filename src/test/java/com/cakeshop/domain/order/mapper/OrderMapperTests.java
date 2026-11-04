@@ -663,6 +663,25 @@ class OrderMapperTests {
         assertThat(unchanged.getCanceledBy()).isNull();
     }
 
+    // PG 결제 확인 중 판정 전 진행 기록은 처음 한 번만 남는다 (확인 중 판단은 결제 도메인 PaymentOrderMapperTests)
+    @Test
+    void recordGatewayReviewProceed_recordsFirstProceedOnly() {
+        Order order = newOrder();
+        order.setOrderType(OrderType.GENERAL);
+        orderMapper.insertOrder(order);
+        LocalDateTime proceededAt = LocalDateTime.of(2026, 8, 1, 12, 10);
+
+        assertThat(orderMapper.recordGatewayReviewProceed(order.getId(), memberId, proceededAt)).isEqualTo(1);
+        assertThat(orderMapper.recordGatewayReviewProceed(order.getId(), memberId, proceededAt.plusMinutes(5)))
+                .isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT review_proceeded_by FROM orders WHERE id = ?", Long.class, order.getId()))
+                .isEqualTo(memberId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT review_proceeded_at FROM orders WHERE id = ?", LocalDateTime.class, order.getId()))
+                .isEqualTo(proceededAt);
+    }
+
     // PG(돈워리)가 결제를 확인 중인 일반 주문은 주문 확인 중으로 두고, 승인(매입)되면 픽업 준비로 넘긴다 (DonWorry ADR-0064 4절)
     @Test
     void heldGeneralOrder_staysUnderReviewUntilGatewayCapture() {

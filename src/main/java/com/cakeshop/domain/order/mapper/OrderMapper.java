@@ -117,6 +117,17 @@ public interface OrderMapper {
     /** 고객·관리자 요청으로 진행 중인 취소가 있는지 확인한다. */
     boolean hasRequestedRefundCancellation(@Param("orderId") long orderId);
 
+    /**
+     * PG 결제 확인 중에 관리자가 주문을 진행한 기록을 처음 한 번만 남긴다.
+     *
+     * @return 기록했으면 1, 이미 기록이 있으면 0
+     */
+    int recordGatewayReviewProceed(
+            @Param("orderId") long orderId,
+            @Param("proceededBy") long proceededBy,
+            @Param("proceededAt") LocalDateTime proceededAt
+    );
+
     /** 주문에 포함된 상품 스냅샷을 저장 순서대로 조회한다. */
     List<OrderItem> findOrderItemsByOrderId(@Param("orderId") long orderId);
 

@@ -96,6 +96,15 @@
         )
     </select>
 
+    <!-- 판정 전 진행은 확인 창에 동의하고 처음 진행한 관리자와 시각만 남긴다 -->
+    <update id="recordGatewayReviewProceed">
+        UPDATE orders
+        SET review_proceeded_by = #{proceededBy},
+            review_proceeded_at = #{proceededAt}
+        WHERE id = #{orderId}
+          AND review_proceeded_at IS NULL
+    </update>
+
     <insert id="insertOrderItemOption"
             parameterType="com.cakeshop.domain.order.entity.OrderItemOption"
             useGeneratedKeys="true"

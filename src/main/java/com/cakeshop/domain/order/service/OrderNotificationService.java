@@ -62,6 +62,15 @@ public class OrderNotificationService {
         );
     }
 
+    /** PG(돈워리)가 결제를 확인 중인 주문을 관리자에게 알린다 (DonWorry ADR-0064 4절). */
+    public void notifyPaymentUnderReview(long orderId, String orderNumber) {
+        afterCommit(
+                () -> orderNotificationSender.sendPaymentUnderReview(orderId, orderNumber),
+                "결제 확인 중",
+                orderId
+        );
+    }
+
     private void afterCommit(Runnable send, String what, long orderId) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             dispatch(send, what, orderId);

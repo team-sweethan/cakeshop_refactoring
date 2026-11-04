@@ -136,6 +136,21 @@ class OrderNotificationSenderTest {
     }
 
     @Test
+    @DisplayName("PG 결제 확인 중이면 관리자들에게만 ADMIN_PAYMENT_UNDER_REVIEW 알림이 전송된다")
+    void sendPaymentUnderReview_dispatchesNotificationToAdminsOnly() {
+        given(memberOrderNotificationQueryService.findActiveAdminIds()).willReturn(List.of(1L));
+
+        orderNotificationSender.sendPaymentUnderReview(500L, "ORD-20261104-0001");
+
+        verify(notificationService).makeNotification(argThat(req ->
+                req.getReceiverId() == 1L
+                        && req.getType() == NotificationType.ADMIN_PAYMENT_UNDER_REVIEW
+                        && req.getOrderId() == 500L
+        ));
+        verify(notificationService, org.mockito.Mockito.times(1)).makeNotification(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("픽업 하루 전 알림 시 고객 및 관리자 알림이 전송된다")
     void sendPickupReminderTomorrow_dispatchesNotifications() {
         given(memberNotificationQueryService.isMemberActive(2L)).willReturn(true);

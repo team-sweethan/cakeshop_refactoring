@@ -33,10 +33,11 @@ public record OrderDetailView(
         return status.statusLabel();
     }
 
+    // 일반 주문의 UNDER_REVIEW는 PG(돈워리)가 결제를 확인 중인 주문이라 주문 처리에서 픽업 준비로 넘길 수 있다.
     public boolean isFulfillmentManageable() {
         return status == OrderStatus.READY_FOR_PICKUP
-                || (orderType == OrderType.CUSTOM
-                && (status == OrderStatus.UNDER_REVIEW || status == OrderStatus.IN_PRODUCTION));
+                || status == OrderStatus.UNDER_REVIEW
+                || (orderType == OrderType.CUSTOM && status == OrderStatus.IN_PRODUCTION);
     }
 
     public boolean isAdminCancellationAvailable() {

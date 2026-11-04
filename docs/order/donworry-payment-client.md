@@ -52,7 +52,15 @@
 
   - 구매자 화면에는 결제 검토 사실을 보이지 않는다. 주문 상태 이름만 "주문 확인 중"이다.
   - 주문 확인 중인 일반 주문도 픽업 전이면 고객 · 가맹점이 취소할 수 있다. 보류 결제 취소는 돈워리가 승인을 취소한다(DonWorry #382).
-  - 가맹점 화면의 "결제 확인 중" 표시 · 알림, 고객 확인 후 진행(확인 창 · 기록)은 후속 PR(PR B)에서 한다.
+  - **가맹점(관리자) 화면** — 판정 전 결제 = `payments` 가 DONE이고 `gateway_held_at`은 있고 `gateway_captured_at`은 없음
+    - 주문 처리(`/admin/fulfillment`)와 주문 상세(`/admin/orders/{id}`)에 "결제 확인 중" 배지와 안내를 보인다.
+    - 보류 결제가 완료되면 활성 관리자에게 `ADMIN_PAYMENT_UNDER_REVIEW` 알림을 보낸다(고객에게는 보내지 않음).
+      결제 쪽이 `PaymentUnderGatewayReviewEvent`를 발행하고 주문 쪽 `OrderNotificationEventListener`가 커밋 뒤 보낸다.
+    - 오너 선택지: 기다리기(판정이 승인으로 끝나면 일반 주문은 자동으로 픽업 준비) · 고객 확인 후 진행 · 주문 취소(관리자 취소 폼).
+    - 고객 확인 후 진행: 판정 전에 제작 시작 · 제작 완료 · 픽업 준비로 넘기기(`POST /admin/fulfillment/{id}/ready`, 일반 주문) ·
+      픽업 완료를 누르면 확인 창("돈워리가 확인 중인 결제입니다. 진행 후 거절되면 손실은 가맹점이 부담합니다.")을 거친다.
+      서버는 `reviewAcknowledged=true` 없이 오면 `ORDER_013`(409)으로 거절하고, 동의한 첫 진행의 관리자 · 시각을
+      `orders.review_proceeded_by` · `review_proceeded_at`에 남긴다.
 
   보류 뒤 보안 직원이 거절(VOIDED)하면 돈워리가 상태 웹훅을 보내고(웹훅을 놓쳐도 60초 조회 배치가 맞춘다) 주문을 이렇게 처리한다(DonWorry ADR-0064 4-1).
 
@@ -112,7 +120,8 @@ DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakesho
 ## 4. 알려진 한계 (결정 필요)
 
 - **보류 뒤 거절 · 이행된 주문**: 주문을 유지한 경우(위 2절 표) 손실은 가맹점 부담이다(DonWorry ADR-0064 4-1 개정, 2026-11-04).
-  돈워리에 "이행됨"을 알리지 않고 PG 보상 · 정산도 없다. CakeShop은 표시 · 로그를 남기고, 관리자 화면 표시는 후속 PR(PR B)에서 한다.
+  돈워리에 "이행됨"을 알리지 않고 PG 보상 · 정산도 없다. CakeShop은 `failure_code=GATEWAY_VOIDED_KEPT` 표시와 경고 로그만 남긴다.
+  거절 뒤 유지된 주문을 관리자 화면에 따로 보이는 기능은 아직 없다(판정 전 진행 기록은 `orders.review_proceeded_*`에 있다).
 - **고객 · 관리자 취소** (`DonWorryPaymentGateway.cancel` → DonWorry `POST /api/payments/{id}/cancellations`, 계약 DonWorry #381):
   - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
   - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")

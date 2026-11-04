@@ -12,6 +12,7 @@ import com.cakeshop.domain.payment.infra.ApprovalResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.payment.event.CustomPaymentChatCompletedEvent;
 import com.cakeshop.domain.payment.event.GeneralPaymentCompletedEvent;
+import com.cakeshop.domain.payment.event.PaymentUnderGatewayReviewEvent;
 import com.cakeshop.domain.product.service.ProductStockService;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -114,7 +115,7 @@ public class PaymentService {
 
         if (approval.heldForReview()) {
             // PG 판정 전에는 상품이 나가지 않도록 픽업 준비 대신 주문 확인 중으로 둔다(DonWorry ADR-0064 4절).
-            markGatewayHeld(payment, approval);
+            markGatewayHeld(order.orderId(), payment, approval);
             orderPaymentCommandService.holdGeneralOrderForGatewayReview(
                     order.orderId(),
                     approval.approvedAt()
@@ -151,7 +152,7 @@ public class PaymentService {
         ));
         if (approval.heldForReview()) {
             // 수제 주문은 원래 관리자 검토(UNDER_REVIEW)로 가므로 결제 확인 중 표시만 남긴다.
-            markGatewayHeld(payment, approval);
+            markGatewayHeld(order.orderId(), payment, approval);
         }
 
         orderPaymentCommandService.completeCustomOrderAfterPayment(
@@ -185,12 +186,14 @@ public class PaymentService {
         eventPublisher.publishEvent(new GeneralPaymentCompletedEvent(order.orderId()));
     }
 
-    private void markGatewayHeld(Payment payment, ApprovalResult approval) {
+    private void markGatewayHeld(long orderId, Payment payment, ApprovalResult approval) {
         requireOneRow(paymentMapper.markGatewayHeld(
                 payment.getId(),
                 approval.paymentKey(),
                 approval.approvedAt()
         ));
+        // 커밋 뒤 관리자에게 "결제 확인 중"을 알린다(주문 도메인 리스너).
+        eventPublisher.publishEvent(new PaymentUnderGatewayReviewEvent(orderId));
     }
 
     private void requireOneRow(int affectedRows) {
