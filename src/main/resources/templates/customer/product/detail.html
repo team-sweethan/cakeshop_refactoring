@@ -151,20 +151,13 @@
         상품명
       </h2>
 
-      <!--/* 기본 가격. 판매 · 재고 상태 배지는 고객에게는 주문 상자 안에 보이고,
-             주문 상자가 없는 관리자에게만 이 줄 오른쪽에 보인다. */-->
-      <div class="product-summary__price-row">
-        <p
-                class="product-summary__price"
-                th:text="|${#numbers.formatInteger(product.basePrice, 0, 'COMMA')}원|"
-        >
-          35,000원
-        </p>
-
-        <th:block sec:authorize="hasRole('ADMIN')">
-          <div th:replace="~{:: productStatusBadges}"></div>
-        </th:block>
-      </div>
+      <!-- 상품 기본 가격 -->
+      <p
+              class="product-summary__price"
+              th:text="|${#numbers.formatInteger(product.basePrice, 0, 'COMMA')}원|"
+      >
+        35,000원
+      </p>
 
       <!-- 상품 설명 -->
       <p
@@ -176,7 +169,8 @@
         상품 설명
       </p>
 
-      <!--/* 픽업 · 취소 안내는 표 대신 아이콘이 붙은 짧은 안내 두 개로 둔다. 넓으면 한 줄, 좁으면 두 줄이다. */-->
+      <!--/* 상품 안내: 픽업 가능일 · 취소 가능 기간 · 판매 상태 · 재고를 아이콘이 붙은 줄로 차례로 둔다.
+             설명과 아래 주문 상자 사이를 채운다. */-->
       <ul class="product-facts">
         <li class="product-facts__item">
           <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
@@ -204,6 +198,31 @@
           <span class="product-facts__label">취소 가능 기간</span>
           <span th:if="${product.productType.name() == 'GENERAL'}">픽업 예정 시각 전까지 취소 가능</span>
           <span th:if="${product.productType.name() == 'CUSTOM'}">관리자 승인 전까지 취소 가능</span>
+        </li>
+        <!--/* 고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 12l-8 8-9-9V3h8z"/>
+            <circle cx="7.5" cy="7.5" r="1.5"/>
+          </svg>
+          <span class="product-facts__label">판매 상태</span>
+          <span class="badge badge--success">판매 중</span>
+        </li>
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 8l-9-5-9 5v8l9 5 9-5z"/>
+            <path d="M3 8l9 5 9-5M12 13v8"/>
+          </svg>
+          <span class="product-facts__label">재고</span>
+          <span class="badge badge--success" th:if="${product.unlimitedStock}">재고 제한 없음</span>
+          <span class="badge badge--danger" th:if="${product.outOfStock}">품절</span>
+          <span class="badge badge--success"
+                th:if="${!product.unlimitedStock and !product.outOfStock}"
+                th:text="|${product.stockQuantity}개 남음|">5개 남음</span>
         </li>
       </ul>
 
@@ -297,9 +316,6 @@
              기본 가격은 위 가격 줄에 있고 옵션 추가금액은 항상 0원이라 그 줄들은 뺀다. */-->
       <div class="product-purchase"
            th:classappend="${compactPurchase} ? ' product-purchase--compact'">
-
-      <!--/* 판매 · 재고 상태는 주문 상자 왼쪽 위. 옵션 없는 일반 케이크는 같은 줄 오른쪽에 수량 · 총금액이 온다. */-->
-      <div th:replace="~{:: productStatusBadges}"></div>
 
       <!-- 주문 가능한 일반 상품에만 수량 선택기를 표시한다. -->
       <div
@@ -575,21 +591,6 @@
       </a>
     </div>
   </section>
-
-  <!--/* 판매 · 재고 상태 배지. 고객은 주문 상자, 관리자는 가격 줄에서 쓴다.
-         th:if="false"는 정의 자리에서 그리지 않게 하는 것이고, th:replace의 조각 탐색에는 영향이 없다.
-         고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
-  <th:block th:if="${false}">
-    <div class="product-summary__status" aria-label="판매 · 재고 상태"
-         th:fragment="productStatusBadges">
-      <span class="badge badge--success">판매 중</span>
-      <span class="badge badge--success" th:if="${product.unlimitedStock}">재고 제한 없음</span>
-      <span class="badge badge--danger" th:if="${product.outOfStock}">품절</span>
-      <span class="badge badge--success"
-            th:if="${!product.unlimitedStock and !product.outOfStock}"
-            th:text="|재고 ${product.stockQuantity}개|">재고 5개</span>
-    </div>
-  </th:block>
 </main>
 
 <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>

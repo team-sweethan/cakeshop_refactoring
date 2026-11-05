@@ -478,19 +478,19 @@ class ScreenRenderingTests {
     )
     void generalProductDetail_withoutOptions_showsQuantityAndTotalInOneRow() throws Exception {
         // 옵션 없는 일반 케이크는 옵션 영역 · 옵션 추가금액 · 수량 줄 없이 "수량 ……… 총금액" 한 줄로 그린다.
-        // 판매 · 재고 상태는 가격 줄 오른쪽 배지로만 보인다. 주문 버튼이 첫 화면에 들어오게 하려는 것이다.
+        // 판매 상태 · 재고는 픽업 가능일 · 취소 가능 기간과 같은 상품 안내 목록에 차례로 보인다.
         mockMvc.perform(get("/products/{productId}", generalProductId))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("product-purchase--compact")))
             .andExpect(content().string(containsString("data-quantity")))
             .andExpect(content().string(containsString("data-product-price-summary")))
             .andExpect(content().string(containsString("data-product-total-price")))
-            .andExpect(content().string(containsString("class=\"product-summary__status\"")))
-            .andExpect(content().string(containsString("판매 중")))
+            .andExpect(content().string(matchesPattern(
+                "(?s).*class=\"product-facts\".*픽업 가능일.*취소 가능 기간.*판매 상태.*판매 중.*재고.*\\d+개 남음.*"
+            )))
             .andExpect(content().string(not(containsString("data-product-option-groups"))))
             .andExpect(content().string(not(containsString("data-selected-option-price"))))
             .andExpect(content().string(not(containsString("data-selected-quantity"))))
-            .andExpect(content().string(not(containsString("판매 상태"))))
             .andExpect(content().string(not(containsString("재고 있음 ("))));
     }
 

@@ -3445,19 +3445,12 @@ h2.section-title {
 .product-summary__price { color: var(--color-brand); font-size: 22px; font-weight: 850 }
 .product-summary__description { box-shadow: none; color: #665652; line-height: 1.8; margin-top: 24px }
 
-/* 가격 줄 오른쪽 끝에 판매 · 재고 상태 배지를 둔다. 따로 두 줄을 쓰지 않아 주문 버튼이 첫 화면에 들어온다. */
-.product-summary__price-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between }
-.product-summary__price-row .product-summary__price { margin: 0 }
-.product-summary__status { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end }
-
 /* 수량과 금액. 기본은 수량 위, 금액 상자 아래. */
 .product-purchase { margin-top: 12px }
 .product-purchase__summary { margin-top: 16px }
 
-/* 옵션 없는 일반 케이크: "[판매 중][재고] ……… 수량 [- 1 +]  총금액" 한 줄.
-   상태 배지가 왼쪽을 채우고 수량 · 총금액이 오른쪽 아래에 붙는다. 금액 상자는 테두리 없이 총금액만 보인다. */
-.product-purchase--compact { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: flex-end; margin-top: 20px }
-.product-purchase--compact .product-summary__status { justify-content: flex-start; margin-right: auto }
+/* 옵션 없는 일반 케이크: "수량 [- 1 +] ……… 총금액" 한 줄. 금액 상자는 테두리 없이 총금액만 보인다. */
+.product-purchase--compact { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: space-between; margin-top: 20px }
 .product-purchase--compact .product-purchase__quantity { align-items: center; display: flex; gap: 8px; margin-bottom: 0 }
 .product-purchase--compact .product-purchase__quantity .form-label { margin: 0 }
 .product-purchase--compact .product-purchase__summary { background: transparent; border: 0; box-shadow: none; margin-top: 0; padding: 0 }
@@ -3472,21 +3465,22 @@ h2.section-title {
     padding: 24px 32px 32px
 }
 .product-hero .page-breadcrumb { margin-bottom: 20px }
-.product-hero .product-detail-layout { gap: 40px; margin-bottom: 0 }
-.product-hero .product-summary { background: transparent; border: 0; box-shadow: none; padding: 0 }
+/* 오른쪽 칸을 왼쪽 사진 높이만큼 늘리고, 주문 상자는 칸 맨 아래(사진 아래 끝)에 붙인다. */
+.product-hero .product-detail-layout { align-items: stretch; gap: 40px; margin-bottom: 0 }
+.product-hero .product-summary { background: transparent; border: 0; box-shadow: none; display: flex; flex-direction: column; padding: 0 }
 .product-hero .product-summary__description { color: #665652; line-height: 1.8; margin: 16px 0 0 }
+.product-hero .product-summary__type { align-self: flex-start }
 
-/* 픽업 · 취소 안내: 아이콘이 붙은 짧은 안내 두 개 */
-.product-facts { border-top: 1px solid var(--color-border-light); display: flex; flex-wrap: wrap; gap: 8px 20px; list-style: none; margin: 18px 0 0; padding: 16px 0 0 }
-.product-facts__item { align-items: center; color: var(--color-text); display: inline-flex; font-size: var(--font-xs); gap: 6px }
+/* 상품 안내: 아이콘 · 항목 이름 · 값을 줄마다 같은 칸에 맞춘다 (픽업 가능일 · 취소 가능 기간 · 판매 상태 · 재고) */
+.product-facts { border-top: 1px solid var(--color-border-light); display: grid; gap: 12px; list-style: none; margin: 18px 0 20px; padding: 18px 0 0 }
+.product-facts__item { align-items: center; color: var(--color-text); display: grid; font-size: var(--font-sm); gap: 10px; grid-template-columns: 16px 96px minmax(0, 1fr); justify-items: start }
 .product-facts__icon { color: var(--color-brand); flex: none }
 .product-facts__label { color: var(--color-muted); font-weight: 700 }
 
 /* 주문 상자: 수량 · 금액 · 버튼을 연한 분홍 상자로 묶어 주문할 곳을 드러낸다 */
-.product-order-box { background: #fdf7f9; border: 1px solid #f2e2e8; border-radius: var(--radius-md); margin-top: 20px; padding: 18px 20px 16px }
+.product-order-box { background: #fdf7f9; border: 1px solid #f2e2e8; border-radius: var(--radius-md); margin-top: auto; padding: 18px 20px 16px }
 .product-order-box .product-purchase { margin-top: 0 }
-.product-order-box .product-purchase > .product-summary__status { justify-content: flex-start }
-.product-order-box .product-purchase__summary { background: #fff; margin-top: 12px }
+.product-order-box .product-purchase__summary { background: #fff; margin-top: 0 }
 .product-order-box .product-purchase--compact .product-purchase__summary { background: transparent; margin-top: 0 }
 
 /* 버튼 배치: 주요 버튼은 상자 폭 전체, 그 아래 장바구니 · 1:1 문의가 나란히, 맨 아래 안내.
