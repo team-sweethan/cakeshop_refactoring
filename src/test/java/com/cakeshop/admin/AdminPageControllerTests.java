@@ -303,7 +303,11 @@ class AdminPageControllerTests {
                 .contains("class=\"fulfillment-info\"")
                 .contains("class=\"admin-order-request\"")
                 .contains("주문 상세 보기")
-                .doesNotContain("전체 주문 보기");
+                .doesNotContain("전체 주문 보기")
+                // 탭 건수는 이름으로 꺼낸다. T(OrderStatus) 같은 클래스 참조는 로컬 개발 서버(devtools 재시작)에서
+                // 다른 클래스로 잡혀 화면이 500이 난다(2026-11-05 확인).
+                .contains("fulfillment.countOfStatus('UNDER_REVIEW')")
+                .doesNotContain("T(com.");
         assertThat(appStyles).doesNotContain(".admin-order-");
     }
 }

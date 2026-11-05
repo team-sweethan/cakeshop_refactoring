@@ -36,6 +36,19 @@ public record FulfillmentListView(
         return statusCounts == null ? 0 : statusCounts.getOrDefault(status, 0L);
     }
 
+    /**
+     * 화면용: 단계 이름(OrderStatus 이름)으로 주문 수를 꺼낸다. 템플릿에서 T(OrderStatus) 같은 클래스 참조를 쓰지 않기 위해 둔다.
+     * 모르는 이름이면 0이다.
+     */
+    public long countOfStatus(String statusName) {
+        for (OrderStatus status : OrderStatus.values()) {
+            if (status.name().equals(statusName)) {
+                return countOf(status);
+            }
+        }
+        return 0;
+    }
+
     /** "처리할 주문" 탭 건수: 검토 대기 + 제작 중 + 픽업 대기 */
     public long activeCount() {
         return countOf(OrderStatus.UNDER_REVIEW)

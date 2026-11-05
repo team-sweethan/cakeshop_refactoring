@@ -29,16 +29,16 @@
            th:href="@{/admin/fulfillment}">처리할 주문 <span class="order-workspace__count" th:text="${fulfillment.activeCount()}">0</span></a>
         <a class="order-workspace__stage"
            th:classappend="${fulfillment.selectedStatus != null and fulfillment.selectedStatus.name() == 'UNDER_REVIEW'} ? ' is-current'"
-           th:href="@{/admin/fulfillment(status='UNDER_REVIEW')}">검토 대기 <span class="order-workspace__count" th:text="${fulfillment.countOf(T(com.cakeshop.domain.order.entity.OrderStatus).UNDER_REVIEW)}">0</span></a>
+           th:href="@{/admin/fulfillment(status='UNDER_REVIEW')}">검토 대기 <span class="order-workspace__count" th:text="${fulfillment.countOfStatus('UNDER_REVIEW')}">0</span></a>
         <a class="order-workspace__stage"
            th:classappend="${fulfillment.selectedStatus != null and fulfillment.selectedStatus.name() == 'IN_PRODUCTION'} ? ' is-current'"
-           th:href="@{/admin/fulfillment(status='IN_PRODUCTION')}">제작 중 <span class="order-workspace__count" th:text="${fulfillment.countOf(T(com.cakeshop.domain.order.entity.OrderStatus).IN_PRODUCTION)}">0</span></a>
+           th:href="@{/admin/fulfillment(status='IN_PRODUCTION')}">제작 중 <span class="order-workspace__count" th:text="${fulfillment.countOfStatus('IN_PRODUCTION')}">0</span></a>
         <a class="order-workspace__stage"
            th:classappend="${fulfillment.selectedStatus != null and fulfillment.selectedStatus.name() == 'READY_FOR_PICKUP'} ? ' is-current'"
-           th:href="@{/admin/fulfillment(status='READY_FOR_PICKUP')}">픽업 대기 <span class="order-workspace__count" th:text="${fulfillment.countOf(T(com.cakeshop.domain.order.entity.OrderStatus).READY_FOR_PICKUP)}">0</span></a>
+           th:href="@{/admin/fulfillment(status='READY_FOR_PICKUP')}">픽업 대기 <span class="order-workspace__count" th:text="${fulfillment.countOfStatus('READY_FOR_PICKUP')}">0</span></a>
         <a class="order-workspace__stage"
            th:classappend="${fulfillment.selectedStatus != null and fulfillment.selectedStatus.name() == 'PICKED_UP'} ? ' is-current'"
-           th:href="@{/admin/fulfillment(status='PICKED_UP')}">픽업 완료 <span class="order-workspace__count" th:text="${fulfillment.countOf(T(com.cakeshop.domain.order.entity.OrderStatus).PICKED_UP)}">0</span></a>
+           th:href="@{/admin/fulfillment(status='PICKED_UP')}">픽업 완료 <span class="order-workspace__count" th:text="${fulfillment.countOfStatus('PICKED_UP')}">0</span></a>
       </nav>
 
       <!--/* 안내 문구와 정렬 선택. 처리할 주문은 픽업 임박순이 기본, 픽업 완료는 최근 완료순이 기본 */-->
