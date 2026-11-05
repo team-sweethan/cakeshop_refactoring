@@ -18,7 +18,7 @@
   <script defer th:src="@{/js/customer-mockup.js}"></script>
   <script defer th:src="@{/js/product-detail-auth.js}"></script>
   <script defer
-          th:src="@{/js/product-gallery.js(v='product-gallery-navigation')}">
+          th:src="@{/js/product-gallery.js(v='product-gallery-autoplay')}">
   </script>
 </head>
 
@@ -94,16 +94,20 @@
           </button>
         </div>
 
-        <!-- 대표 이미지를 제외한 나머지 이미지를 순서대로 표시한다. -->
-        <div class="product-gallery__thumbnails grid grid--4"
+        <!--/* 대표 이미지를 포함한 모든 이미지를 앨범 띠로 보인다. 지금 크게 보이는 사진이 띠에서 강조되어
+               위 큰 사진과 아래 작은 사진의 관계가 보인다. 3초마다 다음 사진으로 넘어간다(product-gallery.js). */-->
+        <div class="product-gallery__thumbnails"
              th:if="${product.images.size() > 1}">
           <button class="product-gallery__thumbnail-button"
                   type="button"
                   data-product-thumbnail
                   th:each="image, imageStatus : ${product.images}"
-                  th:if="${imageStatus.index > 0}"
+                  th:classappend="${imageStatus.first} ? ' is-active'"
+                  th:aria-current="${imageStatus.first} ? 'true' : 'false'"
                   th:attr="data-image-url=${image.imageUrl},
-                           data-image-alt=|${product.name} 이미지 ${imageStatus.count}|"
+                           data-image-alt=${imageStatus.first}
+                               ? |${product.name} 대표 이미지|
+                               : |${product.name} 이미지 ${imageStatus.count}|"
                   th:aria-label="|${product.name} 이미지 ${imageStatus.count} 크게 보기|">
             <img class="placeholder-image placeholder-image--sm product-gallery__thumbnail"
                  loading="lazy"
@@ -147,7 +151,8 @@
         상품명
       </h2>
 
-      <!--/* 기본 가격과 판매 · 재고 상태를 한 줄에 둔다. 상태는 줄 오른쪽 끝 배지로만 보인다. */-->
+      <!--/* 기본 가격. 판매 · 재고 상태 배지는 고객에게는 주문 상자 안에 보이고,
+             주문 상자가 없는 관리자에게만 이 줄 오른쪽에 보인다. */-->
       <div class="product-summary__price-row">
         <p
                 class="product-summary__price"
@@ -156,15 +161,9 @@
           35,000원
         </p>
 
-        <!--/* 고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
-        <div class="product-summary__status" aria-label="판매 · 재고 상태">
-          <span class="badge badge--success">판매 중</span>
-          <span class="badge badge--success" th:if="${product.unlimitedStock}">재고 제한 없음</span>
-          <span class="badge badge--danger" th:if="${product.outOfStock}">품절</span>
-          <span class="badge badge--success"
-                th:if="${!product.unlimitedStock and !product.outOfStock}"
-                th:text="|재고 ${product.stockQuantity}개|">재고 5개</span>
-        </div>
+        <th:block sec:authorize="hasRole('ADMIN')">
+          <div th:replace="~{:: productStatusBadges}"></div>
+        </th:block>
       </div>
 
       <!-- 상품 설명 -->
@@ -298,6 +297,9 @@
              기본 가격은 위 가격 줄에 있고 옵션 추가금액은 항상 0원이라 그 줄들은 뺀다. */-->
       <div class="product-purchase"
            th:classappend="${compactPurchase} ? ' product-purchase--compact'">
+
+      <!--/* 판매 · 재고 상태는 주문 상자 왼쪽 위. 옵션 없는 일반 케이크는 같은 줄 오른쪽에 수량 · 총금액이 온다. */-->
+      <div th:replace="~{:: productStatusBadges}"></div>
 
       <!-- 주문 가능한 일반 상품에만 수량 선택기를 표시한다. -->
       <div
@@ -573,6 +575,21 @@
       </a>
     </div>
   </section>
+
+  <!--/* 판매 · 재고 상태 배지. 고객은 주문 상자, 관리자는 가격 줄에서 쓴다.
+         th:if="false"는 정의 자리에서 그리지 않게 하는 것이고, th:replace의 조각 탐색에는 영향이 없다.
+         고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
+  <th:block th:if="${false}">
+    <div class="product-summary__status" aria-label="판매 · 재고 상태"
+         th:fragment="productStatusBadges">
+      <span class="badge badge--success">판매 중</span>
+      <span class="badge badge--success" th:if="${product.unlimitedStock}">재고 제한 없음</span>
+      <span class="badge badge--danger" th:if="${product.outOfStock}">품절</span>
+      <span class="badge badge--success"
+            th:if="${!product.unlimitedStock and !product.outOfStock}"
+            th:text="|재고 ${product.stockQuantity}개|">재고 5개</span>
+    </div>
+  </th:block>
 </main>
 
 <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>
