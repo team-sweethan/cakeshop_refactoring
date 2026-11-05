@@ -36,8 +36,12 @@ class OrderMemberQueryServiceTests {
                 .thenReturn(List.of(row(10L, OrderStatus.IN_PRODUCTION)));
         when(orderMemberMapper.findCompletedOrders(1L, 5))
                 .thenReturn(List.of(row(20L, OrderStatus.PICKED_UP)));
+        when(orderMemberMapper.countInProgressOrders(1L)).thenReturn(7L);
 
         var result = orderMemberQueryService.getMyPageOrders(1L);
+
+        // 목록은 최근 5건까지만 담지만 요약 숫자는 진행 중 주문 전체 건수다.
+        assertThat(result.inProgressCount()).isEqualTo(7L);
 
         assertThat(result.inProgressOrders())
                 .singleElement()

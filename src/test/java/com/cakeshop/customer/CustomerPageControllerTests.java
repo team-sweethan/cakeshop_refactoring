@@ -42,6 +42,7 @@ import com.cakeshop.domain.payment.service.RefundFacade;
 import com.cakeshop.domain.product.service.ProductQueryService;
 import com.cakeshop.domain.product.controller.ProductController;
 import com.cakeshop.domain.product.service.ProductService;
+import com.cakeshop.domain.review.service.ReviewMemberQueryService;
 import com.cakeshop.domain.review.service.ReviewProductQueryService;
 import com.cakeshop.global.security.MemberDetails;
 import java.io.IOException;
@@ -145,6 +146,7 @@ class CustomerPageControllerTests {
                                 memberService,
                                 couponMemberQueryService,
                                 orderMemberQueryService,
+                                mock(ReviewMemberQueryService.class),
                                 mock(SessionRegistry.class)),
                         new NotificationUserController())
                 .setCustomArgumentResolvers(
@@ -304,6 +306,30 @@ class CustomerPageControllerTests {
                 .contains(".checkout-card {")
                 .contains(".checkout-summary {")
                 .contains("@container (max-width: 620px)");
+    }
+
+    // 마이페이지는 쇼핑 · 활동 · 계정으로 묶은 메뉴와 프로필 한 줄, 요약 숫자 3칸, 최근 주문을 보인다.
+    // 회원 정보 표(전화번호 · 생년월일)는 회원정보 수정 화면에서 본다. 화면 전용 스타일은 member-mypage.css에 둔다.
+    @Test
+    void myPage_groupsMenuAndShowsSummaryCounts() throws IOException {
+        String myPage = new ClassPathResource("templates/customer/member/mypage.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(myPage)
+                .contains("th:href=\"@{/css/member-mypage.css}\"")
+                .containsSubsequence(">쇼핑</p>", ">주문 내역</a>", ">보유 쿠폰</a>",
+                        ">활동</p>", ">작성할 후기</a>", ">내 후기</a>", ">1:1 문의</a>",
+                        ">계정</p>", ">회원정보 수정</a>")
+                .contains("${orderSummary.inProgressCount}")
+                .contains("${availableCouponCount}")
+                .contains("${writableReviewCount}")
+                .containsSubsequence("진행 중인 주문", "완료된 주문")
+                .doesNotContain("member.birthDate")
+                .doesNotContain("member.phone")
+                .doesNotContain("style=\"");
+        assertThat(appStyles).doesNotContain(".mypage-");
     }
 
     // 결제 완료 화면은 결제가 끝난 것만 알리고 주문 진행은 주문 내역에서 보게 한다.

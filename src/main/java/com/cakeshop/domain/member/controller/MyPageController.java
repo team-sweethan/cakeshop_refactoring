@@ -7,6 +7,7 @@ import com.cakeshop.domain.member.error.MemberErrorCode;
 import com.cakeshop.domain.member.service.MemberService;
 import com.cakeshop.domain.coupon.service.CouponMemberQueryService;
 import com.cakeshop.domain.order.service.OrderMemberQueryService;
+import com.cakeshop.domain.review.service.ReviewMemberQueryService;
 import com.cakeshop.global.common.paging.PageNavigation;
 import com.cakeshop.global.common.paging.PageRequest;
 import com.cakeshop.global.error.BusinessException;
@@ -34,18 +35,28 @@ public class MyPageController {
     private final MemberService memberService;
     private final CouponMemberQueryService couponMemberQueryService;
     private final OrderMemberQueryService orderMemberQueryService;
+    private final ReviewMemberQueryService reviewMemberQueryService;
     private final SessionRegistry sessionRegistry;
 
-    // 마이페이지 조회
+    // 마이페이지 조회: 프로필 한 줄, 요약 숫자(진행 중 주문 · 보유 쿠폰 · 작성할 후기), 최근 주문
     @GetMapping("/mypage")
     public String myPage(
             @AuthenticationPrincipal MemberDetails memberDetails,
             Model model) {
         String email = memberDetails.getUsername();
+        long memberId = memberDetails.getMemberId();
         model.addAttribute("member", memberService.getMemberProfile(email));
         model.addAttribute(
                 "orderSummary",
-                orderMemberQueryService.getMyPageOrders(memberDetails.getMemberId()));
+                orderMemberQueryService.getMyPageOrders(memberId));
+        // 보유 쿠폰 수는 보유 쿠폰 화면과 같은 조회(사용 가능 · 기간 안)의 전체 건수다.
+        model.addAttribute(
+                "availableCouponCount",
+                couponMemberQueryService.getMemberCoupons(memberId, new PageRequest(1, 1))
+                        .getTotalElements());
+        model.addAttribute(
+                "writableReviewCount",
+                reviewMemberQueryService.countWritableOrderItems(memberId));
 
         return "customer/member/mypage";
     }
