@@ -250,6 +250,32 @@ class CommunityScreenRenderingTests {
                 .andExpect(content().string(containsString("첫 줄")));
     }
 
+    /** 글과 댓글을 각각 카드로 감싸고, 관리자 댓글에만 매장 배지를 붙인다. */
+    @Test
+    void communityDetail_wrapsPostAndCommentsInCards_andMarksAdminComment() throws Exception {
+        long postId = insertPost(memberId, "배지 확인 글", "본문", PostStatus.PUBLISHED);
+        long adminId = insertAdminMember();
+        insertComment(postId, memberId, "회원 댓글", CommentStatus.PUBLISHED, BASE_TIME.plusMinutes(1));
+        insertComment(postId, adminId, "매장 답변", CommentStatus.PUBLISHED, BASE_TIME.plusMinutes(2));
+
+        MvcResult result = mockMvc.perform(get("/community/" + postId))
+                .andExpect(status().isOk())
+                .andReturn();
+        String html = result.getResponse().getContentAsString();
+
+        assertThat(html)
+                .contains("<article class=\"community-card section\">")
+                .contains("<section class=\"community-card section\" id=\"comments\">")
+                .contains("← 커뮤니티 목록")
+                .contains("♡ 좋아요 0");
+        assertThat(html.split("class=\"badge comment-row__store-badge\"", -1)).hasSize(2);
+        assertThat(html.split("comment-row--admin", -1)).hasSize(2);
+        // 배지는 관리자 답변 줄에 붙는다
+        int badgeAt = html.indexOf("comment-row__store-badge");
+        assertThat(html.indexOf("회원 댓글")).isLessThan(badgeAt);
+        assertThat(html.indexOf("매장 답변")).isGreaterThan(badgeAt);
+    }
+
     @Test
     void communityDetail_attachedImages_renderBelowContentInSortOrder() throws Exception {
         long postId = insertPost(memberId, "첨부 있는 글", "본문", PostStatus.PUBLISHED);

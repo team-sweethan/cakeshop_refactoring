@@ -42,7 +42,7 @@ class MemberCommunityQueryServiceTests {
 
     @Test
     void getMembersByIds_existingIds_returnsMapperResult() {
-        MemberCommunityView view = new MemberCommunityView(1L, "작성자", false);
+        MemberCommunityView view = new MemberCommunityView(1L, "작성자", false, false);
         when(memberCommunityMapper.findMembersByIds(List.of(1L))).thenReturn(List.of(view));
 
         assertThat(memberCommunityQueryService.getMembersByIds(List.of(1L)))

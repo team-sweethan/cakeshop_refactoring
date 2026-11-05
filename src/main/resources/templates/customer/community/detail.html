@@ -21,15 +21,19 @@
 </head>
 <body data-page-title="게시글 상세">
   <header th:replace="~{fragments/common/header :: header}"></header>
-  <main class="page-container page-container--narrow">
+  <main class="page-container page-container--narrow community-detail">
 
-    <div class="cluster section" style="justify-content:flex-end"
-         sec:authorize="!hasRole('ADMIN')" th:if="${canEdit}">
-      <a class="btn" th:href="@{/community/{postId}/edit(postId=${post.id})}">수정</a>
-      <form method="post" th:action="@{/community/{postId}/delete(postId=${post.id})}"
-            onsubmit="return confirm('게시글을 삭제할까요? 되돌릴 수 없습니다.');">
-        <button class="btn btn--danger" type="submit">삭제</button>
-      </form>
+    <!--/* 목록으로 돌아가는 길은 글 위에 둔다. 수정·삭제는 작성자에게만 같은 줄 오른쪽에 보인다. */-->
+    <div class="community-detail__top section">
+      <a class="community-detail__back" th:href="@{/community}">← 커뮤니티 목록</a>
+
+      <div class="cluster" sec:authorize="!hasRole('ADMIN')" th:if="${canEdit}">
+        <a class="btn" th:href="@{/community/{postId}/edit(postId=${post.id})}">수정</a>
+        <form method="post" th:action="@{/community/{postId}/delete(postId=${post.id})}"
+              onsubmit="return confirm('게시글을 삭제할까요? 되돌릴 수 없습니다.');">
+          <button class="btn btn--danger" type="submit">삭제</button>
+        </form>
+      </div>
     </div>
 
     <div th:replace="~{fragments/common/alert :: alert}"></div>
@@ -40,16 +44,18 @@
       <p class="note">이 글은 다른 회원에게 보이지 않습니다.</p>
     </div>
 
-    <article class="section">
-      <span class="badge badge--info" th:text="${post.categoryName}">카테고리</span>
-      <h1 th:text="${post.title}">제목</h1>
-      <p class="text-muted">
-        <span th:text="${post.authorName()}">작성자</span> ·
-        <span th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd')}">2026.01.01</span> ·
-        <span th:text="'조회 ' + ${post.viewCount}">조회 0</span>
-        <span th:if="${post.edited}" class="note">(수정됨)</span>
-      </p>
-      <hr class="divider">
+    <!--/* 글과 댓글을 각각 흰 카드로 감싸 페이지 배경과 구역을 나눈다. */-->
+    <article class="community-card section">
+      <header class="community-post__head">
+        <span class="badge badge--info" th:text="${post.categoryName}">카테고리</span>
+        <h1 th:text="${post.title}">제목</h1>
+        <p class="text-muted">
+          <span th:text="${post.authorName()}">작성자</span> ·
+          <span th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd')}">2026.01.01</span> ·
+          <span th:text="'조회 ' + ${post.viewCount}">조회 0</span>
+          <span th:if="${post.edited}" class="note">(수정됨)</span>
+        </p>
+      </header>
 
       <div class="post-body">
         <p th:text="${post.content}">본문</p>
@@ -63,25 +69,35 @@
              style="max-width:100%">
       </div>
 
-      <div class="cluster section" sec:authorize="!hasRole('ADMIN')">
-        <span class="text-muted" th:text="'좋아요 ' + ${post.likeCount}">좋아요 0</span>
+      <!--/* 좋아요는 수와 버튼을 한 버튼으로 합친다. 누를 수 없으면(비로그인 등) 수만 보인다.
+             신고는 같은 줄 오른쪽에 작게 두고, 펼치면 아래 줄 전체를 쓴다. */-->
+      <footer class="community-post__actions" sec:authorize="!hasRole('ADMIN')">
+        <span class="community-like community-like--static" th:unless="${canLike}"
+              th:text="'♡ 좋아요 ' + ${post.likeCount}">♡ 좋아요 0</span>
 
         <form method="post" th:if="${canLike and likedByViewer}"
               th:action="@{/community/{postId}/likes/delete(postId=${post.id})}">
           <input type="hidden" name="comments" th:value="${commentSection.limit}">
           <input type="hidden" name="replies" th:value="${expandedRootId}">
-          <button class="btn" type="submit">좋아요 취소</button>
+          <button class="community-like is-liked" type="submit" aria-pressed="true"
+                  th:attr="aria-label=|좋아요 취소 (좋아요 ${post.likeCount})|"
+                  th:text="'♥ 좋아요 ' + ${post.likeCount}">♥ 좋아요 0</button>
         </form>
 
         <form method="post" th:if="${canLike and !likedByViewer}"
               th:action="@{/community/{postId}/likes(postId=${post.id})}">
           <input type="hidden" name="comments" th:value="${commentSection.limit}">
           <input type="hidden" name="replies" th:value="${expandedRootId}">
-          <button class="btn btn--primary" type="submit">좋아요</button>
+          <button class="community-like" type="submit" aria-pressed="false"
+                  th:attr="aria-label=|좋아요 (좋아요 ${post.likeCount})|"
+                  th:text="'♡ 좋아요 ' + ${post.likeCount}">♡ 좋아요 0</button>
         </form>
-      </div>
 
-      <details class="section" sec:authorize="!hasRole('ADMIN')"
+        <p class="note community-post__reported" th:if="${alreadyReported}">
+          이미 신고한 게시글입니다.
+        </p>
+
+      <details class="community-report" sec:authorize="!hasRole('ADMIN')"
                th:if="${canReport and !alreadyReported}"
                th:object="${reportForm}"
                th:attr="open=${#fields.hasErrors('reason')} ? 'open' : null">
@@ -104,16 +120,11 @@
           </div>
         </form>
       </details>
-
-      <p class="note" sec:authorize="!hasRole('ADMIN')" th:if="${alreadyReported}">
-        이미 신고한 게시글입니다.
-      </p>
+      </footer>
     </article>
 
-    <hr class="divider">
-
-    <section class="section" id="comments">
-      <h2 class="section-title"
+    <section class="community-card section" id="comments">
+      <h2 class="community-comments__title"
           th:text="'댓글 ' + ${commentSection.publishedCount}">댓글 0</h2>
 
       <!--/* 더 보기는 목록이 위쪽으로 자라므로 댓글 구역 머리로 돌아간다. 읽던 줄을 앵커로
@@ -134,7 +145,8 @@
         오래된 댓글 일부는 표시하지 않습니다.
       </p>
 
-      <div>
+      <!--/* 댓글 묶음(뿌리 + 답글)마다 연한 배경 상자를 준다. 답글은 상자 안에서 들여쓰고 왼쪽 선을 긋는다. */-->
+      <div class="community-comments">
         <article class="comment-item" th:each="thread : ${commentSection.threads}">
 
           <div th:replace="~{:: commentRow(${thread.root})}"></div>
@@ -144,7 +156,7 @@
                  링크 끝의 #comment-{id} 는 브라우저 기본 앵커 이동이다 — 없으면 전면 재로드가
                  문서 맨 위에 착지해 방금 누른 묶음이 화면 밖에 남는다. */-->
           <div class="cluster" th:if="${!thread.expanded}">
-            <a class="btn" th:if="${thread.replyCount > 0}"
+            <a class="comment-link" th:if="${thread.replyCount > 0}"
                th:href="@{|/community/{postId}#comment-${thread.root.id}|(
                    postId=${post.id},
                    comments=${commentSection.limitParam()},
@@ -152,7 +164,7 @@
                )}"
                th:text="'답글 ' + ${thread.replyCount} + '개 보기'">답글 보기</a>
 
-            <a class="btn" th:if="${thread.replyCount == 0 and canComment and !thread.root.deleted}"
+            <a class="comment-link" th:if="${thread.replyCount == 0 and canComment and !thread.root.deleted}"
                th:href="@{|/community/{postId}#comment-${thread.root.id}|(
                    postId=${post.id},
                    comments=${commentSection.limitParam()},
@@ -160,9 +172,9 @@
                )}">답글 쓰기</a>
           </div>
 
-          <div th:if="${thread.expanded}" style="margin-left:32px">
+          <div class="comment-replies" th:if="${thread.expanded}">
             <div class="cluster">
-              <a class="btn"
+              <a class="comment-link"
                  th:href="@{|/community/{postId}#comment-${thread.root.id}|(
                      postId=${post.id},
                      comments=${commentSection.limitParam()}
@@ -254,15 +266,19 @@
     <div class="comment-row"
          th:fragment="commentRow(comment)"
          th:id="'comment-' + ${comment.id}"
-         th:classappend="${focusedCommentId != null and focusedCommentId == comment.id}
-                          ? ' comment-row--focused'">
+         th:classappend="|${focusedCommentId != null and focusedCommentId == comment.id
+                            ? ' comment-row--focused' : ''}${!comment.deleted and comment.authorAdmin
+                            ? ' comment-row--admin' : ''}|">
       <p class="text-muted" th:if="${comment.deleted}">삭제된 댓글입니다.</p>
 
       <div th:unless="${comment.deleted}">
         <div class="cluster cluster--between">
-          <span class="text-muted">
-            <span th:text="${comment.authorName()}">작성자</span> ·
-            <span th:text="${#temporals.format(comment.createdAt, 'yyyy.MM.dd')}">2026.01.01</span>
+          <span class="comment-row__meta">
+            <strong class="comment-row__author" th:text="${comment.authorName()}">작성자</strong>
+            <!--/* 매장 관리자의 답변은 배지로 구분한다. 이름(닉네임)만으로는 회원과 헷갈린다. */-->
+            <span class="badge comment-row__store-badge" th:if="${comment.authorAdmin}">스윗한 케이크</span>
+            <span class="text-muted"
+                  th:text="${#temporals.format(comment.createdAt, 'yyyy.MM.dd')}">2026.01.01</span>
           </span>
 
           <form method="post"
@@ -278,7 +294,7 @@
           </form>
         </div>
 
-        <p th:text="${comment.content}" style="white-space:pre-wrap">댓글 본문</p>
+        <p class="comment-row__content" th:text="${comment.content}">댓글 본문</p>
       </div>
     </div>
     </th:block>

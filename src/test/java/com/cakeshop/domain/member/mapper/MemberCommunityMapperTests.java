@@ -78,12 +78,32 @@ class MemberCommunityMapperTests {
                 .containsExactly(existingId);
     }
 
+    /** 관리자 계정만 admin 이 참이다. 댓글의 매장 배지가 이 값을 그대로 쓴다. */
+    @Test
+    void findMembersByIds_adminRole_isMarkedAdmin() {
+        Long memberId = insertMember("일반회원", MemberStatus.ACTIVE);
+        Long adminId = insertMember("매장관리자", MemberStatus.ACTIVE, "ADMIN");
+
+        List<MemberCommunityView> members =
+                memberCommunityMapper.findMembersByIds(List.of(memberId, adminId));
+
+        assertThat(members)
+                .extracting(MemberCommunityView::id, MemberCommunityView::admin)
+                .containsExactlyInAnyOrder(
+                        tuple(memberId, false),
+                        tuple(adminId, true));
+    }
+
+    private Long insertMember(String nickname, MemberStatus status) {
+        return insertMember(nickname, status, "USER");
+    }
+
     /**
      * 실명과 닉네임을 <b>다른 값</b>으로 넣는다. 같은 값이면 이 매퍼가 {@code nickname} 대신
      * {@code name}을 조회하도록 바뀌어도 단언이 전부 통과하는데, 화면에 실명이 뜨는 회귀라
      * 개인정보 문제다 (PR #144 Codex 리뷰).
      */
-    private Long insertMember(String nickname, MemberStatus status) {
+    private Long insertMember(String nickname, MemberStatus status, String role) {
         String email = nickname + "-" + System.nanoTime() + "@example.com";
         jdbcTemplate.update(
                 """
@@ -95,7 +115,7 @@ class MemberCommunityMapperTests {
                 nickname + "실명",
                 nickname,
                 "010-0000-0000",
-                "USER",
+                role,
                 status.name()
         );
         return jdbcTemplate.queryForObject(

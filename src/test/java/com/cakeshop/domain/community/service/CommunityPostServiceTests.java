@@ -209,13 +209,13 @@ class CommunityPostServiceTests {
         when(communityMapper.findPublishedPosts(3L, null, PostSort.VIEWS, 20, 40))
                 .thenReturn(List.of(post));
         when(communityMapper.countPublishedPosts(3L, null)).thenReturn(45L);
-        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", false));
+        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", false, false));
 
         PageResult<PostListView> result =
                 communityPostService.getPosts(3L, null, PostSort.VIEWS, new PageRequest(3, 20));
 
         assertThat(result.getContent())
-                .containsExactly(PostListView.of(post, new MemberCommunityView(AUTHOR_ID, "글쓴이", false)));
+                .containsExactly(PostListView.of(post, new MemberCommunityView(AUTHOR_ID, "글쓴이", false, false)));
         assertThat(result.getTotalElements()).isEqualTo(45L);
         assertThat(result.getTotalPages()).isEqualTo(3);
     }

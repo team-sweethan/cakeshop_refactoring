@@ -227,7 +227,7 @@ class CommunityAdminServiceTests {
                 .thenReturn(List.of(new AdminPostListRow(
                         POST_ID, AUTHOR_ID, "질문", "제목", PostStatus.PUBLISHED, 0, CREATED_AT)));
         when(communityAdminMapper.countPostsForAdmin(null)).thenReturn(1L);
-        givenMembers(new MemberCommunityView(AUTHOR_ID, "글쓴이", false));
+        givenMembers(new MemberCommunityView(AUTHOR_ID, "글쓴이", false, false));
 
         PageResult<AdminPostListView> result =
                 communityAdminService.getPosts(null, AdminPostSort.LATEST, new PageRequest(1, 20));
@@ -259,8 +259,8 @@ class CommunityAdminServiceTests {
                 new ReportRow(1L, AUTHOR_ID, "광고입니다", ReportStatus.PENDING, CREATED_AT),
                 new ReportRow(2L, ADMIN_ID, "욕설입니다", ReportStatus.PENDING, CREATED_AT)));
         givenMembers(
-                new MemberCommunityView(AUTHOR_ID, "신고자", false),
-                new MemberCommunityView(ADMIN_ID, "탈퇴자", true));
+                new MemberCommunityView(AUTHOR_ID, "신고자", false, false),
+                new MemberCommunityView(ADMIN_ID, "탈퇴자", true, false));
 
         assertThat(communityAdminService.getReports(POST_ID))
                 .extracting(ReportView::reporterName)
@@ -271,7 +271,7 @@ class CommunityAdminServiceTests {
     void getPostDetail_neverBlocked_leavesBlockingAdminEmpty() {
         when(communityAdminMapper.findPostByIdForAdmin(POST_ID))
                 .thenReturn(adminDetailRow(null));
-        givenMembers(new MemberCommunityView(AUTHOR_ID, "글쓴이", false));
+        givenMembers(new MemberCommunityView(AUTHOR_ID, "글쓴이", false, false));
 
         AdminPostDetailView post = communityAdminService.getPostDetail(POST_ID);
 
