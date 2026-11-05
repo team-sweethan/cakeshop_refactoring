@@ -1,0 +1,87 @@
+/* 주문 내역(customer/order/detail.html) 전용 스타일. app.css · mypage-layout.css 다음에 불러온다.
+   /orders는 주문 목록(상태 탭 + 한 줄 카드), /orders/{id}는 주문 상세(상태 카드 + 정보 카드 + 결제 정보).
+   단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
+
+/* ── 주문 목록 ── */
+.order-list { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); padding: 18px 20px }
+.order-list__head { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin-bottom: 10px }
+.order-list__title { font-size: 18px; margin: 0 }
+.order-list__count { color: var(--color-muted); font-size: var(--font-sm); font-weight: 400 }
+
+/* 상태 탭 */
+.order-tabs { display: flex; flex-wrap: wrap; gap: 6px }
+.order-tabs__tab { background: #fff; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text); cursor: pointer; font-size: var(--font-xs); padding: 6px 12px; transition: background .15s ease, border-color .15s ease, color .15s ease }
+.order-tabs__tab:hover { border-color: var(--color-brand); color: var(--color-brand) }
+.order-tabs__tab.is-active { background: var(--color-brand); border-color: var(--color-brand); color: #fff }
+.order-tabs__tab:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px }
+.order-tabs__tab [data-order-filter-count] { opacity: .8 }
+
+/* 한 줄 카드: 왼쪽 상품명 · 픽업 · 금액 · 주문 일시 · 주문번호, 오른쪽 상태 배지 · 상세 */
+.order-list__items { display: grid }
+.order-row { align-items: center; border-top: 1px solid var(--color-border-light); display: flex; gap: 12px; justify-content: space-between; margin: 0 -8px; padding: 14px 8px; transition: background .15s ease }
+.order-row:first-child { border-top: 0 }
+.order-row:hover { background: #fdf7f9 }
+.order-row:focus-visible { outline: 2px solid var(--color-brand); outline-offset: -2px }
+.order-row[hidden] { display: none }
+.order-row--closed .order-row__product, .order-row--closed .order-row__meta { color: var(--color-muted) }
+/* 취소 · 반려 · 만료 배지는 진행 중 배지보다 눈에 덜 띄게 흐리게 */
+.order-row--closed .badge, .order-status-card--closed .badge { border-color: var(--color-border-light); color: var(--color-muted) }
+.order-row__main { display: grid; gap: 3px; min-width: 0 }
+.order-row__product { font-size: var(--font-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.order-row__meta { color: var(--color-text); display: flex; flex-wrap: wrap; font-size: var(--font-xs); gap: 6px }
+.order-row__sub { color: var(--color-muted); display: flex; font-size: 11px; gap: 6px; min-width: 0 }
+.order-row__number { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.order-row__side { align-items: center; display: flex; flex: none; gap: 12px }
+.order-row__more { color: var(--color-muted); font-size: var(--font-xs) }
+.order-row:hover .order-row__more { color: var(--color-brand) }
+.order-list__filtered-empty { color: var(--color-muted); font-size: var(--font-xs); margin: 0; padding: 18px 0; text-align: center }
+
+/* ── 주문 상세 ── */
+.order-detail { display: grid; gap: 14px }
+.order-detail__back { color: var(--color-muted); font-size: var(--font-xs); justify-self: start }
+.order-detail__back:hover { color: var(--color-brand) }
+
+/* 상태 카드 */
+.order-status-card { background: #fdf7f9; border: 1px solid #ecd3dc; border-radius: var(--radius-md); display: grid; gap: 6px; padding: 18px 22px }
+.order-status-card--closed { background: var(--color-background-soft); border-color: var(--color-border-light) }
+.order-status-card__head { align-items: center; display: flex; gap: 8px }
+.order-status-card__type { color: var(--color-muted); font-size: var(--font-xs) }
+.order-status-card__title { font-size: 22px; margin: 2px 0 0 }
+.order-status-card__place { color: var(--color-text); font-size: var(--font-sm); margin: 0 }
+.order-status-card__guide { color: var(--color-muted); font-size: var(--font-xs); margin: 4px 0 0 }
+
+/* 정보 카드: 왼쪽 상품 · 픽업 · 주문 정보, 오른쪽 결제 정보와 버튼(헤더 아래에 붙어 따라온다) */
+.order-detail__grid { align-items: start; display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr) 300px }
+.order-detail__main { display: grid; gap: 14px; min-width: 0 }
+.order-detail__side { display: grid; gap: 12px; position: sticky; top: 96px }
+.order-card { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); padding: 16px 20px }
+.order-card__title { font-size: 16px; margin: 0 0 8px }
+.order-card__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 12px }
+.order-card__total strong { color: var(--color-brand); font-size: 20px }
+.order-detail__number { font-size: var(--font-xs); overflow-wrap: anywhere }
+
+.order-items { list-style: none; margin: 0; padding: 0 }
+.order-items__item + .order-items__item { border-top: 1px solid var(--color-border-light); margin-top: 10px; padding-top: 10px }
+.order-items__head { align-items: baseline; display: flex; font-size: var(--font-sm); gap: 12px; justify-content: space-between }
+.order-items__options { color: var(--color-muted); font-size: var(--font-xs); margin: 4px 0 0 }
+
+.order-actions { display: grid; gap: 8px }
+
+/* 주문 취소는 접어 둔다 */
+.order-cancel { background: #fff; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); padding: 10px 16px }
+.order-cancel > summary { color: var(--color-muted); cursor: pointer; font-size: var(--font-xs); list-style: none }
+.order-cancel > summary::-webkit-details-marker { display: none }
+.order-cancel > summary::after { content: " ▾" }
+.order-cancel[open] > summary::after { content: " ▴" }
+.order-cancel > summary:hover { color: var(--color-danger) }
+.order-cancel[open] > summary { margin-bottom: 10px }
+
+@media (max-width: 1100px) {
+    .order-detail__grid { grid-template-columns: 1fr }
+    .order-detail__side { position: static }
+}
+
+@media (max-width: 560px) {
+    .order-row { align-items: flex-start; flex-direction: column }
+    .order-list, .order-card, .order-status-card { padding: 14px 16px }
+}

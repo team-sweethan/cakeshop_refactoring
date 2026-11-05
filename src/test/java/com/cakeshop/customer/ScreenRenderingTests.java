@@ -585,13 +585,22 @@ class ScreenRenderingTests {
             throws Exception {
         long orderId = createGeneralOrder();
 
+        // 주문 목록(/orders)은 상태 탭과 한 줄 카드, 주문 상세(/orders/{id})는 상태 카드 · 결제 정보 · 1:1 문의를 그린다.
+        mockMvc.perform(get("/orders"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-order-list")))
+            .andExpect(content().string(containsString("data-order-filter=\"active\"")))
+            .andExpect(content().string(containsString("class=\"order-row\"")))
+            .andExpect(content().string(containsString("order-row__number")))
+            .andExpect(content().string(not(containsString("order-status-card"))));
+
         mockMvc.perform(get("/orders/{orderId}", orderId))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("order-history-card")))
-            .andExpect(content().string(containsString(
-                "order-history-card__number"
-            )))
-            .andExpect(content().string(containsString("order-history-detail")))
+            .andExpect(content().string(containsString("order-status-card")))
+            .andExpect(content().string(containsString("결제를 기다리고 있습니다.")))
+            .andExpect(content().string(containsString("href=\"/orders/" + orderId + "/payment\"")))
+            .andExpect(content().string(containsString("1:1 문의하기")))
+            .andExpect(content().string(not(containsString("data-order-list"))))
             .andExpect(content().string(not(containsString(
                 "style=\"grid-column:span 2\""
             ))));
