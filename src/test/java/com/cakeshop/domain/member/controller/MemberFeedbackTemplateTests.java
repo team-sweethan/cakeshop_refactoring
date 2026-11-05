@@ -67,6 +67,20 @@ class MemberFeedbackTemplateTests {
     }
 
     @Test
+    void feedbackScript_autoDismissesOnlySuccessMessages() throws IOException {
+        String feedbackScript = read("static/js/feedback.js");
+
+        assertThat(feedbackScript)
+                .contains(".querySelectorAll('.alert--success[data-feedback-message]')")
+                .contains("SUCCESS_DISMISS_DELAY_MS = 4000")
+                .contains("\"mouseenter\"")
+                .contains("prefers-reduced-motion: reduce")
+                .doesNotContain("alert--error");
+
+        assertThat(read("static/css/app.css")).contains(".alert.is-dismissing {");
+    }
+
+    @Test
     void commonMessageArea_usesSharedComponentSpacingAndCornerRadius() throws IOException {
         String styles = read("static/css/app.css");
 
