@@ -1,4 +1,4 @@
--- 시연용 회원·후기 seed (로컬·공용 개발·시연 DB 공통)
+-- 시연용 회원·후기 로컬 seed
 --
 -- 일반 회원 12명과 그 회원들이 픽업까지 마친 주문 40건, 주문마다 공개 후기 1건을 넣는다.
 -- 후기는 상품 12개에 나뉘어 들어가고, 상품의 평균 별점·후기 수를 공개 후기 기준으로 다시 계산한다.
@@ -9,16 +9,12 @@
 -- 관리자가 숨기거나 지운 후기도 되살리지 않는다.
 -- Flyway 관리 대상이 아니다. migration 을 모두 적용한 뒤 MariaDB 클라이언트로 수동 실행한다.
 --
--- 실행 순서
---   로컬: seed-local.sql → (선택) seed-community.sql · seed-review.sql · seed-notice.sql → 이 파일
---         seed-local.sql 은 회원·주문·후기를 모두 지우므로 반드시 이 파일보다 먼저 실행한다.
---   공용 개발·시연 DB: seed-rds-demo.sql(관리자 계정·상품 생성) → seed-notice.sql → 이 파일
+-- 실행 순서: seed-local.sql → (선택) seed-community.sql · seed-review.sql · seed-notice.sql → 이 파일
+--   seed-local.sql 은 회원·주문·후기를 모두 지우므로 반드시 이 파일보다 먼저 실행한다.
 --
--- 회원 비밀번호는 같은 DB 의 관리자 계정(admin@cakeshop.local) 비밀번호 해시를 그대로 쓴다.
---   로컬은 seed-local.sql 의 관리자 비밀번호와 같고, 공용 DB 는 그 환경의 관리자 비밀번호와 같다.
---   비밀번호 원문과 해시는 이 파일에 넣지 않는다.
+-- 회원 비밀번호는 관리자 계정(admin@cakeshop.local) 비밀번호 해시를 그대로 쓴다(seed-local.sql 의 관리자 비밀번호).
 -- 관리자 계정이 없으면 아무것도 넣지 않는다.
--- 상품은 seed-rds-demo.sql 과 같은 기준(카테고리 CAKE, 같은 이름이면 가장 작은 id)으로 찾는다.
+-- 상품은 카테고리 CAKE 안에서 이름으로 찾고, 같은 이름이 여럿이면 가장 작은 id 를 쓴다.
 --
 -- 이 파일은 Spring ScriptUtils 로도 실행하므로 문자열 안에 세미콜론을 쓰지 않는다.
 
@@ -189,7 +185,7 @@ WHERE NOT EXISTS (
       AND admin.`role` = 'ADMIN'
 );
 
--- seed-rds-demo.sql 과 같은 기준으로 상품을 하나씩 고른다.
+-- 상품 이름마다 상품을 하나씩 고른다.
 CREATE TEMPORARY TABLE `_demo_review_products` (
     `product_name` VARCHAR(100) NOT NULL PRIMARY KEY,
     `product_id`   BIGINT       NOT NULL
