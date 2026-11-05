@@ -11,6 +11,10 @@
 .admin-order-alert strong { display: block; font-size: var(--font-sm); margin-bottom: 4px }
 .admin-order-alert p { font-size: var(--font-xs); line-height: 1.6; margin: 0 }
 .admin-order-alert__sub { color: #92400e; margin-top: 4px !important }
+/* 돈워리에서 확인하기 링크 */
+.admin-order-alert__link { margin-top: 8px !important }
+.admin-order-alert__link a { color: #92400e; font-weight: 700; text-decoration: underline }
+.admin-order-alert__link a:hover { color: #713f12 }
 
 /* 제작 요청 · 레터링(크림색 강조, 주문 제작만) */
 .admin-order-request { background: #fff8ec; border: 1px solid #f1dcb8; border-radius: var(--radius-sm); display: grid; gap: 10px; padding: 12px 16px }

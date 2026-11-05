@@ -105,6 +105,10 @@
       <div class="admin-order-alert" th:if="${paymentUnderReview}" role="note">
         <strong>결제 확인 중</strong>
         <p>결제는 승인됐지만 돈워리가 결제를 확인하고 있습니다. 확인 중에 진행했다가 결제가 거절되면 손실은 가맹점이 부담합니다.</p>
+        <!--/* 돈워리 오너 "보안 조치 결과"로 간다(돈워리에 오너로 로그인돼 있으면 바로 열린다) */-->
+        <p class="admin-order-alert__link" th:if="${donWorryOwnerCasesUrl != null}">
+          <a th:href="${donWorryOwnerCasesUrl}" target="_blank" rel="noopener noreferrer">돈워리에서 확인하기 ↗</a>
+        </p>
       </div>
 
       <div class="admin-order-cards">

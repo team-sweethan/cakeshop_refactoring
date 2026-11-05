@@ -137,6 +137,10 @@ donworry:
     base-url: ${DONWORRY_PICKUP_BASE_URL:}
     merchant-code: ${DONWORRY_MERCHANT_CODE:CAKESHOP}
     key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
+  # 돈워리 화면(사람이 보는 콘솔) 주소. 관리자 "결제 확인 중" 안내에서 돈워리 오너 "보안 조치 결과"로 가는 링크에 쓴다.
+  # 비어 있으면 링크를 숨긴다. 로컬 돈워리 화면: http://localhost:5173
+  console:
+    base-url: ${DONWORRY_CONSOLE_BASE_URL:}
 
 ---
 # Google/Kakao OAuth login. Team members configure both providers in .env.

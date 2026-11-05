@@ -99,6 +99,10 @@
                 기다리기 · 고객에게 확인한 뒤 진행 · 주문 취소 중에서 선택할 수 있습니다.
                 확인 중에 진행했다가 결제가 거절되면 손실은 가맹점이 부담합니다.
               </p>
+              <!--/* 돈워리 오너 "보안 조치 결과"(조사 중 · 정상 처리 · 취소 결정)로 간다. 돈워리 Case 번호는 몰라 목록으로 간다 */-->
+              <p class="admin-order-alert__link" th:if="${donWorryOwnerCasesUrl != null}">
+                <a th:href="${donWorryOwnerCasesUrl}" target="_blank" rel="noopener noreferrer">돈워리에서 확인하기 ↗</a>
+              </p>
             </div>
 
             <div class="fulfillment-info">

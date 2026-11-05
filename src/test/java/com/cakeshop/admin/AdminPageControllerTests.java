@@ -297,6 +297,7 @@ class AdminPageControllerTests {
                 .contains("name=\"returnTo\" value=\"detail\"")
                 .contains("th:action=\"@{/admin/fulfillment/{id}/pickup(id=${f.orderId})}\"")
                 .contains("&lt; 주문 처리")
+                .contains("th:href=\"${donWorryOwnerCasesUrl}\"")
                 .doesNotContain("쿠폰 적용");
         assertThat(fulfillment)
                 .contains("class=\"admin-order-alert\"")
@@ -307,6 +308,9 @@ class AdminPageControllerTests {
                 // 탭 건수는 이름으로 꺼낸다. T(OrderStatus) 같은 클래스 참조는 로컬 개발 서버(devtools 재시작)에서
                 // 다른 클래스로 잡혀 화면이 500이 난다(2026-11-05 확인).
                 .contains("fulfillment.countOfStatus('UNDER_REVIEW')")
+                // 결제 확인 중 안내의 돈워리 오너 화면 링크(설정이 있을 때만, 새 탭)
+                .contains("th:if=\"${donWorryOwnerCasesUrl != null}\"")
+                .contains("rel=\"noopener noreferrer\"")
                 .doesNotContain("T(com.");
         assertThat(appStyles).doesNotContain(".admin-order-");
     }
