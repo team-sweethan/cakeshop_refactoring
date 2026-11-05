@@ -95,12 +95,33 @@
       const date = new Date(year, index, 1);
       return date.getFullYear() + "-" + pad(date.getMonth() + 1);
     }
-    function button(className, text) {
+    // key: 다시 그린 뒤 같은 버튼을 찾아 포커스를 되돌리는 표식(nav:prev, day:2026-11-05, hour:14, minute:30)
+    function button(className, text, key) {
       const element = document.createElement("button");
       element.type = "button";
       element.className = className;
       element.textContent = text;
+      element.dataset.pickerKey = key;
       return element;
+    }
+
+    // 다시 그리면 버튼이 새로 만들어져 키보드 포커스가 사라진다(#48 Codex 리뷰).
+    // 그리기 전에 포커스가 있던 버튼의 표식을 기억했다가, 같은 표식의 새 버튼으로 포커스를 되돌린다.
+    // 같은 버튼이 없거나 막혔으면(예: 날짜를 바꿔 그 시가 없음) 같은 종류의 첫 번째 누를 수 있는 버튼으로 옮긴다.
+    function keepFocus(draw) {
+      const focused = document.activeElement;
+      const key = focused && picker.contains(focused) ? focused.dataset.pickerKey : null;
+      draw();
+      if (!key) return;
+      const same = picker.querySelector("[data-picker-key='" + key + "']");
+      if (same && !same.disabled) {
+        same.focus();
+        return;
+      }
+      const kind = key.split(":")[0];
+      const sibling = Array.from(picker.querySelectorAll("[data-picker-key^='" + kind + ":']"))
+        .find(function (element) { return !element.disabled; });
+      if (sibling) sibling.focus();
     }
 
     function slotsOf(date) { return dates.get(date) ? dates.get(date).slots : []; }
@@ -146,14 +167,20 @@
       head.className = "checkout-calendar__head";
       const title = document.createElement("strong");
       title.textContent = viewMonth.substring(0, 4) + "년 " + Number(viewMonth.substring(5, 7)) + "월";
-      const previous = button("checkout-calendar__nav", "‹");
-      const next = button("checkout-calendar__nav", "›");
+      const previous = button("checkout-calendar__nav", "‹", "nav:prev");
+      const next = button("checkout-calendar__nav", "›", "nav:next");
       previous.setAttribute("aria-label", "이전 달");
       next.setAttribute("aria-label", "다음 달");
       previous.disabled = viewMonth <= monthOf(dateKeys[0]);
       next.disabled = viewMonth >= monthOf(dateKeys[dateKeys.length - 1]);
-      previous.addEventListener("click", function () { viewMonth = shiftMonth(viewMonth, -1); renderCalendar(); });
-      next.addEventListener("click", function () { viewMonth = shiftMonth(viewMonth, 1); renderCalendar(); });
+      previous.addEventListener("click", function () {
+        viewMonth = shiftMonth(viewMonth, -1);
+        keepFocus(renderCalendar);
+      });
+      next.addEventListener("click", function () {
+        viewMonth = shiftMonth(viewMonth, 1);
+        keepFocus(renderCalendar);
+      });
       head.append(title, previous, next);
 
       const grid = document.createElement("div");
@@ -186,7 +213,7 @@
           grid.append(cell);
           continue;
         }
-        const dayButton = button("checkout-calendar__day", String(day));
+        const dayButton = button("checkout-calendar__day", String(day), "day:" + key);
         const active = key === selectedDate;
         dayButton.classList.toggle("is-active", active);
         dayButton.setAttribute("aria-pressed", String(active));
@@ -207,7 +234,7 @@
       hoursBox.replaceChildren();
       const available = new Set(slotsOf(selectedDate).map(function (slot) { return slot.hour; }));
       allHours.forEach(function (hour) {
-        const hourButton = button("checkout-clock__option", String(Number(hour)) + "시");
+        const hourButton = button("checkout-clock__option", String(Number(hour)) + "시", "hour:" + hour);
         const active = hour === selectedHour;
         hourButton.disabled = !available.has(hour);
         hourButton.classList.toggle("is-active", active);
@@ -235,7 +262,7 @@
       slotsOf(selectedDate)
         .filter(function (slot) { return slot.hour === selectedHour; })
         .forEach(function (slot) {
-          const minuteButton = button("checkout-clock__option", slot.minute + "분");
+          const minuteButton = button("checkout-clock__option", slot.minute + "분", "minute:" + slot.minute);
           const active = slot.minute === selectedMinute;
           minuteButton.classList.toggle("is-active", active);
           minuteButton.setAttribute("aria-pressed", String(active));
@@ -248,9 +275,11 @@
     }
 
     function renderAll() {
-      renderCalendar();
-      renderHours();
-      renderMinutes();
+      keepFocus(function () {
+        renderCalendar();
+        renderHours();
+        renderMinutes();
+      });
       syncRadio();
     }
 

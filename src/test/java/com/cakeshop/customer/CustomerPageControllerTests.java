@@ -276,6 +276,9 @@ class CustomerPageControllerTests {
                 .contains("if (event.defaultPrevented) return;")
                 .contains("showMissingPickup(true);")
                 .contains("[data-pickup-submit-error]")
+                // 다시 그려도 키보드 포커스가 같은 버튼으로 돌아온다(#48 Codex 리뷰)
+                .contains("function keepFocus(draw)")
+                .contains("element.dataset.pickerKey = key;")
                 .contains("[data-pickup-contact]")
                 .contains("pickupContact.hidden = sameAsOrderer.checked && !pickupHasError");
         // 제출 검사가 한 번만 제출 처리보다 먼저 등록돼야 막힌 제출에서 버튼이 잠기지 않는다

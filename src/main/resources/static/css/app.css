@@ -3513,6 +3513,13 @@ a.product-order-actions__secondary { justify-content: center; width: 100% }
 
 /* 픽업 일시: 왼쪽 달력, 오른쪽 시 → 분 버튼. 스크립트가 그린다(order-checkout.js initializePickupPicker). */
 .checkout-picker { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 280px) minmax(0, 1fr) }
+/* 픽업 카드 폭이 달력(280) + 간격(24) + 시 버튼 4개(64 × 4 + 간격)보다 좁으면 달력 아래로 시간을 내린다.
+   창 너비가 아니라 카드 폭으로 판단한다. 주문 요약 칸(최소 260px) 때문에 768px 근처에서도 카드가 좁아진다(#48 Codex 리뷰). */
+.checkout-picker-card { container-type: inline-size }
+@container (max-width: 620px) {
+    .checkout-picker { grid-template-columns: minmax(0, 1fr) }
+    .checkout-calendar { max-width: 320px }
+}
 .checkout-picker[hidden] { display: none }
 .checkout-picker-ready .checkout-fallback-times { display: none }
 
@@ -3533,7 +3540,8 @@ button.checkout-calendar__day:hover { border-color: var(--color-brand) }
 
 .checkout-clock__label { color: var(--color-muted); font-size: var(--font-xs); font-weight: 700; margin: 0 0 6px }
 .checkout-clock__label + .checkout-clock__hours { margin-bottom: 16px }
-.checkout-clock__hours { display: grid; gap: 6px; grid-template-columns: repeat(4, minmax(0, 1fr)) }
+/* 시 버튼은 칸 폭에 맞춰 열 수가 정해진다. 칸이 좁아져도 버튼이 64px보다 좁아지거나 서로 겹치지 않는다. */
+.checkout-clock__hours { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)) }
 .checkout-clock__minutes { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px }
 .checkout-clock__option { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); cursor: pointer; font-size: var(--font-sm); font-weight: 600; min-height: 34px; min-width: 64px; padding: 6px 10px }
 .checkout-clock__option:hover:not(:disabled) { border-color: var(--color-brand) }
