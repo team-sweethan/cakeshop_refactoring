@@ -29,7 +29,10 @@ class DonWorryPaymentCaptureServiceTests {
 
     private final PaymentMapper paymentMapper = mock(PaymentMapper.class);
     private final OrderPaymentCommandService orders = mock(OrderPaymentCommandService.class);
-    private final DonWorryPaymentCaptureService service = new DonWorryPaymentCaptureService(paymentMapper, orders);
+    private final org.springframework.context.ApplicationEventPublisher events =
+            mock(org.springframework.context.ApplicationEventPublisher.class);
+    private final DonWorryPaymentCaptureService service =
+            new DonWorryPaymentCaptureService(paymentMapper, orders, events);
 
     @Test
     void heldPayment_endsReviewAndReleasesOrder() {
@@ -37,6 +40,8 @@ class DonWorryPaymentCaptureServiceTests {
 
         assertThat(service.applyCapture(payment(), AT)).isTrue();
         verify(orders).releaseGeneralOrderAfterGatewayCapture(5L, AT);
+        // 열려 있는 주문 화면이 새로고침 없이 바뀌도록 알린다
+        verify(events).publishEvent(new com.cakeshop.domain.order.dto.OrderLiveStatusEvent(5L));
     }
 
     // 보류가 아니었거나(바로 매입) 웹훅·조회 배치가 이미 반영한 결제
@@ -46,6 +51,7 @@ class DonWorryPaymentCaptureServiceTests {
 
         assertThat(service.applyCapture(payment(), AT)).isFalse();
         verify(orders, never()).releaseGeneralOrderAfterGatewayCapture(anyLong(), any());
+        verify(events, never()).publishEvent(any(Object.class));
     }
 
     private static Payment payment() {

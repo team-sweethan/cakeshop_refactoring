@@ -1,5 +1,7 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.order.dto.OrderLiveStatusEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.cakeshop.domain.order.service.payment.OrderPaymentCommandService;
 import com.cakeshop.domain.payment.entity.Payment;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
@@ -26,6 +28,8 @@ public class DonWorryPaymentCaptureService {
 
     private final PaymentMapper paymentMapper;
     private final OrderPaymentCommandService orderPaymentCommandService;
+    // 커밋 뒤 열려 있는 관리자 · 고객 화면을 갱신하게 알린다(OrderLiveStatusBroadcaster)
+    private final ApplicationEventPublisher events;
 
     /**
      * @return 이번에 확인 중을 끝냈으면 true. 보류가 아니었거나 이미 반영했으면(웹훅·조회 배치 중복) false
@@ -36,6 +40,7 @@ public class DonWorryPaymentCaptureService {
             return false;
         }
         orderPaymentCommandService.releaseGeneralOrderAfterGatewayCapture(payment.getOrderId(), capturedAt);
+        events.publishEvent(new OrderLiveStatusEvent(payment.getOrderId()));
         return true;
     }
 }
