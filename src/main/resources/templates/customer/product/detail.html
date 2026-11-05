@@ -552,13 +552,17 @@
         4.5
       </strong>
 
-      <!-- 별 모양은 정적, 후기 수만 Thymeleaf로 출력 -->
+      <!--/* 회색 별 다섯 개 위에 채운 별을 평균 평점 비율만큼 겹쳐 평점만큼 채운다. */-->
+      <span class="rating-stars"
+            role="img"
+            th:attr="aria-label=|5점 만점에 ${product.averageRating}점|"
+            th:style="|--rating: ${product.averageRating}|">
+        <span class="rating-stars__fill" aria-hidden="true">★★★★★</span>
+      </span>
+
       <span class="text-muted">
-    ★★★★★
-    (
-    <span th:text="${product.reviewCount}">28</span>개 후기
-    )
-  </span>
+        (<span th:text="${product.reviewCount}">28</span>개 후기)
+      </span>
     </div>
 
     <div class="panel panel--dashed text-muted"

@@ -338,6 +338,25 @@ class CustomerPageControllerTests {
                 .contains("url.searchParams.append(\"optionIds\"");
     }
 
+    // 평균 별점은 고정 별 다섯 개가 아니라 평균 평점 비율만큼 채운 별로 보여 준다
+    @Test
+    void productDetail_reviewSummary_fillsStarsByAverageRating() throws IOException {
+        String productDetail = new ClassPathResource(
+                "templates/customer/product/detail.html"
+        ).getContentAsString(StandardCharsets.UTF_8);
+        String styles = new ClassPathResource(
+                "static/css/app.css"
+        ).getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(productDetail)
+                .contains("class=\"rating-stars\"")
+                .contains("th:style=\"|--rating: ${product.averageRating}|\"")
+                .contains("aria-label=|5점 만점에 ${product.averageRating}점|")
+                .contains("<span class=\"rating-stars__fill\" aria-hidden=\"true\">★★★★★</span>");
+        assertThat(styles)
+                .contains("width: calc(var(--rating, 0) / 5 * 100%)");
+    }
+
     @Test
     void productDetail_loginRequiredAction_warnsWithoutStoppingProtectedNavigation()
             throws IOException {

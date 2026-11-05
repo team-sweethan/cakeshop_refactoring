@@ -949,6 +949,28 @@ h2.section-title {
     border-color: var(--color-dark)
 }
 
+/* 상품 상세 평균 별점: 회색 별 위에 채운 별을 --rating(0~5) 비율 너비로 겹친다. */
+.rating-stars {
+    color: #e6d5c9;
+    display: inline-block;
+    font-size: 18px;
+    line-height: 1;
+    position: relative;
+    white-space: nowrap
+}
+
+.rating-stars::before {
+    content: "★★★★★"
+}
+
+.rating-stars__fill {
+    color: #f2a93b;
+    inset: 0 auto 0 0;
+    overflow: hidden;
+    position: absolute;
+    width: calc(var(--rating, 0) / 5 * 100%)
+}
+
 .product-detail__actions {
     align-items: flex-start;
     display: flex;
