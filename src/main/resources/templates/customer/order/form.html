@@ -47,6 +47,10 @@
             <!--/* 날짜는 달력, 시간은 시 → 분 버튼으로 고른다. 달력과 버튼은 order-checkout.js가 아래 픽업 시각
                    라디오(서버가 준 실제 가능 시각)를 읽어 그리고, 고르면 그 라디오를 대신 체크한다. 보내는 값은 그대로다.
                    스크립트가 돌지 않으면 아래 날짜별 시각 버튼이 그대로 보여 직접 고를 수 있다. */-->
+            <!--/* 고르지 않고 결제하기를 누르면 카드 맨 위에 크게 보인다. 카드에도 빨간 테두리가 생긴다. */-->
+            <p class="checkout-alert" data-pickup-picker-error role="alert" hidden>
+              픽업 날짜와 시간을 선택해 주세요.
+            </p>
             <div class="checkout-picker" data-pickup-picker-ui hidden>
               <div class="checkout-calendar" data-pickup-calendar></div>
               <div class="checkout-clock">
@@ -59,7 +63,6 @@
               </div>
             </div>
             <p class="checkout-picker__summary" data-pickup-summary aria-live="polite" hidden></p>
-            <p class="form-error" data-pickup-picker-error hidden>픽업 날짜와 시간을 선택해 주세요.</p>
 
             <!--/* 실제로 보내는 픽업 시각 라디오. 스크립트가 돌면 숨긴다(.checkout-picker-ready). */-->
             <fieldset class="pickup-choice checkout-fallback-times"
@@ -217,6 +220,12 @@
           </ul>
         </div>
 
+        <!--/* 고른 픽업 일시. 고르기 전에는 "아직 선택 안 함"이라 결제하기 전에 할 일이 보인다(order-checkout.js가 채움). */-->
+        <div class="data-row checkout-summary__pickup">
+          <span class="data-row__label">픽업 일시</span>
+          <span class="checkout-summary__pickup-value is-empty" data-pickup-summary-value>아직 선택 안 함</span>
+        </div>
+
         <div class="data-row">
           <span class="data-row__label">상품 금액</span>
           <span th:text="|${#numbers.formatInteger(checkout.productAmount, 1, 'COMMA')}원|">
@@ -260,6 +269,10 @@
                 th:disabled="${checkout.pickupDates.isEmpty()}">
           결제하기
         </button>
+        <!--/* 픽업 일시 없이 결제하기를 누르면 누른 자리 바로 아래에 이유를 보인다. */-->
+        <p class="checkout-alert checkout-summary__alert" data-pickup-submit-error role="alert" hidden>
+          픽업 날짜와 시간을 먼저 선택해 주세요.
+        </p>
       </aside>
     </form>
   </main>

@@ -112,17 +112,32 @@
       }) || null;
     }
 
+    // 주문 요약의 "픽업 일시" 줄과 결제하기 아래 안내, 그리고 이 카드(빨간 테두리 대상)
+    const summaryValue = document.querySelector("[data-pickup-summary-value]");
+    const submitError = document.querySelector("[data-pickup-submit-error]");
+    const card = picker.closest(".checkout-card");
+
+    function showMissingPickup(missing) {
+      if (error) error.hidden = !missing;
+      if (submitError) submitError.hidden = !missing;
+      if (card) card.classList.toggle("is-invalid", missing);
+    }
+
     function syncRadio() {
       picker.querySelectorAll("[name='pickupAt']").forEach(function (input) { input.checked = false; });
       const slot = selectedSlot();
       if (slot) slot.input.checked = true;
+      const text = slot ? dates.get(selectedDate).label + " " + slot.hour + ":" + slot.minute : "";
       if (summary) {
         summary.hidden = !slot;
-        summary.textContent = slot
-          ? "선택한 픽업 일시: " + dates.get(selectedDate).label + " " + slot.hour + ":" + slot.minute
-          : "";
+        summary.textContent = slot ? "선택한 픽업 일시: " + text : "";
       }
-      if (slot && error) error.hidden = true;
+      if (summaryValue) {
+        summaryValue.textContent = slot ? text : "아직 선택 안 함";
+        summaryValue.classList.toggle("is-empty", !slot);
+      }
+      // 다 고르면 안내와 강조를 바로 거둔다.
+      if (slot) showMissingPickup(false);
     }
 
     function renderCalendar() {
@@ -246,8 +261,9 @@
       form.addEventListener("submit", function (event) {
         if (selectedSlot()) return;
         event.preventDefault();
-        if (error) error.hidden = false;
-        picker.scrollIntoView({ block: "center", behavior: "smooth" });
+        // 결제하기 바로 아래와 픽업 카드 맨 위에 안내를 보이고, 카드로 화면을 옮긴다.
+        showMissingPickup(true);
+        (card || picker).scrollIntoView({ block: "start", behavior: "smooth" });
       });
     }
 

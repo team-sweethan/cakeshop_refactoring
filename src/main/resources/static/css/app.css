@@ -3546,6 +3546,19 @@ button.checkout-calendar__day:hover { border-color: var(--color-brand) }
 
 .checkout-picker__summary { background: #fdf7f9; border: 1px solid #f2e2e8; border-radius: var(--radius-sm); color: var(--color-brand-dark); font-size: var(--font-sm); font-weight: 700; margin: 0; padding: 10px 14px }
 
+/* 픽업 일시 없이 결제하기를 누른 경우: 결제하기 아래와 픽업 카드 맨 위의 안내 상자, 카드의 빨간 테두리.
+   작은 오류 글자만 있으면 왜 결제가 안 되는지 놓치기 쉬워 눈에 띄는 상자로 보인다. */
+.checkout-alert { align-items: center; background: var(--color-danger-soft); border: 1px solid #f3b3bc; border-radius: var(--radius-sm); color: var(--color-danger); display: flex; font-size: var(--font-sm); font-weight: 700; gap: 8px; margin: 0; padding: 10px 14px }
+.checkout-alert::before { content: "!"; align-items: center; background: var(--color-danger); border-radius: 50%; color: #fff; display: inline-flex; flex: none; font-size: 12px; height: 18px; justify-content: center; width: 18px }
+.checkout-alert[hidden] { display: none }
+.checkout-summary__alert { margin-top: 10px }
+.checkout-card { scroll-margin-top: 96px; transition: border-color .2s ease, box-shadow .2s ease }
+.checkout-card.is-invalid { border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(184, 51, 69, .15) }
+
+/* 주문 요약의 픽업 일시 줄: 고르기 전에는 경고색, 고르면 브랜드 색 */
+.checkout-summary__pickup-value { color: var(--color-brand-dark); font-weight: 700 }
+.checkout-summary__pickup-value.is-empty { color: var(--color-danger); font-weight: 600 }
+
 /* 스크립트가 돌지 않을 때 보이는 날짜별 시각 버튼(기본 보내는 라디오) */
 .checkout-times { display: grid; gap: 8px; grid-template-columns: repeat(6, minmax(0, 1fr)) }
 .checkout-times .pickup-choice__label { font-size: var(--font-xs); min-height: 34px; padding: 6px 4px }

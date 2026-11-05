@@ -274,6 +274,8 @@ class CustomerPageControllerTests {
                 .contains("[data-pickup-calendar]")
                 .contains("if (slot) slot.input.checked = true;")
                 .contains("if (event.defaultPrevented) return;")
+                .contains("showMissingPickup(true);")
+                .contains("[data-pickup-submit-error]")
                 .contains("[data-pickup-contact]")
                 .contains("pickupContact.hidden = sameAsOrderer.checked && !pickupHasError");
         // 제출 검사가 한 번만 제출 처리보다 먼저 등록돼야 막힌 제출에서 버튼이 잠기지 않는다

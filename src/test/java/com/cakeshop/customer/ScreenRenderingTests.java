@@ -540,6 +540,10 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString("data-pickup-hours")))
             .andExpect(content().string(containsString("data-pickup-minutes")))
             .andExpect(content().string(containsString("data-pickup-date-label=")))
+            // 픽업 일시 없이 결제하기를 누르면 결제 버튼 아래와 픽업 카드에 안내가 보인다. 요약에는 고르기 전 상태가 보인다
+            .andExpect(content().string(containsString("data-pickup-submit-error")))
+            .andExpect(content().string(containsString("data-pickup-picker-error")))
+            .andExpect(content().string(containsString("data-pickup-summary-value>아직 선택 안 함")))
             .andExpect(content().string(containsString("data-pickup-contact")))
             // 주문 요약 칸에 상품 · 쿠폰 · 최종 금액 · 결제 버튼이 함께 있다. 옵션이 없으면 옵션 추가 줄은 없다
             .andExpect(content().string(matchesPattern(
