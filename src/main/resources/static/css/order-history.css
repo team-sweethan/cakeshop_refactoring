@@ -56,7 +56,8 @@
 .order-detail__side { display: grid; gap: 12px; position: sticky; top: 96px }
 .order-card { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); padding: 16px 20px }
 .order-card__title { font-size: 16px; margin: 0 0 8px }
-.order-card__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 12px }
+/* 합계 위 구분선은 바로 위 정보 줄(.data-row)의 밑줄이 맡는다. 합계에 선을 또 그으면 두 줄로 보인다. */
+.order-card__total { align-items: baseline; display: flex; font-weight: 700; justify-content: space-between; padding-top: 12px }
 .order-card__total strong { color: var(--color-brand); font-size: 20px }
 .order-detail__number { font-size: var(--font-xs); overflow-wrap: anywhere }
 

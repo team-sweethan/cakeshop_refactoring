@@ -84,7 +84,8 @@ button.checkout-calendar__day:hover { border-color: var(--color-brand) }
 .checkout-summary__options { color: var(--color-muted); font-size: var(--font-xs); list-style: none; margin: 6px 0 0; padding: 0 }
 .checkout-summary__options li { display: flex; gap: 8px; justify-content: space-between }
 .checkout-summary__coupon { margin: 12px 0 4px }
-.checkout-summary__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 12px }
+/* 합계 위 구분선은 바로 위 정보 줄(.data-row)의 밑줄이 맡는다. 합계에 선을 또 그으면 두 줄로 보인다. */
+.checkout-summary__total { align-items: baseline; display: flex; font-weight: 700; justify-content: space-between; padding-top: 12px }
 .checkout-summary__total strong { color: var(--color-brand); font-size: 22px }
 .checkout-summary__submit { font-size: 15px; margin-top: 14px; min-height: 48px }
 
