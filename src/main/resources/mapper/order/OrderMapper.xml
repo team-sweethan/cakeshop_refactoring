@@ -340,17 +340,32 @@
         </foreach>
     </select>
 
+    <!-- status가 없으면 "처리할 주문"(검토 · 제작 · 픽업 대기)만. 픽업 완료는 PICKED_UP 단계로 따로 본다. -->
     <sql id="fulfillmentOrderConditions">
-        WHERE status IN ('UNDER_REVIEW', 'IN_PRODUCTION', 'READY_FOR_PICKUP', 'PICKED_UP')
-        <if test="status != null">
-          AND status = #{status}
-        </if>
+        <choose>
+            <when test="status != null">
+                WHERE status = #{status}
+                  AND status IN ('UNDER_REVIEW', 'IN_PRODUCTION', 'READY_FOR_PICKUP', 'PICKED_UP')
+            </when>
+            <otherwise>
+                WHERE status IN ('UNDER_REVIEW', 'IN_PRODUCTION', 'READY_FOR_PICKUP')
+            </otherwise>
+        </choose>
     </sql>
 
     <select id="countFulfillmentOrders" resultType="long">
         SELECT COUNT(*)
         FROM orders
         <include refid="fulfillmentOrderConditions"/>
+    </select>
+
+    <!-- 주문 처리 탭 건수 -->
+    <select id="countFulfillmentOrdersByStatus"
+            resultType="com.cakeshop.domain.order.dto.view.admin.FulfillmentStatusCount">
+        SELECT status, COUNT(*) AS count
+        FROM orders
+        WHERE status IN ('UNDER_REVIEW', 'IN_PRODUCTION', 'READY_FOR_PICKUP', 'PICKED_UP')
+        GROUP BY status
     </select>
 
     <select id="findFulfillmentOrders" resultType="com.cakeshop.domain.order.entity.Order">
@@ -389,14 +404,27 @@
             updated_at
         FROM orders
         <include refid="fulfillmentOrderConditions"/>
-        ORDER BY CASE status
-                     WHEN 'UNDER_REVIEW' THEN 0
-                     WHEN 'IN_PRODUCTION' THEN 1
-                     WHEN 'READY_FOR_PICKUP' THEN 2
-                     WHEN 'PICKED_UP' THEN 3
-                     ELSE 4
-                 END,
-                 pickup_at, created_at, id
+        <choose>
+            <!-- 최근 주문순: 방금 들어온 주문이 위 -->
+            <when test="sort != null and sort.name() == 'RECENT_ORDER'">
+                ORDER BY created_at DESC, id DESC
+            </when>
+            <!-- 최근 완료순(픽업 완료 단계): 최근에 픽업한 주문이 위 -->
+            <when test="sort != null and sort.name() == 'RECENT_PICKED_UP'">
+                ORDER BY picked_up_at DESC, id DESC
+            </when>
+            <!-- 픽업 임박순(기본): 작업 단계 → 픽업 시각이 가까운 순 -->
+            <otherwise>
+                ORDER BY CASE status
+                             WHEN 'UNDER_REVIEW' THEN 0
+                             WHEN 'IN_PRODUCTION' THEN 1
+                             WHEN 'READY_FOR_PICKUP' THEN 2
+                             WHEN 'PICKED_UP' THEN 3
+                             ELSE 4
+                         END,
+                         pickup_at, created_at, id
+            </otherwise>
+        </choose>
         LIMIT #{size}
         OFFSET #{offset}
     </select>
@@ -406,7 +434,15 @@
         FROM (
             SELECT
                 id,
-                FLOOR((ROW_NUMBER() OVER (ORDER BY pickup_at, created_at, id) - 1) / #{size}) + 1 AS page
+                <!-- 주문 처리 목록의 그 단계 기본 정렬과 같은 순서(픽업 완료는 최근 완료순) -->
+                <choose>
+                    <when test="status != null and status.name() == 'PICKED_UP'">
+                        FLOOR((ROW_NUMBER() OVER (ORDER BY picked_up_at DESC, id DESC) - 1) / #{size}) + 1 AS page
+                    </when>
+                    <otherwise>
+                        FLOOR((ROW_NUMBER() OVER (ORDER BY pickup_at, created_at, id) - 1) / #{size}) + 1 AS page
+                    </otherwise>
+                </choose>
             FROM orders
             WHERE status = #{status}
         ) AS ranked_orders

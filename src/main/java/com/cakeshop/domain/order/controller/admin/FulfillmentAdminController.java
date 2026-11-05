@@ -66,6 +66,7 @@ public class FulfillmentAdminController {
                 new PageRequest(parsePositiveInteger(page), FulfillmentService.PAGE_SIZE)
         );
         condition.setStatus(fulfillment.selectedStatus());
+        condition.setSort(fulfillment.selectedSort());
         model.addAttribute("fulfillment", fulfillment);
         return "admin/fulfillment/list";
     }
@@ -162,13 +163,16 @@ public class FulfillmentAdminController {
         return "redirect:" + redirectAfterAction(orderId, condition, returnTo, from);
     }
 
-    /** 지원하지 않는 작업 단계 검색값을 기본값으로 복구한다. */
+    /** 지원하지 않는 작업 단계 · 정렬 검색값을 기본값으로 복구한다. */
     private void recoverInvalidSearchValues(
             FulfillmentSearchCondition condition,
             BindingResult bindingResult
     ) {
         if (bindingResult.hasFieldErrors("status")) {
             condition.setStatus(null);
+        }
+        if (bindingResult.hasFieldErrors("sort")) {
+            condition.setSort(null);
         }
     }
 
@@ -203,6 +207,10 @@ public class FulfillmentAdminController {
                 && condition.getStatus() != null
                 && FULFILLMENT_STATUSES.contains(condition.getStatus())) {
             redirect.queryParam("status", condition.getStatus());
+        }
+        // 처리 뒤에도 고른 정렬을 유지한다(단계에 맞지 않으면 목록 조회에서 기본 정렬로 바뀐다)
+        if (condition != null && condition.getSort() != null) {
+            redirect.queryParam("sort", condition.getSort());
         }
         return redirect.toUriString();
     }

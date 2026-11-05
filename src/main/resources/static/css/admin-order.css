@@ -79,3 +79,14 @@
 @media (max-width: 720px) {
     .fulfillment-info, .admin-fulfillment .admin-order-request { grid-template-columns: 1fr }
 }
+
+/* ── 주문 처리: 단계 탭 건수 · 정렬 선택 ── */
+.order-workspace__count { background: var(--color-background-soft); border-radius: 999px; color: var(--color-muted); font-size: 11px; margin-left: 4px; padding: 1px 7px }
+.order-workspace__stage.is-current .order-workspace__count { background: var(--color-brand); color: #fff }
+.order-workspace__toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; margin: 8px 0 12px }
+.order-workspace__toolbar .order-workspace__scope-note { margin: 0 }
+.fulfillment-sort { background: #fff; border: 1px solid var(--color-border); border-radius: 999px; display: inline-flex; padding: 3px }
+.fulfillment-sort__option { border-radius: 999px; color: var(--color-muted); font-size: var(--font-xs); padding: 5px 12px }
+.fulfillment-sort__option:hover { color: var(--color-brand) }
+.fulfillment-sort__option.is-current { background: var(--color-brand); color: #fff }
+.fulfillment-sort__option:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px }

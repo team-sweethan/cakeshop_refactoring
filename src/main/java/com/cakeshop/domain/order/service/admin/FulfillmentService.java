@@ -1,6 +1,8 @@
 package com.cakeshop.domain.order.service.admin;
 
 import com.cakeshop.domain.order.dto.form.admin.FulfillmentSearchCondition;
+import com.cakeshop.domain.order.dto.form.admin.FulfillmentSort;
+import com.cakeshop.domain.order.dto.view.admin.FulfillmentStatusCount;
 import com.cakeshop.domain.order.dto.view.admin.FulfillmentListView;
 import com.cakeshop.domain.order.entity.Order;
 import com.cakeshop.domain.order.entity.OrderItem;
@@ -43,7 +45,10 @@ public class FulfillmentService {
     // 결제 도메인 공개 계약: PG(돈워리) 결제 확인 중 여부 (conventions 12절)
     private final PaymentOrderQueryService paymentOrderQueryService;
 
-    /** 검토·제작·픽업 업무 전체를 페이지 단위로 조회하고 상품·옵션 스냅샷을 조합한다. */
+    /**
+     * 검토·제작·픽업 업무를 페이지 단위로 조회하고 상품·옵션 스냅샷을 조합한다.
+     * 단계를 고르지 않으면 처리할 주문(검토 · 제작 · 픽업 대기)만 보이고, 정렬은 그 단계에서 고를 수 있는 값만 쓴다.
+     */
     @Transactional(readOnly = true)
     public FulfillmentListView getFulfillments(
             FulfillmentSearchCondition condition,
@@ -51,6 +56,10 @@ public class FulfillmentService {
     ) {
         OrderStatus selectedStatus = normalizeStatus(
                 condition == null ? null : condition.getStatus()
+        );
+        FulfillmentSort selectedSort = FulfillmentSort.resolve(
+                condition == null ? null : condition.getSort(),
+                selectedStatus
         );
         PageRequest normalizedPageRequest = pageRequest == null
                 ? new PageRequest(null, null)
@@ -60,6 +69,7 @@ public class FulfillmentService {
                 ? List.of()
                 : orderMapper.findFulfillmentOrders(
                                 selectedStatus,
+                                selectedSort,
                                 normalizedPageRequest.getSize(),
                                 normalizedPageRequest.getOffset()
                         )
@@ -67,9 +77,15 @@ public class FulfillmentService {
                         .map(this::toFulfillmentOrder)
                         .toList();
 
+        Map<OrderStatus, Long> statusCounts = orderMapper.countFulfillmentOrdersByStatus()
+                .stream()
+                .collect(Collectors.toMap(FulfillmentStatusCount::status, FulfillmentStatusCount::count));
+
         return new FulfillmentListView(
                 selectedStatus,
-                new PageResult<>(orders, normalizedPageRequest, totalOrders)
+                new PageResult<>(orders, normalizedPageRequest, totalOrders),
+                selectedSort,
+                statusCounts
         );
     }
 
