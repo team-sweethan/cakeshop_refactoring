@@ -255,6 +255,42 @@ class PaymentCheckoutServiceTests {
         assertThat(completion.method()).isEqualTo("돈워리 안전결제");
     }
 
+    // 0원 주문은 결제사를 거치지 않으므로 결제사가 돈워리로 저장돼 있어도 0원 결제로 보인다.
+    @Test
+    void getCompletion_zeroAmountPayment_showsZeroAmountEvenWhenDonWorrySelected() {
+        Payment zeroPayment = payment(PaymentStatus.DONE, null);
+        zeroPayment.setProvider(PaymentProvider.OWN);
+        zeroPayment.setMethod("ZERO_AMOUNT");
+        zeroPayment.setAmount(BigDecimal.ZERO);
+        PaymentOrder zeroOrder = new PaymentOrder(
+                1L,
+                "ORD-100",
+                true,
+                false,
+                BigDecimal.valueOf(30_000),
+                BigDecimal.valueOf(30_000),
+                BigDecimal.ZERO,
+                NOW.plusDays(1),
+                NOW.plusMinutes(10),
+                "홍길동",
+                "010-1111-2222",
+                List.of(new PaymentOrderItem(
+                        "딸기 생크림 케이크",
+                        1,
+                        BigDecimal.valueOf(30_000),
+                        List.of()
+                ))
+        );
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(zeroOrder);
+        when(paymentService.getDonePayment(1L)).thenReturn(zeroPayment);
+        when(storeService.getStoreView()).thenReturn(storeView());
+
+        PaymentCompletionView completion =
+                paymentCheckoutService.getCompletion(10L, 1L);
+
+        assertThat(completion.method()).isEqualTo("0원 결제");
+    }
+
     @ParameterizedTest
     @EnumSource(PaymentProvider.class)
     void checkoutAndFailure_selectionChanged_usePaymentProvider(PaymentProvider recorded) {
