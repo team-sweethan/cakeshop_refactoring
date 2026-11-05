@@ -306,6 +306,24 @@ class CustomerPageControllerTests {
                 .contains("@container (max-width: 620px)");
     }
 
+    // 결제 완료 화면은 결제가 끝난 것만 알리고 주문 진행은 주문 내역에서 보게 한다.
+    // 결제가 보류(돈워리 확인 중)된 주문도 같은 화면이라 상태나 픽업 방문 안내를 넣지 않는다.
+    @Test
+    void paymentCompletePage_announcesPaymentOnlyAndPointsToOrderHistory() throws IOException {
+        String completeTemplate = new ClassPathResource("templates/customer/order/complete.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(completeTemplate)
+                .contains("<title>결제 완료 | 스윗한 케이크</title>")
+                .contains("결제가 완료되었습니다")
+                .contains("마이페이지 &gt; 주문 내역")
+                .contains("th:href=\"@{/css/payment-complete.css}\"")
+                .contains("th:href=\"@{/orders/{id}(id=${completion.orderId})}\"")
+                .doesNotContain("결제와 주문이 완료되었습니다")
+                .doesNotContain("주문 완료 |")
+                .doesNotContain("확인 중");
+    }
+
     // 결제 수단은 결제 화면에서 바로 고르고(돈워리 추천), 결제하기를 누르면 고른 결제사로 바로 진행한다.
     // 고른 결제사를 저장하는 요청(CSRF 폼)과 돈워리 결제창 모달은 그대로 쓴다. 결제 화면 전용 스타일은 별도 파일이다.
     @Test

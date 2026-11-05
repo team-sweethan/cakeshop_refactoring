@@ -150,7 +150,7 @@ public class PaymentCheckoutService {
                 order.orderId(),
                 order.orderNumber(),
                 payment.getAmount(),
-                payment.getMethod(),
+                completionMethod(payment),
                 order.pickupAt(),
                 storeService.getStoreView().pickupPlace(),
                 order.items().stream()
@@ -160,6 +160,15 @@ public class PaymentCheckoutService {
                         ))
                         .toList()
         );
+    }
+
+    // 완료 화면의 결제 수단은 구매자가 결제 화면에서 고른 이름으로 보인다.
+    // 돈워리는 구매자가 직접 고른 안전결제라 그 이름을, 토스는 토스가 알려 준 결제 방식(카드 · 간편결제 등)을 쓴다.
+    private static String completionMethod(Payment payment) {
+        if (payment.getProvider() == PaymentProvider.OWN) {
+            return "돈워리 안전결제";
+        }
+        return payment.getMethod();
     }
 
     private void validatePaymentOrder(PaymentOrder order) {

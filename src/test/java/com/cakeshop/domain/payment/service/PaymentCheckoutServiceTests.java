@@ -239,6 +239,22 @@ class PaymentCheckoutServiceTests {
         );
     }
 
+    // 돈워리로 낸 결제는 완료 화면 결제 수단을 구매자가 고른 이름(돈워리 안전결제)으로 보인다.
+    @Test
+    void getCompletion_donWorryPayment_showsDonWorrySafePaymentAsMethod() {
+        Payment donWorryPayment = payment(PaymentStatus.DONE, "payment-key");
+        donWorryPayment.setProvider(PaymentProvider.OWN);
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L))
+                .thenReturn(order(true, false));
+        when(paymentService.getDonePayment(1L)).thenReturn(donWorryPayment);
+        when(storeService.getStoreView()).thenReturn(storeView());
+
+        PaymentCompletionView completion =
+                paymentCheckoutService.getCompletion(10L, 1L);
+
+        assertThat(completion.method()).isEqualTo("돈워리 안전결제");
+    }
+
     @ParameterizedTest
     @EnumSource(PaymentProvider.class)
     void checkoutAndFailure_selectionChanged_usePaymentProvider(PaymentProvider recorded) {
