@@ -316,12 +316,18 @@ class CustomerPageControllerTests {
                 .getContentAsString(StandardCharsets.UTF_8);
         String appStyles = new ClassPathResource("static/css/app.css")
                 .getContentAsString(StandardCharsets.UTF_8);
+        String mypageNav = new ClassPathResource("templates/fragments/customer/mypage-nav.html")
+                .getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(myPage)
-                .contains("th:href=\"@{/css/member-mypage.css}\"")
-                .containsSubsequence(">쇼핑</p>", ">주문 내역</a>", ">보유 쿠폰</a>",
+        assertThat(mypageNav)
+                .containsSubsequence(">마이페이지</a>", ">쇼핑</p>", ">주문 내역</a>", ">보유 쿠폰</a>",
                         ">활동</p>", ">작성할 후기</a>", ">내 후기</a>", ">1:1 문의</a>",
-                        ">계정</p>", ">회원정보 수정</a>")
+                        ">계정</p>", ">회원정보 수정</a>");
+        assertThat(myPage)
+                .containsSubsequence(
+                        "th:href=\"@{/css/mypage-layout.css}\"",
+                        "th:href=\"@{/css/member-mypage.css}\"")
+                .contains("mypageNav('home')")
                 .contains("${orderSummary.inProgressCount}")
                 .contains("${availableCouponCount}")
                 .contains("${writableReviewCount}")
@@ -359,6 +365,33 @@ class CustomerPageControllerTests {
                 .doesNotContain("max-width: 1040px")
                 .contains(".chat-page .chat-messages { flex: 1; max-height: none")
                 .contains("text-overflow: ellipsis");
+    }
+
+    // 마이페이지 하위 화면(보유 쿠폰 · 작성할 후기 · 내 후기 · 회원정보 수정)도 마이페이지와 같은 왼쪽 메뉴를 쓰고,
+    // 지금 화면 메뉴를 강조한다. "마이페이지로 돌아가기" 버튼 대신 메뉴로 오간다.
+    @Test
+    void mypageSubpages_shareMypageNavWithActiveItem() throws IOException {
+        Map<String, String> subpages = Map.of(
+                "templates/customer/coupon/list.html", "coupons",
+                "templates/customer/review/writable.html", "writable-reviews",
+                "templates/customer/review/my.html", "reviews",
+                "templates/customer/member/profile-edit.html", "profile");
+
+        for (Map.Entry<String, String> subpage : subpages.entrySet()) {
+            String template = new ClassPathResource(subpage.getKey())
+                    .getContentAsString(StandardCharsets.UTF_8);
+            assertThat(template)
+                    .as(subpage.getKey())
+                    .contains("th:href=\"@{/css/mypage-layout.css}\"")
+                    .contains("mypageNav('" + subpage.getValue() + "')")
+                    .contains("class=\"layout-sidebar mypage-layout\"")
+                    .doesNotContain("마이페이지로 돌아가기");
+        }
+        assertThat(new ClassPathResource("templates/customer/member/profile-edit.html")
+                .getContentAsString(StandardCharsets.UTF_8))
+                .contains("th:href=\"@{/css/member-profile.css}\"")
+                .contains("class=\"profile-grid\"")
+                .contains("id=\"new-password-match-message\"");
     }
 
     // 결제 완료 화면은 결제가 끝난 것만 알리고 주문 진행은 주문 내역에서 보게 한다.
