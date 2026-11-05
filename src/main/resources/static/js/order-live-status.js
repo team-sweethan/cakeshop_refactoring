@@ -24,7 +24,10 @@
       : (memberId ? "/topic/orders/" + memberId : null);
     if (!topic) return;
 
-    let pending = false;
+    // deferred: 입력 중이라 갈아 끼우지 못한 영역이 있음 → 입력을 마치면 반영
+    // queued: 다시 받는 중에 새 알림이 옴 → 지금 받기가 끝나면 한 번 더 받음
+    let deferred = false;
+    let queued = false;
     let refreshing = false;
 
     function currentMemberId() {
@@ -43,11 +46,12 @@
 
     async function refresh() {
       if (refreshing) {
-        pending = true;
+        queued = true;
         return;
       }
       refreshing = true;
-      pending = false;
+      queued = false;
+      deferred = false;
       try {
         const response = await fetch(location.href, {
           credentials: "same-origin",
@@ -71,20 +75,22 @@
             if (details) details.open = true;
           });
         });
-        if (skipped) pending = true;
+        if (skipped) deferred = true;
         document.dispatchEvent(new CustomEvent("cakeshop:live-updated"));
       } catch (error) {
         // 다음 알림이나 새로고침 때 맞춰진다.
       } finally {
         refreshing = false;
+        // 받는 사이 다른 주문 상태가 바뀌었으면 방금 받은 화면은 그 전 상태일 수 있어 한 번 더 받는다.
+        if (queued) refresh();
       }
     }
 
     // 입력을 마치면 미뤄 둔 반영을 한다.
     document.addEventListener("focusout", function () {
-      if (!pending) return;
+      if (!deferred) return;
       window.setTimeout(function () {
-        if (pending) refresh();
+        if (deferred && !refreshing) refresh();
       }, 300);
     });
 
