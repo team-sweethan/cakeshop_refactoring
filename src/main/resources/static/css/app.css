@@ -3432,6 +3432,21 @@ h2.section-title {
 .product-summary__price { color: var(--color-brand); font-size: 22px; font-weight: 850 }
 .product-summary__description { box-shadow: none; color: #665652; line-height: 1.8; margin-top: 24px }
 
+/* 가격 줄 오른쪽 끝에 판매 · 재고 상태 배지를 둔다. 따로 두 줄을 쓰지 않아 주문 버튼이 첫 화면에 들어온다. */
+.product-summary__price-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 12px; justify-content: space-between }
+.product-summary__price-row .product-summary__price { margin: 0 }
+.product-summary__status { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end }
+
+/* 수량과 금액. 기본은 수량 위, 금액 상자 아래. */
+.product-purchase { margin-top: 12px }
+.product-purchase__summary { margin-top: 16px }
+
+/* 옵션 없는 일반 케이크: "수량 ……… 총금액" 한 줄. 금액 상자는 테두리 없이 총금액만 보인다. */
+.product-purchase--compact { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; margin-top: 20px }
+.product-purchase--compact .product-purchase__quantity { margin-bottom: 0 }
+.product-purchase--compact .product-purchase__summary { background: transparent; border: 0; box-shadow: none; margin-top: 0; padding: 0 }
+.product-purchase--compact .product-purchase__total { align-items: baseline; border-bottom: 0; display: flex; gap: 12px; justify-content: flex-end; padding: 0 }
+
 /* 장바구니와 인증 */
 .cart-layout { gap: 28px }
 .cart-item { transition: border-color .18s ease, box-shadow .18s ease }

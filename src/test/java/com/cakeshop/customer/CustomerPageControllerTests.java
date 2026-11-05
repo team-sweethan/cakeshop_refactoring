@@ -296,9 +296,10 @@ class CustomerPageControllerTests {
 
         assertThat(productDetailTemplate)
                 .contains("and product.productType.name() == 'GENERAL'")
+                // 옵션 선택 영역은 옵션이 있는 일반 케이크에만 그린다
                 .containsSubsequence(
                         "data-product-option-groups",
-                        "th:if=\"${product.productType.name() == 'GENERAL'}\""
+                        "th:if=\"${product.productType.name() == 'GENERAL' and !optionGroups.isEmpty()}\""
                 )
                 .contains("th:href=\"@{/orders/custom/options(productId=${product.id})}\"")
                 .doesNotContain("th:href=\"@{/orders/custom/options}\"");

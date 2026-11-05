@@ -122,7 +122,10 @@
     </div>
 
     <!-- 실제 상품 기본 정보 -->
-    <div class="product-summary">
+    <!--/* compactPurchase: 옵션이 없는 일반 케이크. 선택할 옵션이 없으므로 옵션 영역을 숨기고
+           수량과 총금액을 한 줄로 줄여 주문 버튼이 첫 화면에 들어오게 한다. */-->
+    <div class="product-summary"
+         th:with="compactPurchase=${product.productType.name() == 'GENERAL' and optionGroups.isEmpty()}">
 
       <!-- 상품 유형 -->
       <span
@@ -140,13 +143,25 @@
         상품명
       </h2>
 
-      <!-- 상품 기본 가격 -->
-      <p
-              class="product-summary__price"
-              th:text="|${#numbers.formatInteger(product.basePrice, 0, 'COMMA')}원|"
-      >
-        35,000원
-      </p>
+      <!--/* 기본 가격과 판매 · 재고 상태를 한 줄에 둔다. 상태는 줄 오른쪽 끝 배지로만 보인다. */-->
+      <div class="product-summary__price-row">
+        <p
+                class="product-summary__price"
+                th:text="|${#numbers.formatInteger(product.basePrice, 0, 'COMMA')}원|"
+        >
+          35,000원
+        </p>
+
+        <!--/* 고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
+        <div class="product-summary__status" aria-label="판매 · 재고 상태">
+          <span class="badge badge--success">판매 중</span>
+          <span class="badge badge--success" th:if="${product.unlimitedStock}">재고 제한 없음</span>
+          <span class="badge badge--danger" th:if="${product.outOfStock}">품절</span>
+          <span class="badge badge--success"
+                th:if="${!product.unlimitedStock and !product.outOfStock}"
+                th:text="|재고 ${product.stockQuantity}개|">재고 5개</span>
+        </div>
+      </div>
 
       <!-- 상품 설명 -->
       <p
@@ -157,55 +172,6 @@
       >
         상품 설명
       </p>
-
-      <!--
-        고객 상품 상세 조회는 ACTIVE 상품만 반환하므로
-        조회된 상품은 항상 판매 중이다.
-      -->
-      <div class="data-row">
-          <span class="data-row__label">
-            판매 상태
-          </span>
-
-        <span>
-            <span class="badge badge--success">
-              판매 중
-            </span>
-          </span>
-      </div>
-
-      <!-- 재고 상태 -->
-      <div class="data-row">
-          <span class="data-row__label">
-            재고 상태
-          </span>
-
-        <!-- 재고 제한이 없는 상품 -->
-        <span th:if="${product.unlimitedStock}">
-            <span class="badge badge--success">
-              재고 제한 없음
-            </span>
-          </span>
-
-        <!-- 재고가 0인 상품 -->
-        <span th:if="${product.outOfStock}">
-            <span class="badge badge--danger">
-              품절
-            </span>
-          </span>
-
-        <!-- 재고가 1개 이상 남아 있는 상품 -->
-        <span
-                th:if="${!product.unlimitedStock and !product.outOfStock}"
-        >
-            <span
-                    class="badge badge--success"
-                    th:text="|재고 있음 (${product.stockQuantity}개)|"
-            >
-              재고 있음
-            </span>
-          </span>
-      </div>
 
       <!-- 상품 준비 기간 -->
       <div class="data-row">
@@ -243,10 +209,11 @@
       </div>
 
       <!-- 실제 상품 옵션 -->
+      <!--/* 옵션이 없는 일반 케이크는 이 영역을 그리지 않는다(compactPurchase). */-->
       <div class="section"
            sec:authorize="!hasRole('ADMIN')"
            data-product-option-groups
-           th:if="${product.productType.name() == 'GENERAL'}"
+           th:if="${product.productType.name() == 'GENERAL' and !optionGroups.isEmpty()}"
            style="margin-top:16px">
         <h3 class="form-label">선택 가능한 옵션</h3>
 
@@ -321,17 +288,16 @@
             </p>
           </section>
         </div>
-
-        <div class="panel panel--dashed text-muted"
-             th:if="${optionGroups.isEmpty()}">
-          등록된 선택 옵션이 없습니다.
-        </div>
       </div>
+
+      <!--/* 수량과 금액. 옵션이 없는 일반 케이크(compactPurchase)는 "수량 ……… 총금액" 한 줄로 그린다.
+             기본 가격은 위 가격 줄에 있고 옵션 추가금액은 항상 0원이라 그 줄들은 뺀다. */-->
+      <div class="product-purchase"
+           th:classappend="${compactPurchase} ? ' product-purchase--compact'">
 
       <!-- 주문 가능한 일반 상품에만 수량 선택기를 표시한다. -->
       <div
-              class="form-group"
-              style="margin-top:12px"
+              class="form-group product-purchase__quantity"
               sec:authorize="!hasRole('ADMIN')"
               th:if="${product.quantitySelectable}"
       >
@@ -382,12 +348,11 @@
       </div>
 
       <!-- 선택 옵션과 수량이 바뀔 때 JavaScript가 금액을 다시 계산한다. -->
-      <div class="panel stack"
+      <div class="panel stack product-purchase__summary"
            sec:authorize="!hasRole('ADMIN')"
            th:if="${product.available}"
-           data-product-price-summary
-           style="margin-top:16px">
-        <div class="data-row">
+           data-product-price-summary>
+        <div class="data-row" th:unless="${compactPurchase}">
           <span class="data-row__label">기본 가격</span>
           <strong th:text="|${#numbers.formatInteger(
                     product.basePrice,
@@ -398,18 +363,18 @@
           </strong>
         </div>
 
-        <div class="data-row">
+        <div class="data-row" th:unless="${compactPurchase}">
           <span class="data-row__label">옵션 추가금액</span>
           <strong data-selected-option-price>0원</strong>
         </div>
 
         <div class="data-row"
-             th:if="${product.quantitySelectable}">
+             th:if="${product.quantitySelectable and !compactPurchase}">
           <span class="data-row__label">수량</span>
           <strong data-selected-quantity>1개</strong>
         </div>
 
-        <div class="data-row">
+        <div class="data-row product-purchase__total">
           <span class="data-row__label">총금액</span>
           <strong data-product-total-price
                   style="font-size:20px"
@@ -421,6 +386,7 @@
             0원
           </strong>
         </div>
+      </div>
       </div>
 
       <!-- 주문 및 장바구니 버튼 -->
