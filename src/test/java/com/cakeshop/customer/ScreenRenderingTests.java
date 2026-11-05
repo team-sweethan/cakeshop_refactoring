@@ -1023,11 +1023,26 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString(
                 "/admin/orders/" + orderId + "/cancel"
             )))
-            .andExpect(content().string(containsString("쿠폰 적용")))
-            .andExpect(content().string(containsString("적용")))
+            // 쿠폰 "적용/미적용" 줄은 없애고, 할인이 있을 때만 할인 금액 줄을 보인다. 관리자 취소는 접어 둔다.
+            .andExpect(content().string(not(containsString("쿠폰 적용"))))
             .andExpect(content().string(containsString("쿠폰 할인 금액")))
+            .andExpect(content().string(containsString("<details class=\"admin-order-cancel\"")))
+            .andExpect(content().string(containsString("admin-order-summary")))
+            // 주문 처리 목록과 같은 처리 버튼이 상세에도 있고, 처리 뒤 이 상세로 돌아온다
+            .andExpect(content().string(containsString("/admin/fulfillment/" + orderId + "/pickup")))
+            .andExpect(content().string(containsString("name=\"returnTo\" value=\"detail\"")))
             .andExpect(content().string(containsString("-5,000원")))
             .andExpect(content().string(containsString("name=\"_csrf\"")));
+
+        // 주문 처리에서 들어온 상세: 돌아가기는 같은 단계 탭, 왼쪽 메뉴는 주문 처리, 처리 버튼은 돌아갈 곳을 함께 보낸다
+        mockMvc.perform(get("/admin/orders/{orderId}", orderId)
+                .param("from", "fulfillment")
+                .param("status", "READY_FOR_PICKUP"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("&lt; 주문 처리")))
+            .andExpect(content().string(containsString("href=\"/admin/fulfillment?status=READY_FOR_PICKUP\"")))
+            .andExpect(content().string(containsString("name=\"from\" value=\"fulfillment\"")))
+            .andExpect(content().string(not(containsString("주문 처리에서 열기"))));
     }
 
     @Test

@@ -5,13 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>전체 주문 | 관리자</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/admin-order.css}">
+  <script defer th:src="@{/js/admin-order-list.js}"></script>
 </head>
 <body>
 <div class="admin-layout">
   <aside th:replace="~{fragments/admin/sidebar :: sidebar('orders')}"></aside>
   <div class="admin-main">
     <header th:replace="~{fragments/admin/header :: header('전체 주문')}"></header>
-    <main class="admin-content">
+    <main class="admin-content admin-order">
       <div class="admin-content__header">
         <div>
           <p class="admin-page-eyebrow">ORDER DIRECTORY</p>
@@ -19,23 +21,46 @@
           <p class="note">모든 주문의 상세와 현재 상태를 확인합니다. 검토·제작·픽업 업무는 주문 처리에서 진행합니다.</p>
         </div>
       </div>
+
+      <!--/* 상태 탭: 받은 목록을 화면에서만 나눠 보인다(admin-order-list.js). 숫자는 상태별 건수.
+             취소 · 반려 · 만료는 한 탭으로 묶는다. 스크립트가 없으면 전체 목록이 그대로 보인다. */-->
+      <div class="admin-order-tabs" role="group" aria-label="주문 상태로 거르기"
+           th:unless="${#lists.isEmpty(orders)}" data-admin-order-tabs>
+        <button class="admin-order-tabs__tab is-active" type="button" data-order-filter="all" aria-pressed="true">전체 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="PENDING_PAYMENT" aria-pressed="false">결제 대기 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="UNDER_REVIEW" aria-pressed="false">주문 확인 중 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="IN_PRODUCTION" aria-pressed="false">제작 중 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="READY_FOR_PICKUP" aria-pressed="false">픽업 준비 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="PICKED_UP" aria-pressed="false">픽업 완료 <span data-order-filter-count></span></button>
+        <button class="admin-order-tabs__tab" type="button" data-order-filter="CLOSED" aria-pressed="false">취소·반려·만료 <span data-order-filter-count></span></button>
+      </div>
+
       <div class="table-wrap">
-        <table class="data-table">
+        <table class="data-table admin-order-table">
           <thead><tr><th>주문번호</th><th>유형</th><th>주문자</th><th>상품명</th><th>금액</th><th>상태</th><th>픽업 일시</th><th>관리</th></tr></thead>
           <tbody>
           <tr th:if="${#lists.isEmpty(orders)}"><td colspan="8">주문이 없습니다.</td></tr>
-          <tr th:each="order : ${orders}">
-            <td th:text="${order.orderNumber}">ORD-001</td>
+          <!--/* 상태 색: 결제 대기 노랑 · 진행 중(주문 확인 중 · 제작 중 · 픽업 준비) 파랑 · 픽업 완료 초록 · 취소 · 반려 · 만료 흐린 회색 */-->
+          <tr th:each="order : ${orders}"
+              th:with="s=${order.status.name()}, closed=${s == 'CANCELED' or s == 'REJECTED' or s == 'EXPIRED'}"
+              th:attr="data-order-status-group=${closed} ? 'CLOSED' : ${s}"
+              th:classappend="${closed} ? 'admin-order-table__row--closed'">
+            <td><span class="admin-order-table__number" th:text="${order.orderNumber}" th:title="${order.orderNumber}">ORD-001</span></td>
             <td th:text="${order.orderTypeLabel}">일반 상품</td>
             <td th:text="${order.ordererName}">주문자</td>
             <td th:text="${order.productName}">상품명</td>
             <td th:text="${#numbers.formatInteger(order.finalAmount, 1, 'COMMA') + '원'}">0원</td>
-            <td><span class="badge" th:text="${order.statusLabel}">결제 대기</span></td>
+            <td><span class="badge"
+                      th:classappend="${s == 'PENDING_PAYMENT'} ? 'badge--warning' : (${s == 'PICKED_UP'} ? 'badge--success' : (${closed} ? 'badge--muted' : 'badge--info'))"
+                      th:text="${order.statusLabel}">결제 대기</span></td>
             <td th:text="${#temporals.format(order.pickupAt, 'yyyy.MM.dd HH:mm')}">2026.08.03</td>
             <td>
               <a class="btn" th:href="@{/admin/orders/{id}(id=${order.orderId})}">상세</a>
               <a class="btn" th:href="@{/admin/chat(customerId=${order.memberId})}">채팅하기</a>
             </td>
+          </tr>
+          <tr class="admin-order-table__filtered-empty" data-order-filtered-empty hidden>
+            <td colspan="8">이 상태의 주문이 없습니다.</td>
           </tr>
           </tbody>
         </table>

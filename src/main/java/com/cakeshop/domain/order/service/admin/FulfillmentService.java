@@ -20,6 +20,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -70,6 +71,20 @@ public class FulfillmentService {
                 selectedStatus,
                 new PageResult<>(orders, normalizedPageRequest, totalOrders)
         );
+    }
+
+    /**
+     * 주문 상세 화면에 주문 처리 버튼을 보이기 위해 주문 하나의 처리 정보(가능한 다음 단계 · 결제 확인 중)를 조회한다.
+     * 주문 처리 목록과 같은 규칙(toFulfillmentOrder)으로 계산하고, 처리 단계가 아닌 주문(결제 대기 · 취소 · 반려 · 만료)은 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public Optional<FulfillmentListView.FulfillmentOrder> getFulfillmentOrder(long orderId) {
+        if (orderId <= 0) {
+            return Optional.empty();
+        }
+        return orderMapper.findOrderById(orderId)
+                .filter(order -> FULFILLMENT_STATUSES.contains(order.getStatus()))
+                .map(this::toFulfillmentOrder);
     }
 
     /** 주문 상세에서 해당 주문이 보이는 작업 단계 페이지를 계산한다. */

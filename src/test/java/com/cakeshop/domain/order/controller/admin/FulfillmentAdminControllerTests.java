@@ -187,6 +187,44 @@ class FulfillmentAdminControllerTests {
         verify(refundFacade).rejectCustomOrder(7L, 10L, "제작 일정이 부족합니다.");
     }
 
+    // 주문 상세에서 누른 처리 버튼은 처리 뒤 그 주문 상세로 돌아간다. 주문 처리에서 들어온 상세면 돌아가기 정보도 유지한다.
+    @Test
+    void markPickedUp_fromDetail_redirectsBackToOrderDetail() throws Exception {
+        authenticateAdmin();
+
+        mockMvc.perform(post("/admin/fulfillment/10/pickup")
+                        .param("returnTo", "detail")
+                        .param("from", "fulfillment")
+                        .param("status", "READY_FOR_PICKUP"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/orders/10?from=fulfillment&status=READY_FOR_PICKUP"))
+                .andExpect(flash().attribute("successMessage", "픽업 완료로 변경했습니다."));
+
+        mockMvc.perform(post("/admin/fulfillment/10/production/start")
+                        .param("returnTo", "detail"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/orders/10"));
+    }
+
+    // 돌아갈 곳은 고정 경로로만 만든다. 모르는 returnTo · from 값은 무시하고 주문 처리 목록으로 돌아간다.
+    @Test
+    void startProduction_unknownReturnTo_redirectsToFulfillmentList() throws Exception {
+        authenticateAdmin();
+
+        mockMvc.perform(post("/admin/fulfillment/10/production/start")
+                        .param("returnTo", "https://example.com")
+                        .param("from", "https://example.com")
+                        .param("status", "UNDER_REVIEW"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/fulfillment?status=UNDER_REVIEW"));
+
+        mockMvc.perform(post("/admin/fulfillment/10/production/start")
+                        .param("returnTo", "detail")
+                        .param("from", "elsewhere"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/orders/10"));
+    }
+
     private void authenticateAdmin() {
         MemberDetails admin = new MemberDetails(new MemberAuthenticationView(
                 7L,

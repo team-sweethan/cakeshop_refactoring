@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>주문 처리 | 관리자</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/admin-order.css}">
 </head>
 <body>
 <div class="admin-layout">
   <aside th:replace="~{fragments/admin/sidebar :: sidebar('fulfillment')}"></aside>
   <div class="admin-main">
     <header th:replace="~{fragments/admin/header :: header('주문 처리')}"></header>
-    <main class="admin-content">
+    <main class="admin-content admin-order admin-fulfillment">
       <div th:replace="~{fragments/common/alert :: alert}"></div>
       <div class="admin-content__header order-workspace__header">
         <div>
@@ -62,60 +63,70 @@
             <span class="fulfillment-order__meta">
               <strong th:text="${#temporals.format(order.pickupAt, 'MM.dd HH:mm')}">08.12 14:00</strong>
               <span th:text="${order.orderTypeLabel}">일반 상품</span>
-              <span class="badge" th:classappend="${order.statusClass}"
+              <!--/* 상태 색은 전체 주문 · 주문 상세와 같다: 진행 중 파랑, 픽업 완료 초록 */-->
+              <span class="badge"
+                    th:classappend="${order.status.name() == 'PICKED_UP'} ? 'badge--success' : 'badge--info'"
                     th:text="${order.statusLabel}">픽업 준비</span>
               <span class="badge badge--danger" th:if="${order.paymentUnderReview}">결제 확인 중</span>
             </span>
           </summary>
 
+          <!--/* 펼친 내용: 결제 확인 중 경고(노랑) → 픽업자 · 상품(연한 칸, 작은 회색 제목) →
+                 제작 요청 · 레터링(크림색 강조, 주문 제작만) → 구분선 아래 버튼 줄(다음 단계가 오른쪽 주 버튼) */-->
           <div class="fulfillment-order__body">
-            <div class="fulfillment-order__section" th:if="${order.paymentUnderReview}">
-              <h2 class="section-title">결제 확인 중</h2>
+            <div class="admin-order-alert" th:if="${order.paymentUnderReview}" role="note">
+              <strong>결제 확인 중</strong>
               <p>결제는 승인됐지만 돈워리가 결제를 확인하고 있습니다. 확인이 끝나면 자동으로 다음 단계로 넘어갑니다.</p>
-              <p class="text-muted">
+              <p class="admin-order-alert__sub">
                 기다리기 · 고객에게 확인한 뒤 진행 · 주문 취소 중에서 선택할 수 있습니다.
                 확인 중에 진행했다가 결제가 거절되면 손실은 가맹점이 부담합니다.
               </p>
             </div>
 
-            <div class="fulfillment-order__section">
-              <h2 class="section-title">픽업자 연락처</h2>
-              <strong th:text="${order.pickupName}">픽업자</strong>
-              <p class="text-muted" th:text="${order.pickupPhone}">010-0000-0000</p>
-            </div>
-
-            <div class="fulfillment-order__section">
-              <h2 class="section-title">상품·옵션</h2>
-              <div class="fulfillment-order__item" th:each="item : ${order.items}">
-                <strong th:text="${item.productName + ' × ' + item.quantity}">상품명 × 1</strong>
-                <p class="text-muted" th:text="${item.optionSummary}">기본</p>
+            <div class="fulfillment-info">
+              <div class="fulfillment-info__block">
+                <h2 class="fulfillment-label">픽업자</h2>
+                <strong th:text="${order.pickupName}">픽업자</strong>
+                <p class="text-muted" th:text="${order.pickupPhone}">010-0000-0000</p>
               </div>
-              <span th:if="${#lists.isEmpty(order.items)}">주문 상품 없음</span>
+
+              <div class="fulfillment-info__block">
+                <h2 class="fulfillment-label">상품·옵션</h2>
+                <div class="fulfillment-order__item" th:each="item : ${order.items}">
+                  <strong th:text="${item.productName + ' × ' + item.quantity}">상품명 × 1</strong>
+                  <p class="text-muted" th:text="${item.optionSummary}">기본</p>
+                </div>
+                <span th:if="${#lists.isEmpty(order.items)}">주문 상품 없음</span>
+              </div>
             </div>
 
-            <div class="fulfillment-order__section" th:if="${order.orderType.name() == 'CUSTOM'}">
-              <h2 class="section-title">제작 요청사항</h2>
-              <p th:if="${order.requestMessage != null and !order.requestMessage.isBlank()}"
-                 style="white-space:pre-wrap" th:text="${order.requestMessage}">제작 요청사항</p>
-              <p class="text-muted" th:unless="${order.requestMessage != null and !order.requestMessage.isBlank()}">
-                입력된 제작 요청사항이 없습니다.
-              </p>
-            </div>
-
-            <div class="fulfillment-order__section" th:if="${order.orderType.name() == 'CUSTOM'}">
-              <h2 class="section-title">레터링 문구</h2>
-              <div class="fulfillment-order__item" th:each="item : ${order.items}">
-                <p th:if="${item.requirements != null and !item.requirements.isBlank()}"
-                   style="white-space:pre-wrap" th:text="${item.requirements}">레터링 문구</p>
-                <p class="text-muted" th:unless="${item.requirements != null and !item.requirements.isBlank()}">
-                  입력된 레터링 문구가 없습니다.
+            <div class="admin-order-request" th:if="${order.orderType.name() == 'CUSTOM'}">
+              <div>
+                <h2 class="admin-order-request__title">제작 요청사항</h2>
+                <p th:if="${order.requestMessage != null and !order.requestMessage.isBlank()}"
+                   style="white-space:pre-wrap" th:text="${order.requestMessage}">제작 요청사항</p>
+                <p class="text-muted" th:unless="${order.requestMessage != null and !order.requestMessage.isBlank()}">
+                  입력된 제작 요청사항이 없습니다.
                 </p>
+              </div>
+              <div>
+                <h2 class="admin-order-request__title">레터링 문구</h2>
+                <div class="fulfillment-order__item" th:each="item : ${order.items}">
+                  <p th:if="${item.requirements != null and !item.requirements.isBlank()}"
+                     style="white-space:pre-wrap" th:text="${item.requirements}">레터링 문구</p>
+                  <p class="text-muted" th:unless="${item.requirements != null and !item.requirements.isBlank()}">
+                    입력된 레터링 문구가 없습니다.
+                  </p>
+                </div>
               </div>
             </div>
 
             <div class="fulfillment-order__actions">
-              <a class="btn"
-                 th:href="@{/admin/orders/{id}(id=${order.orderId})}">전체 주문 보기</a>
+              <!--/* 주문 상세: 모든 정보와 같은 처리 버튼이 있다. 돌아가기는 지금 단계 탭으로 온다 */-->
+              <a class="btn" th:if="${fulfillment.selectedStatus != null}"
+                 th:href="@{/admin/orders/{id}(id=${order.orderId}, from='fulfillment', status=${fulfillment.selectedStatus})}">주문 상세 보기</a>
+              <a class="btn" th:unless="${fulfillment.selectedStatus != null}"
+                 th:href="@{/admin/orders/{id}(id=${order.orderId}, from='fulfillment')}">주문 상세 보기</a>
               <form th:if="${order.productionStartable}" method="post"
                     th:action="@{/admin/fulfillment/{id}/production/start(id=${order.orderId})}">
                 <input type="hidden" name="status"

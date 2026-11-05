@@ -51,6 +51,12 @@ public class OrderAdminController {
                     fulfillmentService.getFulfillmentPage(order.orderId(), order.status())
             );
         }
+        // 주문 처리 목록과 같은 처리 버튼(제작 시작 · 픽업 준비 · 반려 · 제작 완료 · 픽업 완료)을 상세에도 보인다.
+        // 처리 단계가 아닌 주문이면 null이라 버튼이 없다.
+        model.addAttribute(
+                "fulfillmentOrder",
+                fulfillmentService.getFulfillmentOrder(orderId).orElse(null)
+        );
         return "admin/order/detail";
     }
 

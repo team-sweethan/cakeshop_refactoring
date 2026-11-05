@@ -238,6 +238,33 @@ class FulfillmentServiceTests {
         assertThat(page).isEqualTo(2);
     }
 
+    // 주문 상세에 처리 버튼을 보이기 위한 주문 하나의 처리 정보: 목록과 같은 규칙으로 계산한다.
+    @Test
+    void getFulfillmentOrder_readyOrder_exposesSameActionsAsList() {
+        Order order = order(OrderStatus.READY_FOR_PICKUP);
+        order.setPickupAt(NOW.plusHours(1));
+        when(orderMapper.findOrderById(10L)).thenReturn(java.util.Optional.of(order));
+        when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
+        when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
+
+        assertThat(fulfillmentService.getFulfillmentOrder(10L))
+                .hasValueSatisfying(view -> {
+                    assertThat(view.orderId()).isEqualTo(10L);
+                    assertThat(view.pickupCompletable()).isTrue();
+                    assertThat(view.productionStartable()).isFalse();
+                });
+    }
+
+    // 결제 대기 · 취소 · 만료처럼 처리 단계가 아닌 주문은 처리 버튼이 없다.
+    @Test
+    void getFulfillmentOrder_notFulfillmentStatus_isEmpty() {
+        when(orderMapper.findOrderById(10L))
+                .thenReturn(java.util.Optional.of(order(OrderStatus.EXPIRED)));
+
+        assertThat(fulfillmentService.getFulfillmentOrder(10L)).isEmpty();
+        assertThat(fulfillmentService.getFulfillmentOrder(0L)).isEmpty();
+    }
+
     private Order order(OrderStatus status) {
         Order order = new Order();
         order.setId(10L);
