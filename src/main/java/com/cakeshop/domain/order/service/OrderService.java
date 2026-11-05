@@ -155,7 +155,7 @@ public class OrderService {
                 order.getFinalAmount()
         );
 
-        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
+        events.publishEvent(new DonWorryPickupEvent(order.getId()));
         return OrderCreationResult.paymentReady(order.getId());
     }
 
@@ -259,7 +259,7 @@ public class OrderService {
         paymentOrderPreparationCommandService.prepareReadyPayment(
                 order.getId(), order.getOrderNumber(), order.getFinalAmount()
         );
-        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
+        events.publishEvent(new DonWorryPickupEvent(order.getId()));
         return OrderCreationResult.paymentReady(order.getId());
     }
 

@@ -204,7 +204,7 @@ class OrderServiceTests {
                 order.getFinalAmount()
         );
 
-        verify(events).publishEvent(new DonWorryPickupEvent(100L, false));
+        verify(events).publishEvent(new DonWorryPickupEvent(100L));
         InOrder saveOrder = inOrder(
                 productQueryService,
                 orderOptionValidator,
@@ -257,7 +257,7 @@ class OrderServiceTests {
         form.setDisplayedOriginalAmount(BigDecimal.valueOf(50_000));
 
         OrderCreationResult result = orderService.createCartOrder(10L, form);
-        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId(), false));
+        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId()));
 
         assertThat(result.orderId()).isEqualTo(100L);
         assertThat(result.requiresPendingPaymentGuide()).isFalse();

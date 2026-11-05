@@ -1,6 +1,5 @@
 package com.cakeshop.domain.order.dto;
 
-import java.time.Instant;
 import java.util.List;
 
 /** 주문 당시 상품 스냅샷만 전송하며 고객 개인정보·내부 가맹점 ID는 포함하지 않는다. */
@@ -14,14 +13,11 @@ import java.util.List;
  * ******************************
  */
 public record DonWorryPickupMessage(
-        String orderNumber, Instant scheduledPickupAt, Instant pickedUpAt, List<Item> items
+        String orderNumber, List<Item> items
 ) {
     public record Item(String productName, int quantity) {
     }
 
-    public record Schedule(Instant scheduledPickupAt, List<Item> items) {
-    }
-
-    public record Completion(Instant pickedUpAt) {
+    public record Schedule(List<Item> items) {
     }
 }

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.doThrow;
 import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
 import com.cakeshop.domain.order.dto.DonWorryPickupMessage;
 import com.cakeshop.domain.order.infra.DonWorryPickupClient;
-import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
@@ -30,21 +29,21 @@ class DonWorryPickupSenderTests {
         try (var context = context()) {
             var client = context.getBean(DonWorryPickupClient.class);
             var query = context.getBean(DonWorryPickupQueryService.class);
-            var message = new DonWorryPickupMessage("ORD-1", Instant.EPOCH, null, List.of());
-            when(query.getMessage(1, false)).thenReturn(message);
+            var message = new DonWorryPickupMessage("ORD-1", List.of());
+            when(query.getMessage(1)).thenReturn(message);
             var transaction = new TransactionTemplate(context.getBean(TestTransactionManager.class));
             transaction.executeWithoutResult(status -> {
-                context.publishEvent(new DonWorryPickupEvent(1, false));
+                context.publishEvent(new DonWorryPickupEvent(1));
                 verifyNoInteractions(client, query);
                 status.setRollbackOnly();
             });
-            context.publishEvent(new DonWorryPickupEvent(1, false));
+            context.publishEvent(new DonWorryPickupEvent(1));
             verifyNoInteractions(client, query);
             transaction.executeWithoutResult(status -> {
-                context.publishEvent(new DonWorryPickupEvent(1, false));
+                context.publishEvent(new DonWorryPickupEvent(1));
                 verifyNoInteractions(client, query);
             });
-            verify(client).send(message, false);
+            verify(client).send(message);
         }
     }
 
@@ -52,10 +51,10 @@ class DonWorryPickupSenderTests {
     void deliveryFailureDoesNotTurnCommittedOrderIntoAnError() {
         try (var context = context()) {
             var query = context.getBean(DonWorryPickupQueryService.class);
-            doThrow(new IllegalStateException("unavailable")).when(query).getMessage(2, true);
+            doThrow(new IllegalStateException("unavailable")).when(query).getMessage(2);
             var transaction = new TransactionTemplate(context.getBean(TestTransactionManager.class));
             assertThatCode(() -> transaction.executeWithoutResult(status ->
-                    context.publishEvent(new DonWorryPickupEvent(2, true)))).doesNotThrowAnyException();
+                    context.publishEvent(new DonWorryPickupEvent(2)))).doesNotThrowAnyException();
             verifyNoInteractions(context.getBean(DonWorryPickupClient.class));
         }
     }

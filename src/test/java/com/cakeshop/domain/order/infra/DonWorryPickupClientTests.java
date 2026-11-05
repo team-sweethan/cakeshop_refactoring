@@ -59,17 +59,15 @@ class DonWorryPickupClientTests {
             var json = JsonMapper.builder().findAndAddModules().build();
             var props = properties("http://127.0.0.1:" + server.getAddress().getPort());
             var client = new DonWorryPickupClient(props, json, CLOCK, ignored -> Base64.getEncoder().encodeToString(KEY));
-            var message = new DonWorryPickupMessage("ORD-TEST", Instant.parse("2026-10-27T06:00:00Z"),
-                    Instant.parse("2026-10-27T06:15:00Z"),
-                    List.of(new DonWorryPickupMessage.Item("딸기 케이크", 2),
+            var message = new DonWorryPickupMessage("ORD-TEST", List.of(new DonWorryPickupMessage.Item("딸기 케이크", 2),
                             new DonWorryPickupMessage.Item("초코 케이크", 1)));
-            client.send(message, false);
-            client.send(message, false);
-            client.send(message, true);
-            assertThat(received).hasSize(3);
+            client.send(message);
+            client.send(message);
+            assertThat(received).hasSize(2);
             assertThat(received).extracting(Received::nonce).doesNotHaveDuplicates();
             for (var request : received) {
                 assertThat(request.method()).isEqualTo("PUT");
+                assertThat(request.path()).isEqualTo("/api/v1/order-fulfillments/ORD-TEST/schedule");
                 assertThat(request.merchant()).isEqualTo("CAKESHOP");
                 assertThat(request.timestamp()).isEqualTo(Long.toString(CLOCK.instant().getEpochSecond()));
                 assertThat(UUID.fromString(request.nonce()).version()).isEqualTo(4);
@@ -78,16 +76,12 @@ class DonWorryPickupClientTests {
                         request.contentType(), "", request.body()));
             }
             var schedule = json.readTree(received.getFirst().body());
-            assertThat(schedule.path("scheduledPickupAt").asString()).isEqualTo("2026-10-27T06:00:00Z");
+            assertThat(schedule.size()).isEqualTo(1);
             assertThat(schedule.path("items").size()).isEqualTo(2);
             assertThat(schedule.path("items").get(0).path("productName").asString()).isEqualTo("딸기 케이크");
             assertThat(schedule.path("items").get(0).path("quantity").intValue()).isEqualTo(2);
             assertThat(schedule.has("merchantId")).isFalse();
             assertThat(received.get(1).body()).isEqualTo(received.getFirst().body());
-            assertThat(received.getLast().path()).isEqualTo("/api/v1/order-fulfillments/ORD-TEST/completion");
-            var completion = json.readTree(received.getLast().body());
-            assertThat(completion.path("pickedUpAt").asString()).isEqualTo("2026-10-27T06:15:00Z");
-            assertThat(completion.size()).isEqualTo(1);
         } finally {
             server.stop(0);
         }
@@ -107,7 +101,7 @@ class DonWorryPickupClientTests {
             var client = new DonWorryPickupClient(properties("http://127.0.0.1:" + server.getAddress().getPort()),
                     JsonMapper.builder().findAndAddModules().build(), CLOCK,
                     ignored -> Base64.getEncoder().encodeToString(KEY));
-            assertThatThrownBy(() -> client.send(new DonWorryPickupMessage("ORD-1", null, CLOCK.instant(), List.of()), true))
+            assertThatThrownBy(() -> client.send(new DonWorryPickupMessage("ORD-1", List.of())))
                     .isInstanceOf(IllegalStateException.class).hasMessage("DonWorry 픽업 응답 상태: 302");
         } finally {
             server.stop(0);

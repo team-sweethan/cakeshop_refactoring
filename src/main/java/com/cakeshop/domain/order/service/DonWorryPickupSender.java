@@ -29,16 +29,16 @@ public class DonWorryPickupSender {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void on(DonWorryPickupEvent event) {
         try {
-            send(event.orderId(), event.completion());
+            send(event.orderId());
         } catch (RuntimeException exception) {
             // 주문은 이미 커밋됐다. 본문·서명·키·외부 응답을 기록하거나 주문 실패로 되돌리지 않는다.
-            log.warn("DonWorry 픽업 전송 실패: orderId={}, completion={}. 동일 업무 요청 재전송 확인이 필요합니다.",
-                    event.orderId(), event.completion());
+            log.warn("DonWorry 픽업 전송 실패: orderId={}. 동일 업무 요청 재전송 확인이 필요합니다.",
+                    event.orderId());
         }
     }
 
     /** 수동 재확인 시에도 같은 저장 데이터로 전송하고 HTTP마다 새 nonce를 만든다. */
-    public void send(long orderId, boolean completion) {
-        client.send(queryService.getMessage(orderId, completion), completion);
+    public void send(long orderId) {
+        client.send(queryService.getMessage(orderId));
     }
 }

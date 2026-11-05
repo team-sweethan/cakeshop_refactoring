@@ -10,5 +10,5 @@ package com.cakeshop.domain.order.dto;
  * 설명 : 주문 원 트랜잭션에서 발행하고 커밋 후에만 처리한다.
  * ******************************
  */
-public record DonWorryPickupEvent(long orderId, boolean completion) {
+public record DonWorryPickupEvent(long orderId) {
 }

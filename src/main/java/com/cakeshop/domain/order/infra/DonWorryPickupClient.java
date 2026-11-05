@@ -62,16 +62,14 @@ public class DonWorryPickupClient {
         this.key = decodeKey(environment.apply(properties.getKeyEnvironmentVariable()));
     }
 
-    public void send(DonWorryPickupMessage message, boolean completion) {
-        var body = json.writeValueAsBytes(completion
-                ? new DonWorryPickupMessage.Completion(message.pickedUpAt())
-                : new DonWorryPickupMessage.Schedule(message.scheduledPickupAt(), message.items()));
+    public void send(DonWorryPickupMessage message) {
+        var body = json.writeValueAsBytes(new DonWorryPickupMessage.Schedule(message.items()));
         if (body.length > 65_536) {
             throw new IllegalArgumentException("DonWorry 픽업 요청 크기를 초과했습니다.");
         }
         URI uri = UriComponentsBuilder.fromUri(properties.getBaseUrl())
                 .pathSegment("api", "v1", "order-fulfillments", message.orderNumber(),
-                        completion ? "completion" : "schedule")
+                        "schedule")
                 .build().encode(StandardCharsets.UTF_8).toUri();
         String timestamp = Long.toString(clock.instant().getEpochSecond());
         String nonce = UUID.randomUUID().toString();

@@ -1,7 +1,5 @@
 package com.cakeshop.domain.order.service.admin;
 
-import com.cakeshop.domain.order.dto.DonWorryPickupEvent;
-import org.springframework.context.ApplicationEventPublisher;
 
 import com.cakeshop.domain.order.service.admin.FulfillmentService;
 
@@ -45,14 +43,12 @@ class FulfillmentServiceTests {
     @Mock
     private OrderMapper orderMapper;
 
-    @Mock
-    private ApplicationEventPublisher events;
 
     private FulfillmentService fulfillmentService;
 
     @BeforeEach
     void setUp() {
-        fulfillmentService = new FulfillmentService(orderMapper, CLOCK, events);
+        fulfillmentService = new FulfillmentService(orderMapper, CLOCK);
     }
 
     @Test
@@ -62,7 +58,6 @@ class FulfillmentServiceTests {
         fulfillmentService.markPickedUp(10L, 7L);
 
         verify(orderMapper).markPickedUpIfReady(10L, 7L, NOW);
-        verify(events).publishEvent(new DonWorryPickupEvent(10L, true));
     }
 
     @Test

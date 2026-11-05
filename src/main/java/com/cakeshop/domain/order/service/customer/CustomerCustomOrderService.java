@@ -148,7 +148,7 @@ public class CustomerCustomOrderService {
                 order.getOrderNumber(),
                 order.getFinalAmount()
         );
-        events.publishEvent(new DonWorryPickupEvent(order.getId(), false));
+        events.publishEvent(new DonWorryPickupEvent(order.getId()));
         return OrderCreationResult.paymentReady(order.getId());
     }
 

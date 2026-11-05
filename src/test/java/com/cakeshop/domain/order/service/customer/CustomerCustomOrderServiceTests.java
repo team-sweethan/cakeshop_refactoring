@@ -98,7 +98,7 @@ class CustomerCustomOrderServiceTests {
     void createCustomOrder_validRequest_savesServerCalculatedSnapshotAndReadyPayment() {
         stubNewOrder();
         OrderCreationResult result = service.createCustomOrder(10L, form());
-        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId(), false));
+        verify(events).publishEvent(new DonWorryPickupEvent(result.orderId()));
 
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderMapper).insertOrder(orderCaptor.capture());
