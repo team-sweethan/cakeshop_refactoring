@@ -18,6 +18,7 @@ import com.cakeshop.domain.coupon.dto.view.CustomerCouponView;
 import com.cakeshop.domain.coupon.entity.CustomerCouponStatus;
 import com.cakeshop.domain.order.dto.view.OrderMemberSummaryView;
 import com.cakeshop.domain.order.service.OrderMemberQueryService;
+import com.cakeshop.domain.review.service.ReviewMemberQueryService;
 import com.cakeshop.global.common.paging.PageRequest;
 import com.cakeshop.global.common.paging.PageResult;
 import com.cakeshop.global.error.BusinessException;
@@ -50,6 +51,9 @@ class MyPageControllerTests {
 
     @Mock
     private OrderMemberQueryService orderMemberQueryService;
+
+    @Mock
+    private ReviewMemberQueryService reviewMemberQueryService;
 
     @Mock
     private HttpServletRequest request;
@@ -94,12 +98,21 @@ class MyPageControllerTests {
                 .thenReturn(profile);
         when(orderMemberQueryService.getMyPageOrders(memberDetails.getMemberId()))
                 .thenReturn(orderSummary);
+        when(couponMemberQueryService.getMemberCoupons(
+                org.mockito.ArgumentMatchers.eq(memberDetails.getMemberId()),
+                org.mockito.ArgumentMatchers.any(PageRequest.class)))
+                .thenReturn(new PageResult<>(java.util.List.of(), new PageRequest(1, 1), 2));
+        when(reviewMemberQueryService.countWritableOrderItems(memberDetails.getMemberId()))
+                .thenReturn(3L);
 
         String viewName = myPageController.myPage(memberDetails, model);
 
         assertThat(viewName).isEqualTo("customer/member/mypage");
         verify(model).addAttribute("member", profile);
         verify(model).addAttribute("orderSummary", orderSummary);
+        // 요약 숫자: 보유 쿠폰 수는 보유 쿠폰 조회의 전체 건수, 작성할 후기 수는 후기 계약의 건수
+        verify(model).addAttribute("availableCouponCount", 2L);
+        verify(model).addAttribute("writableReviewCount", 3L);
     }
 
     @Test

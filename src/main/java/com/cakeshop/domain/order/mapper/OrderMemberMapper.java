@@ -27,6 +27,8 @@ public interface OrderMemberMapper {
             @Param("limit") int limit
     );
 
+    long countInProgressOrders(@Param("memberId") long memberId);
+
     long countOrdersByMemberId(@Param("memberId") long memberId);
 
     List<OrderMemberOrderRow> findOrdersByMemberId(

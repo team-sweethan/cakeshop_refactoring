@@ -53,7 +53,8 @@ public class OrderMemberQueryService {
                 orderMemberMapper.findCompletedOrders(memberId, MY_PAGE_ORDER_LIMIT)
                         .stream()
                         .map(this::toView)
-                        .toList()
+                        .toList(),
+                orderMemberMapper.countInProgressOrders(memberId)
         );
     }
 

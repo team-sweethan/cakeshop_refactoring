@@ -11,132 +11,143 @@
 </head>
 <body data-page-title="마이페이지">
 <header th:replace="~{fragments/common/header :: header}"></header>
-<main class="page-container ">
+<main class="page-container">
   <h1>마이페이지</h1>
   <div th:replace="~{fragments/common/alert :: alert}"></div>
-  <div class="layout-sidebar">
-    <aside class="panel">
-      <strong th:text="${member.nickname}"></strong>
-      <p class="text-muted" th:text="${member.email}"></p>
-      <nav class="stack" style="margin-top:12px">
-        <a class="btn btn--block" th:href="@{/orders}">주문 내역</a>
-        <a class="btn btn--block" th:href="@{/chat}">1:1 문의</a>
-        <a class="btn btn--block" th:href="@{/mypage/coupons}">보유 쿠폰</a>
-        <a class="btn btn--block" th:href="@{/mypage/reviews/writable}">작성할 후기</a>
-        <a class="btn btn--block" th:href="@{/mypage/reviews}">내 후기</a>
-        <a class="btn btn--block" th:href="@{/mypage/profile}">회원정보 수정</a>
-      </nav>
-    </aside>
-    <div>
-      <section class="section">
-        <h2 class="section-title">회원 정보</h2>
-        <div class="panel">
-          <div class="data-row">
-            <span class="data-row__label">이름</span>
-            <span th:text="${member.name}"></span>
-          </div>
-          <div class="data-row">
-            <span class="data-row__label">이메일</span>
-            <span th:text="${member.email}"></span>
-          </div>
-          <div class="data-row">
-            <span class="data-row__label">전화번호</span>
-            <span th:text="${member.phone}"></span>
-          </div>
-          <div class="data-row">
-            <span class="data-row__label">닉네임</span>
-            <span th:text="${member.nickname}"></span>
-          </div>
-          <div class="data-row">
-            <span class="data-row__label">생년월일</span>
-            <span th:text="${member.birthDate != null
-                    ? #temporals.format(member.birthDate, 'yyyy-MM-dd')
-                    : '미등록'}"></span>
-          </div>
+
+  <!--/* 왼쪽은 쇼핑 · 활동 · 계정으로 묶은 메뉴, 오른쪽은 프로필 한 줄 · 요약 숫자 · 최근 주문.
+         결제 완료 화면의 "마이페이지 > 주문 내역" 안내를 따라 들어오므로 주문이 첫 화면에 보이게 둔다. */-->
+  <div class="layout-sidebar mypage-layout">
+    <nav class="mypage-nav" aria-label="마이페이지 메뉴">
+      <div class="mypage-nav__group">
+        <p class="mypage-nav__title">쇼핑</p>
+        <a class="mypage-nav__link" th:href="@{/orders}">주문 내역</a>
+        <a class="mypage-nav__link" th:href="@{/mypage/coupons}">보유 쿠폰</a>
+      </div>
+      <div class="mypage-nav__group">
+        <p class="mypage-nav__title">활동</p>
+        <a class="mypage-nav__link" th:href="@{/mypage/reviews/writable}">작성할 후기</a>
+        <a class="mypage-nav__link" th:href="@{/mypage/reviews}">내 후기</a>
+        <a class="mypage-nav__link" th:href="@{/chat}">1:1 문의</a>
+      </div>
+      <div class="mypage-nav__group">
+        <p class="mypage-nav__title">계정</p>
+        <a class="mypage-nav__link" th:href="@{/mypage/profile}">회원정보 수정</a>
+      </div>
+    </nav>
+
+    <div class="mypage-main">
+      <!--/* 프로필 한 줄. 전화번호 · 생년월일 등은 회원정보 수정 화면에서 본다. */-->
+      <section class="mypage-profile" aria-label="회원 정보">
+        <span class="mypage-profile__avatar" aria-hidden="true"
+              th:text="${#strings.isEmpty(member.nickname)} ? '♥' : ${#strings.substring(member.nickname, 0, 1)}">케</span>
+        <div class="mypage-profile__text">
+          <strong class="mypage-profile__name" th:text="|${member.nickname} 님|">케이크러버 님</strong>
+          <span class="mypage-profile__email" th:text="${member.email}">user@cakeshop.local</span>
+        </div>
+        <a class="btn btn--sm mypage-profile__edit" th:href="@{/mypage/profile}">회원정보 수정</a>
+      </section>
+
+      <!--/* 요약 숫자. 누르면 해당 화면으로 간다. */-->
+      <ul class="mypage-stats" aria-label="나의 현황">
+        <li>
+          <a class="mypage-stat" th:href="@{/orders}">
+            <span class="mypage-stat__label">진행 중 주문</span>
+            <strong class="mypage-stat__value">
+              <span th:text="${orderSummary.inProgressCount}">0</span><small>건</small>
+            </strong>
+          </a>
+        </li>
+        <li>
+          <a class="mypage-stat" th:href="@{/mypage/coupons}">
+            <span class="mypage-stat__label">보유 쿠폰</span>
+            <strong class="mypage-stat__value">
+              <span th:text="${availableCouponCount}">0</span><small>장</small>
+            </strong>
+          </a>
+        </li>
+        <li>
+          <a class="mypage-stat" th:href="@{/mypage/reviews/writable}">
+            <span class="mypage-stat__label">작성할 후기</span>
+            <strong class="mypage-stat__value">
+              <span th:text="${writableReviewCount}">0</span><small>건</small>
+            </strong>
+          </a>
+        </li>
+      </ul>
+
+      <section class="mypage-orders" aria-labelledby="in-progress-orders-title">
+        <div class="mypage-orders__heading">
+          <h2 id="in-progress-orders-title">진행 중인 주문</h2>
+          <a class="mypage-orders__more" th:href="@{/orders}">전체 주문 내역 보기 &gt;</a>
+        </div>
+
+        <p class="mypage-order-empty"
+           th:if="${#lists.isEmpty(orderSummary.inProgressOrders)}">
+          진행 중인 주문이 없습니다.
+        </p>
+
+        <div class="mypage-order-list"
+             th:unless="${#lists.isEmpty(orderSummary.inProgressOrders)}">
+          <a class="mypage-order-card"
+             th:each="order : ${orderSummary.inProgressOrders}"
+             th:href="@{/orders/{orderId}(orderId=${order.orderId})}">
+            <span class="mypage-order-card__main">
+              <strong class="mypage-order-card__product">
+                <span th:text="${order.productName}">딸기 생크림 케이크</span>
+                <span class="text-muted"
+                      th:if="${order.itemCount > 1}"
+                      th:text="| 외 ${order.itemCount - 1}건|">외 1건</span>
+              </strong>
+              <span class="mypage-order-card__meta">
+                <span th:text="|픽업 ${#temporals.format(order.pickupAt, 'MM.dd (E) HH:mm')}|">픽업 08.17 (월) 14:00</span>
+                <span aria-hidden="true">·</span>
+                <span th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">35,000원</span>
+              </span>
+              <span class="mypage-order-card__number" th:text="${order.orderNumber}">ORD-001</span>
+            </span>
+            <span class="mypage-order-card__badges">
+              <span class="badge" th:text="${order.orderTypeLabel}">일반 상품</span>
+              <span class="badge badge--info" th:text="${order.statusLabel}">제작 중</span>
+            </span>
+          </a>
         </div>
       </section>
 
-      <section class="section" aria-labelledby="mypage-orders-title">
-        <div class="mypage-order-heading">
-          <div>
-            <h2 class="section-title" id="mypage-orders-title">주문 현황</h2>
-            <p class="text-muted">최근 주문의 진행 상태를 확인할 수 있습니다.</p>
-          </div>
-          <a class="btn" th:href="@{/orders}">전체 주문 내역</a>
+      <section class="mypage-orders" aria-labelledby="completed-orders-title">
+        <div class="mypage-orders__heading">
+          <h2 id="completed-orders-title">완료된 주문</h2>
         </div>
 
-        <div class="mypage-order-grid">
-          <section class="panel mypage-order-section" aria-labelledby="in-progress-orders-title">
-            <div class="mypage-order-section__header">
-              <h3 id="in-progress-orders-title">진행 중인 주문</h3>
-              <span class="mypage-order-count"
-                    th:text="|${orderSummary.inProgressOrders.size()}건|">0건</span>
-            </div>
+        <p class="mypage-order-empty"
+           th:if="${#lists.isEmpty(orderSummary.completedOrders)}">
+          완료된 주문이 없습니다.
+        </p>
 
-            <p class="mypage-order-empty"
-               th:if="${#lists.isEmpty(orderSummary.inProgressOrders)}">
-              진행 중인 주문이 없습니다.
-            </p>
-
-            <div class="mypage-order-list"
-                 th:unless="${#lists.isEmpty(orderSummary.inProgressOrders)}">
-              <a class="mypage-order-card"
-                 th:each="order : ${orderSummary.inProgressOrders}"
-                th:href="@{/orders/{orderId}(orderId=${order.orderId})}">
-                <span class="mypage-order-card__header">
-                  <span class="mypage-order-card__number" th:text="${order.orderNumber}">ORD-001</span>
-                  <span class="mypage-order-card__badges">
-                    <span class="badge" th:text="${order.orderTypeLabel}">일반 상품</span>
-                    <span class="badge badge--info" th:text="${order.statusLabel}">제작 중</span>
-                  </span>
-                </span>
-                <strong class="mypage-order-card__product" th:text="${order.productName}">딸기 생크림 케이크</strong>
+        <div class="mypage-order-list"
+             th:unless="${#lists.isEmpty(orderSummary.completedOrders)}">
+          <a class="mypage-order-card"
+             th:each="order : ${orderSummary.completedOrders}"
+             th:href="@{/orders/{orderId}(orderId=${order.orderId})}">
+            <span class="mypage-order-card__main">
+              <strong class="mypage-order-card__product">
+                <span th:text="${order.productName}">초코 케이크</span>
                 <span class="text-muted"
                       th:if="${order.itemCount > 1}"
                       th:text="| 외 ${order.itemCount - 1}건|">외 1건</span>
-                <span class="mypage-order-card__meta">
-                  <span th:text="|픽업 ${#temporals.format(order.pickupAt, 'MM.dd HH:mm')}|">픽업 08.17 14:00</span>
-                  <strong th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">35,000원</strong>
-                </span>
-              </a>
-            </div>
-          </section>
-
-          <section class="panel mypage-order-section" aria-labelledby="completed-orders-title">
-            <div class="mypage-order-section__header">
-              <h3 id="completed-orders-title">완료된 주문</h3>
-              <span class="mypage-order-count"
-                    th:text="|${orderSummary.completedOrders.size()}건|">0건</span>
-            </div>
-
-            <p class="mypage-order-empty"
-               th:if="${#lists.isEmpty(orderSummary.completedOrders)}">
-              완료된 주문 내역이 없습니다.
-            </p>
-
-            <div class="mypage-order-list"
-                 th:unless="${#lists.isEmpty(orderSummary.completedOrders)}">
-              <a class="mypage-order-card"
-                 th:each="order : ${orderSummary.completedOrders}"
-                th:href="@{/orders/{orderId}(orderId=${order.orderId})}">
-                <span class="mypage-order-card__header">
-                  <span class="mypage-order-card__number" th:text="${order.orderNumber}">ORD-002</span>
-                  <span class="mypage-order-card__badges">
-                    <span class="badge" th:text="${order.orderTypeLabel}">주문 제작</span>
-                    <span class="badge badge--success" th:text="${order.statusLabel}">픽업 완료</span>
-                  </span>
-                </span>
-                <strong class="mypage-order-card__product" th:text="${order.productName}">초코 케이크</strong>
-                <span class="text-muted"
-                      th:if="${order.itemCount > 1}"
-                      th:text="| 외 ${order.itemCount - 1}건|">외 1건</span>
-                <span class="mypage-order-card__meta">
-                  <span th:text="|주문 ${#temporals.format(order.createdAt, 'yyyy.MM.dd')}|">주문 2026.08.10</span>
-                  <strong th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">35,000원</strong>
-                </span>
-              </a>
-            </div>
-          </section>
+              </strong>
+              <span class="mypage-order-card__meta">
+                <span th:text="|주문 ${#temporals.format(order.createdAt, 'yyyy.MM.dd')}|">주문 2026.08.10</span>
+                <span aria-hidden="true">·</span>
+                <span th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">35,000원</span>
+              </span>
+              <span class="mypage-order-card__number" th:text="${order.orderNumber}">ORD-002</span>
+            </span>
+            <span class="mypage-order-card__badges">
+              <span class="badge" th:text="${order.orderTypeLabel}">주문 제작</span>
+              <span class="badge badge--success" th:text="${order.statusLabel}">픽업 완료</span>
+            </span>
+          </a>
         </div>
       </section>
     </div>
