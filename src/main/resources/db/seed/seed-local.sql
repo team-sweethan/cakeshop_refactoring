@@ -118,6 +118,14 @@ ALTER TABLE `social_accounts` AUTO_INCREMENT = 1;
 ALTER TABLE `member_status_histories` AUTO_INCREMENT = 1;
 ALTER TABLE `members` AUTO_INCREMENT = 1;
 
+-- 커뮤니티 기본 카테고리는 샘플이 아니라 글쓰기·목록 필터에 필요한 참조 데이터다.
+-- 위에서 지웠으므로 V20260802_113229__provision_post_categories.sql 과 같은 값으로 바로 다시 넣는다.
+-- 이 줄이 없으면 seed-community.sql 을 돌리기 전까지 목록에 "전체"만 보이고 글쓰기도 할 수 없다.
+INSERT INTO `post_categories` (`code`, `name`, `is_active`, `sort_order`) VALUES
+    ('QNA',    '질문', 1, 1),
+    ('REVIEW', '후기', 1, 2),
+    ('FREE',   '자유', 1, 3);
+
 -- ---------------------------------------------------------------------------
 -- 1. 기본 로컬 계정
 -- ---------------------------------------------------------------------------

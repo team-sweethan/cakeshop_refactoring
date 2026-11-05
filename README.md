@@ -163,6 +163,7 @@ SOURCE src/main/resources/db/seed/seed-community.sql;
 SOURCE src/main/resources/db/seed/seed-review.sql;
 SOURCE src/main/resources/db/seed/seed-notice.sql;
 SOURCE src/main/resources/db/seed/seed-review-demo.sql;
+SOURCE src/main/resources/db/seed/seed-community-demo.sql;
 ```
 
 `seed-local.sql`이 회원·상품을 먼저 준비하므로 실행 순서를 바꾸지 않습니다. `seed-community.sql`과
@@ -178,6 +179,10 @@ SOURCE src/main/resources/db/seed/seed-review-demo.sql;
 계정 비밀번호와 같습니다. 기존 데이터를 지우지 않고 없는 것만 넣으므로 여러 번 실행해도 결과가 같습니다.
 회원·주문을 모두 지우는 `seed-local.sql`보다 뒤에 실행합니다. 홈 "지금 가장 사랑받는 케이크"는 후기 수가 많은 순이라 이 seed를 넣으면
 딸기 생크림 케이크 1호, 초코 가나슈 케이크 1호 다크초코, 레몬 바스크 치즈케이크, 레터링 생크림 케이크가 보입니다.
+
+`seed-community-demo.sql`은 위 시연 회원 12명이 쓴 커뮤니티 글 24건(질문·후기·자유 8건씩)과 댓글·답글 48건,
+좋아요를 넣습니다. 질문 글에는 관리자 답변이 달립니다. 시연 회원이 필요하므로 `seed-review-demo.sql` 다음에,
+게시글을 모두 지우는 `seed-community.sql`보다 뒤에 실행합니다. 기존 데이터를 지우지 않고 없는 것만 넣습니다.
 
 상품 이미지는 `src/main/resources/static/images/products/`의 정적 파일을 가리킵니다. 업로드 폴더나 S3에 따로
 올릴 필요가 없고, 관리자 화면에서 이미지를 지워도 파일은 남습니다. 대표 매장 사진도 비어 있을 때만
