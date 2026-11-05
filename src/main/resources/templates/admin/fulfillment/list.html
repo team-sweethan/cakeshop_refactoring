@@ -122,8 +122,11 @@
             </div>
 
             <div class="fulfillment-order__actions">
-              <a class="btn"
-                 th:href="@{/admin/orders/{id}(id=${order.orderId})}">전체 주문 보기</a>
+              <!--/* 주문 상세: 모든 정보와 같은 처리 버튼이 있다. 돌아가기는 지금 단계 탭으로 온다 */-->
+              <a class="btn" th:if="${fulfillment.selectedStatus != null}"
+                 th:href="@{/admin/orders/{id}(id=${order.orderId}, from='fulfillment', status=${fulfillment.selectedStatus})}">주문 상세 보기</a>
+              <a class="btn" th:unless="${fulfillment.selectedStatus != null}"
+                 th:href="@{/admin/orders/{id}(id=${order.orderId}, from='fulfillment')}">주문 상세 보기</a>
               <form th:if="${order.productionStartable}" method="post"
                     th:action="@{/admin/fulfillment/{id}/production/start(id=${order.orderId})}">
                 <input type="hidden" name="status"

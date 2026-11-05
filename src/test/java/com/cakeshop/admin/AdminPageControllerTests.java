@@ -294,11 +294,16 @@ class AdminPageControllerTests {
                 .contains("admin-order-summary")
                 .contains("admin-order-cards")
                 .contains("<details class=\"admin-order-cancel\"")
+                .contains("name=\"returnTo\" value=\"detail\"")
+                .contains("th:action=\"@{/admin/fulfillment/{id}/pickup(id=${f.orderId})}\"")
+                .contains("&lt; 주문 처리")
                 .doesNotContain("쿠폰 적용");
         assertThat(fulfillment)
                 .contains("class=\"admin-order-alert\"")
                 .contains("class=\"fulfillment-info\"")
-                .contains("class=\"admin-order-request\"");
+                .contains("class=\"admin-order-request\"")
+                .contains("주문 상세 보기")
+                .doesNotContain("전체 주문 보기");
         assertThat(appStyles).doesNotContain(".admin-order-");
     }
 }

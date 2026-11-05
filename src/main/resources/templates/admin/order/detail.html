@@ -9,16 +9,27 @@
 </head>
 <body>
 <div class="admin-layout">
-  <aside th:replace="~{fragments/admin/sidebar :: sidebar('orders')}"></aside>
+  <!--/* 왼쪽 메뉴는 들어온 목록을 강조한다(주문 처리에서 왔으면 주문 처리) */-->
+  <th:block th:with="activeMenu=${param.from != null and param.from[0] == 'fulfillment'} ? 'fulfillment' : 'orders'">
+    <aside th:replace="~{fragments/admin/sidebar :: sidebar(${activeMenu})}"></aside>
+  </th:block>
   <div class="admin-main">
     <header th:replace="~{fragments/admin/header :: header('주문 상세')}"></header>
     <!--/* 맨 위 요약(주문번호 · 상태 · 픽업 · 주문자 · 금액 · 바로 할 일), 그 아래 정보 카드 3개(주문자·픽업 · 주문 상품 · 결제 금액).
            결제 확인 중이면 노란 안내 상자, 관리자 취소는 맨 아래에 접어 둔다. */-->
     <main class="admin-content admin-order admin-order-detail"
           th:with="s=${order.status.name()}, closed=${s == 'CANCELED' or s == 'REJECTED' or s == 'EXPIRED'},
-                   hasCustomRequest=${order.orderType.name() == 'CUSTOM'}">
+                   hasCustomRequest=${order.orderType.name() == 'CUSTOM'},
+                   fromFulfillment=${param.from != null and param.from[0] == 'fulfillment'},
+                   fromStatus=${param.status != null} ? ${param.status[0]} : null,
+                   f=${fulfillmentOrder}">
       <div th:replace="~{fragments/common/alert :: alert}"></div>
-      <a class="admin-order-back" th:href="@{/admin/orders}">&lt; 전체 주문</a>
+      <!--/* 돌아가기는 들어온 목록으로: 주문 처리(같은 단계 탭)에서 왔으면 주문 처리, 아니면 전체 주문 */-->
+      <a class="admin-order-back" th:if="${fromFulfillment and fromStatus != null}"
+         th:href="@{/admin/fulfillment(status=${fromStatus})}">&lt; 주문 처리</a>
+      <a class="admin-order-back" th:if="${fromFulfillment and fromStatus == null}"
+         th:href="@{/admin/fulfillment}">&lt; 주문 처리</a>
+      <a class="admin-order-back" th:unless="${fromFulfillment}" th:href="@{/admin/orders}">&lt; 전체 주문</a>
 
       <section class="admin-order-summary" aria-labelledby="admin-order-number">
         <div class="admin-order-summary__main">
@@ -38,9 +49,56 @@
             <strong th:text="|${#numbers.formatInteger(order.finalAmount, 1, 'COMMA')}원|">0원</strong>
           </p>
         </div>
+        <!--/* 바로 할 일: 주문 처리 목록과 같은 처리 버튼(같은 주소 · 같은 확인 창). 처리 뒤 이 상세로 돌아온다(returnTo=detail) */-->
         <div class="admin-order-summary__actions">
-          <a class="btn btn--primary" th:if="${order.fulfillmentManageable}"
+          <a class="btn" th:if="${order.fulfillmentManageable and !fromFulfillment}"
              th:href="@{/admin/fulfillment(status=${order.status}, page=${fulfillmentPage})}">주문 처리에서 열기</a>
+          <th:block th:if="${f != null}">
+            <form th:if="${f.productionStartable}" method="post"
+                  th:action="@{/admin/fulfillment/{id}/production/start(id=${f.orderId})}">
+              <input type="hidden" name="returnTo" value="detail">
+              <input type="hidden" name="from" value="fulfillment" th:if="${fromFulfillment}">
+              <input type="hidden" name="status" th:if="${fromFulfillment and fromStatus != null}" th:value="${fromStatus}">
+              <input type="hidden" name="reviewAcknowledged" value="true" th:if="${f.paymentUnderReview}">
+              <button class="btn btn--primary" type="submit"
+                      th:data-confirm="${f.confirmMessage('제작을 시작하면 고객 취소가 불가능합니다. 계속하시겠습니까?')}">
+                제작 승인·시작
+              </button>
+            </form>
+            <form th:if="${f.readyForPickupMovable}" method="post"
+                  th:action="@{/admin/fulfillment/{id}/ready(id=${f.orderId})}">
+              <input type="hidden" name="returnTo" value="detail">
+              <input type="hidden" name="from" value="fulfillment" th:if="${fromFulfillment}">
+              <input type="hidden" name="status" th:if="${fromFulfillment and fromStatus != null}" th:value="${fromStatus}">
+              <input type="hidden" name="reviewAcknowledged" value="true" th:if="${f.paymentUnderReview}">
+              <button class="btn btn--primary" type="submit"
+                      th:data-confirm="${f.confirmMessage('고객에게 확인한 뒤 픽업 준비로 넘기시겠습니까?')}">
+                픽업 준비로 넘기기
+              </button>
+            </form>
+            <form th:if="${f.productionCompletable}" method="post"
+                  th:action="@{/admin/fulfillment/{id}/production/complete(id=${f.orderId})}">
+              <input type="hidden" name="returnTo" value="detail">
+              <input type="hidden" name="from" value="fulfillment" th:if="${fromFulfillment}">
+              <input type="hidden" name="status" th:if="${fromFulfillment and fromStatus != null}" th:value="${fromStatus}">
+              <input type="hidden" name="reviewAcknowledged" value="true" th:if="${f.paymentUnderReview}">
+              <button class="btn btn--primary" type="submit"
+                      th:data-confirm="${f.confirmMessage('제작을 완료하고 픽업 대기로 변경하시겠습니까?')}">
+                제작 완료
+              </button>
+            </form>
+            <form th:if="${f.pickupCompletable}" method="post"
+                  th:action="@{/admin/fulfillment/{id}/pickup(id=${f.orderId})}">
+              <input type="hidden" name="returnTo" value="detail">
+              <input type="hidden" name="from" value="fulfillment" th:if="${fromFulfillment}">
+              <input type="hidden" name="status" th:if="${fromFulfillment and fromStatus != null}" th:value="${fromStatus}">
+              <input type="hidden" name="reviewAcknowledged" value="true" th:if="${f.paymentUnderReview}">
+              <button class="btn btn--primary" type="submit"
+                      th:data-confirm="${f.confirmMessage('픽업 완료 처리 후에는 되돌릴 수 없습니다. 처리하시겠습니까?')}">
+                픽업 완료 처리
+              </button>
+            </form>
+          </th:block>
         </div>
       </section>
 
@@ -102,6 +160,23 @@
           </div>
         </section>
       </div>
+
+      <!--/* 주문 제작 반려 · 환불도 되돌릴 수 없어 접어 둔다(주문 처리 목록과 같은 요청) */-->
+      <details class="admin-order-cancel" th:if="${f != null and f.rejectionAvailable}">
+        <summary>반려·환불</summary>
+        <form class="stack" method="post"
+              th:action="@{/admin/fulfillment/{id}/reject(id=${f.orderId})}">
+          <input type="hidden" name="returnTo" value="detail">
+          <input type="hidden" name="from" value="fulfillment" th:if="${fromFulfillment}">
+          <input type="hidden" name="status" th:if="${fromFulfillment and fromStatus != null}" th:value="${fromStatus}">
+          <textarea class="form-control form-control--textarea" name="reason"
+                    maxlength="200" required placeholder="반려 사유"></textarea>
+          <button class="btn btn--danger" type="submit"
+                  data-confirm="주문을 반려하고 결제를 환불하시겠습니까?">
+            반려·환불
+          </button>
+        </form>
+      </details>
 
       <!--/* 관리자 취소는 되돌릴 수 없어 접어 둔다. 펼치면 사유를 입력하고 확인 창을 거쳐 취소한다 */-->
       <details class="admin-order-cancel" th:if="${order.adminCancellationAvailable}">
