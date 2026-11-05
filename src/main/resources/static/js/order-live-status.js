@@ -94,7 +94,7 @@
       }, 300);
     });
 
-    function connect() {
+    function connect(reconnecting) {
       const client = Stomp.over(new SockJS("/ws"));
       client.debug = null;
       client.connect({}, function () {
@@ -108,15 +108,16 @@
           if (watchedOrderId && watchedOrderId !== orderId) return;
           refresh();
         });
+        // 다시 붙었으면 끊긴 사이 바뀐 것이 있을 수 있어 한 번 맞춘다.
+        // 구독을 건 뒤에 받아야 그사이 바뀐 상태도 알림으로 이어진다.
+        if (reconnecting) refresh();
       }, function () {
-        // 연결이 끊기면 다시 붙고, 끊긴 사이 바뀐 것이 있을 수 있어 한 번 맞춘다.
         window.setTimeout(function () {
-          connect();
-          refresh();
+          connect(true);
         }, 5000);
       });
     }
 
-    connect();
+    connect(false);
   });
 })();
