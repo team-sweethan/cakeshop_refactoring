@@ -328,6 +328,7 @@ class CustomerPageControllerTests {
                         "th:href=\"@{/css/mypage-layout.css}\"",
                         "th:href=\"@{/css/member-mypage.css}\"")
                 .contains("mypageNav('home')")
+                .contains("<h1 class=\"visually-hidden\">마이페이지</h1>")
                 .contains("${orderSummary.inProgressCount}")
                 .contains("${availableCouponCount}")
                 .contains("${writableReviewCount}")

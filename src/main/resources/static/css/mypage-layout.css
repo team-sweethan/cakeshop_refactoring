@@ -6,8 +6,10 @@
 
 /* 왼쪽 메뉴: 마이페이지 홈 + 쇼핑 · 활동 · 계정 묶음. 헤더 아래에 붙어 따라온다. */
 .mypage-nav { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); padding: 8px 0; position: sticky; top: 96px }
-.mypage-nav__home { border-bottom: 1px solid var(--color-border-light); color: var(--color-text); display: block; font-size: var(--font-md); font-weight: 700; margin-bottom: 6px; padding: 8px 16px 12px }
-.mypage-nav__home:hover, .mypage-nav__home.is-active { color: var(--color-brand) }
+/* 맨 위 "마이페이지"도 다른 메뉴처럼 마우스를 올리거나 지금 화면이면 분홍 바탕 · 왼쪽 선으로 표시한다 */
+.mypage-nav__home { border-left: 3px solid transparent; color: var(--color-text); display: block; font-size: var(--font-md); font-weight: 700; padding: 10px 16px 10px 13px; transition: background .15s ease, border-color .15s ease }
+.mypage-nav__home:hover, .mypage-nav__home.is-active { background: #fdf7f9; border-left-color: var(--color-brand); color: var(--color-brand) }
+.mypage-nav__home + .mypage-nav__group { border-top: 1px solid var(--color-border-light); margin-top: 6px; padding-top: 6px }
 .mypage-nav__group + .mypage-nav__group { border-top: 1px solid var(--color-border-light); margin-top: 6px; padding-top: 6px }
 .mypage-nav__title { color: var(--color-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; margin: 6px 16px 4px }
 .mypage-nav__link { border-left: 3px solid transparent; color: var(--color-text); display: block; font-size: var(--font-sm); padding: 8px 16px 8px 13px; transition: background .15s ease, border-color .15s ease }

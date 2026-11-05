@@ -13,7 +13,8 @@
 <body data-page-title="마이페이지">
 <header th:replace="~{fragments/common/header :: header}"></header>
 <main class="page-container">
-  <h1>마이페이지</h1>
+  <!--/* 화면 제목은 왼쪽 메뉴 맨 위 "마이페이지"가 대신한다. 화면 읽기 도구용 제목만 남긴다. */-->
+  <h1 class="visually-hidden">마이페이지</h1>
   <div th:replace="~{fragments/common/alert :: alert}"></div>
 
   <!--/* 왼쪽은 쇼핑 · 활동 · 계정으로 묶은 메뉴, 오른쪽은 프로필 한 줄 · 요약 숫자 · 최근 주문.
