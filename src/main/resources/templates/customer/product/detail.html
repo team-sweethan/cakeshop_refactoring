@@ -34,8 +34,12 @@
   <!-- 페이지 제목 -->
   <h1 class="visually-hidden">상품 상세</h1>
 
+  <!--/* 경로 · 사진 · 상품 정보 · 주문을 흰 카드 하나로 묶어 후기 위까지 한 덩어리로 보이게 한다.
+         사진만 배경 위에 떠 있고 정보만 카드에 들어 있으면 서로 다른 화면처럼 보였다. */-->
+  <div class="product-hero section">
+
   <!-- 현재 페이지 경로 -->
-  <nav class="page-breadcrumb section" aria-label="현재 위치">
+  <nav class="page-breadcrumb" aria-label="현재 위치">
     <a th:href="@{/}">
       메인
     </a>
@@ -165,7 +169,7 @@
 
       <!-- 상품 설명 -->
       <p
-              class="panel panel--soft section product-summary__description"
+              class="product-summary__description"
               th:text="${#strings.isEmpty(product.description)
               ? '등록된 상품 설명이 없습니다.'
               : product.description}"
@@ -173,40 +177,36 @@
         상품 설명
       </p>
 
-      <!-- 상품 준비 기간 -->
-      <div class="data-row">
-          <span class="data-row__label">
-            픽업 가능일
-          </span>
-
-        <!-- 일반 상품 -->
-        <span th:if="${product.productType.name() == 'GENERAL'}">
-            당일부터 픽업 가능
-          </span>
-
-        <!-- 주문 제작 상품 -->
-        <span
-                th:if="${product.productType.name() == 'CUSTOM'}"
-                th:text="|관리자 승인일로부터 ${product.preparationDays}일 후 픽업 가능|"
-        >
+      <!--/* 픽업 · 취소 안내는 표 대신 아이콘이 붙은 짧은 안내 두 개로 둔다. 넓으면 한 줄, 좁으면 두 줄이다. */-->
+      <ul class="product-facts">
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3 2"/>
+          </svg>
+          <span class="product-facts__label">픽업 가능일</span>
+          <!-- 일반 상품 -->
+          <span th:if="${product.productType.name() == 'GENERAL'}">당일부터 픽업 가능</span>
+          <!-- 주문 제작 상품 -->
+          <span th:if="${product.productType.name() == 'CUSTOM'}"
+                th:text="|관리자 승인일로부터 ${product.preparationDays}일 후 픽업 가능|">
             관리자 승인일로부터 2일 후 픽업 가능
           </span>
-      </div>
-
-      <!-- 상품 유형별 취소 가능 기간 -->
-      <div class="data-row">
-          <span class="data-row__label">
-            취소 가능 기간
-          </span>
-
-        <span th:if="${product.productType.name() == 'GENERAL'}">
-            픽업 예정 시각 전까지 취소 가능
-          </span>
-
-        <span th:if="${product.productType.name() == 'CUSTOM'}">
-            관리자 승인 전까지 취소 가능
-          </span>
-      </div>
+        </li>
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+            <path d="M3 4v5h5"/>
+          </svg>
+          <span class="product-facts__label">취소 가능 기간</span>
+          <span th:if="${product.productType.name() == 'GENERAL'}">픽업 예정 시각 전까지 취소 가능</span>
+          <span th:if="${product.productType.name() == 'CUSTOM'}">관리자 승인 전까지 취소 가능</span>
+        </li>
+      </ul>
 
       <!-- 실제 상품 옵션 -->
       <!--/* 옵션이 없는 일반 케이크는 이 영역을 그리지 않는다(compactPurchase). */-->
@@ -289,6 +289,10 @@
           </section>
         </div>
       </div>
+
+      <!--/* 주문 상자: 수량 · 금액 · 주문 버튼을 연한 배경 상자 하나로 묶어 "여기서 주문한다"가 바로 보이게 한다.
+             관리자는 주문하지 않으므로 상자를 그리지 않는다. */-->
+      <div class="product-order-box" sec:authorize="!hasRole('ADMIN')">
 
       <!--/* 수량과 금액. 옵션이 없는 일반 케이크(compactPurchase)는 "수량 ……… 총금액" 한 줄로 그린다.
              기본 가격은 위 가격 줄에 있고 옵션 추가금액은 항상 0원이라 그 줄들은 뺀다. */-->
@@ -390,6 +394,8 @@
       </div>
 
       <!-- 주문 및 장바구니 버튼 -->
+      <!--/* 배치는 CSS가 정한다: 주요 버튼(주문서 작성 · 제작 옵션 선택 · 품절)은 상자 폭 전체,
+             그 아래 장바구니와 1:1 문의가 나란히, 맨 아래 안내 문구. 묶음 div는 배치에 끼어들지 않는다. */-->
       <div class="product-detail__actions">
 
         <!-- 재고가 있는 경우 -->
@@ -402,7 +408,7 @@
           <!-- 일반 상품은 픽업 선택을 포함한 통합 주문서로 바로 이동한다. -->
           <a
                   sec:authorize="hasRole('USER')"
-                  class="btn btn--primary"
+                  class="btn btn--primary product-order-actions__primary"
                   th:href="@{/orders/checkout}"
                   data-order-checkout
           >
@@ -411,7 +417,7 @@
 
           <a
                   sec:authorize="isAnonymous()"
-                  class="btn btn--primary"
+                  class="btn btn--primary product-order-actions__primary"
                   th:href="@{/orders/checkout}"
                   data-order-checkout
                   data-login-required
@@ -420,6 +426,7 @@
           </a>
 
           <form sec:authorize="hasRole('USER')"
+                class="product-order-actions__secondary"
                 th:action="@{/cart/items}" method="post" data-server-cart-form>
             <input type="hidden" name="productId" th:value="${product.id}">
             <input type="hidden" name="quantity" value="1" data-server-cart-quantity>
@@ -429,12 +436,12 @@
             </button>
           </form>
 
-          <a sec:authorize="isAnonymous()" class="btn"
+          <a sec:authorize="isAnonymous()" class="btn product-order-actions__secondary"
              th:href="@{/cart/continue/{id}(id=${product.id})}">
             로그인 후 장바구니 담기
           </a>
 
-          <span class="note">
+          <span class="note product-order-actions__note">
               픽업 일시는 장바구니에서 나중에 선택할 수 있습니다.
             </span>
         </div>
@@ -445,7 +452,7 @@
                 th:if="${product.outOfStock}"
         >
           <button
-                  class="btn"
+                  class="btn product-order-actions__primary"
                   type="button"
                   disabled
           >
@@ -461,7 +468,7 @@
         >
           <a
                   sec:authorize="hasRole('USER')"
-                  class="btn"
+                  class="btn btn--primary product-order-actions__primary"
                   th:href="@{/orders/custom/options(productId=${product.id})}"
           >
             제작 옵션 선택
@@ -469,7 +476,7 @@
 
           <a
                   sec:authorize="isAnonymous()"
-                  class="btn"
+                  class="btn btn--primary product-order-actions__primary"
                   th:href="@{/orders/custom/options(productId=${product.id})}"
                   data-login-required
           >
@@ -480,7 +487,7 @@
         <div class="cluster" sec:authorize="!hasRole('ADMIN')">
           <a
                   sec:authorize="hasRole('USER')"
-                  class="btn"
+                  class="btn product-order-actions__inquiry"
                   th:href="@{/chat(productId=${product.id})}"
           >
             1:1 문의하기
@@ -488,7 +495,7 @@
 
           <a
                   sec:authorize="isAnonymous()"
-                  class="btn"
+                  class="btn product-order-actions__inquiry"
                   th:href="@{/chat(productId=${product.id})}"
                   data-login-required
           >
@@ -496,8 +503,10 @@
           </a>
         </div>
       </div>
+      </div>
     </div>
   </section>
+  </div>
 
   <!-- 상품 후기 영역 -->
   <section class="section">
