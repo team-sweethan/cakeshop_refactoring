@@ -261,6 +261,51 @@ class CustomerPageControllerTests {
                 .contains("data-final-amount");
     }
 
+    // 주문서 스크립트는 상품 주문서(달력 · 시 · 분 버튼, 접는 픽업자 칸)와 장바구니 주문서(날짜 선택 상자)를 함께 다룬다.
+    // 픽업 일시를 고르지 않아 막힌 제출에서는 결제 버튼을 잠그지 않는다.
+    @Test
+    void orderCheckoutScript_supportsPickupPickerAndDateSelect() throws IOException {
+        String checkoutScript = new ClassPathResource("static/js/order-checkout.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(checkoutScript)
+                .contains("[data-pickup-date]")
+                .contains("[data-pickup-picker]")
+                .contains("[data-pickup-calendar]")
+                .contains("if (slot) slot.input.checked = true;")
+                .contains("if (event.defaultPrevented) return;")
+                .contains("showMissingPickup(true);")
+                .contains("[data-pickup-submit-error]")
+                // 다시 그려도 키보드 포커스가 같은 버튼으로 돌아온다(#48 Codex 리뷰)
+                .contains("function keepFocus(draw)")
+                .contains("element.dataset.pickerKey = key;")
+                .contains("[data-pickup-contact]")
+                .contains("pickupContact.hidden = sameAsOrderer.checked && !pickupHasError");
+        // 제출 검사가 한 번만 제출 처리보다 먼저 등록돼야 막힌 제출에서 버튼이 잠기지 않는다
+        assertThat(checkoutScript.indexOf("initializePickupPicker();"))
+                .isLessThan(checkoutScript.indexOf("initializeSingleSubmit();"));
+    }
+
+    // 상품 주문서 전용 스타일은 공통 app.css가 아니라 주문서 CSS에 둔다(docs/frontend-template-format.md 6절)
+    @Test
+    void productCheckoutStyles_liveInOrderCheckoutCss() throws IOException {
+        String orderForm = new ClassPathResource("templates/customer/order/form.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String checkoutStyles = new ClassPathResource("static/css/order-checkout.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(orderForm).containsSubsequence(
+                "th:href=\"@{/css/app.css}\"",
+                "th:href=\"@{/css/order-checkout.css}\"");
+        assertThat(appStyles).doesNotContain(".checkout-");
+        assertThat(checkoutStyles)
+                .contains(".checkout-card {")
+                .contains(".checkout-summary {")
+                .contains("@container (max-width: 620px)");
+    }
+
     @Test
     void orderDetailShowsPaymentButtonForEveryPendingPaymentFlow() throws IOException {
         String orderDetailTemplate =

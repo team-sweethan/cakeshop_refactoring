@@ -534,6 +534,23 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString("data-same-as-orderer")))
             .andExpect(content().string(containsString("value=\"테스트회원\"")))
             .andExpect(content().string(containsString("value=\"010-0000-0002\"")))
+            // 픽업 일시는 달력 · 시 · 분 버튼(스크립트가 날짜별 시각 라디오를 읽어 그림), 픽업자 칸은 접을 수 있는 영역이다
+            .andExpect(content().string(containsString("data-pickup-picker")))
+            .andExpect(content().string(containsString("data-pickup-calendar")))
+            .andExpect(content().string(containsString("data-pickup-hours")))
+            .andExpect(content().string(containsString("data-pickup-minutes")))
+            .andExpect(content().string(containsString("data-pickup-date-label=")))
+            // 픽업 일시 없이 결제하기를 누르면 결제 버튼 아래와 픽업 카드에 안내가 보인다. 요약에는 고르기 전 상태가 보인다
+            .andExpect(content().string(containsString("data-pickup-submit-error")))
+            .andExpect(content().string(containsString("data-pickup-picker-error")))
+            .andExpect(content().string(containsString("data-pickup-summary-value>아직 선택 안 함")))
+            .andExpect(content().string(containsString("data-pickup-contact")))
+            // 주문 요약 칸에 상품 · 쿠폰 · 최종 금액 · 결제 버튼이 함께 있다. 옵션이 없으면 옵션 추가 줄은 없다
+            .andExpect(content().string(matchesPattern(
+                "(?s).*class=\"order-summary checkout-summary\".*딸기 생크림 케이크 1호"
+                    + ".*id=\"memberCouponId\".*data-final-amount.*결제하기.*"
+            )))
+            .andExpect(content().string(not(containsString("옵션 추가"))))
             .andExpect(content().string(not(containsString("data-success-url"))))
             .andExpect(content().string(not(containsString("/orders/1/payment"))));
     }

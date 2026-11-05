@@ -3501,6 +3501,7 @@ a.product-order-actions__secondary { justify-content: center; width: 100% }
 .cart-item { transition: border-color .18s ease, box-shadow .18s ease }
 .cart-item:hover { border-color: #d9b9c3; box-shadow: var(--shadow-md) }
 .order-summary { background: #fff; border-color: var(--color-border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-sm) }
+
 .auth-shell { align-items: center; display: flex; min-height: calc(100vh - 230px) }
 
 .auth-card {
