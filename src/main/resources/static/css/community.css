@@ -1,4 +1,72 @@
-/* 커뮤니티 화면 전용. 고객 게시글 상세·공지 상세와 관리자 게시글 상세가 함께 쓴다. */
+/* 커뮤니티 화면 전용. 고객 게시글 목록·상세, 공지 상세와 관리자 게시글 상세가 함께 쓴다. */
+
+/* 목록 도구 줄: 카테고리 탭은 왼쪽, 정렬은 오른쪽. 버튼 두 줄이 쌓이면 무엇이 필터이고
+   무엇이 정렬인지 구분되지 않아 모양을 다르게 한다. */
+.community-toolbar {
+    align-items: flex-end;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    justify-content: space-between;
+}
+
+.community-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.community-tabs__item {
+    border-bottom: 2px solid transparent;
+    color: var(--color-muted);
+    font-weight: 600;
+    margin-bottom: -1px;
+    padding: 10px 14px;
+}
+
+.community-tabs__item:hover {
+    color: var(--color-text);
+}
+
+.community-tabs__item.is-active {
+    border-bottom-color: var(--color-brand);
+    color: var(--color-brand);
+}
+
+.community-sort {
+    align-items: center;
+    display: flex;
+    font-size: var(--font-xs);
+    gap: var(--space-2);
+    padding-bottom: 10px;
+}
+
+.community-sort__item {
+    color: var(--color-muted);
+}
+
+.community-sort__item + .community-sort__item::before {
+    color: var(--color-border);
+    content: "·";
+    margin-right: var(--space-2);
+}
+
+.community-sort__item:hover,
+.community-sort__item.is-active {
+    color: var(--color-text);
+}
+
+.community-sort__item.is-active {
+    font-weight: 700;
+}
+
+.community-tabs__item:focus-visible,
+.community-sort__item:focus-visible {
+    border-radius: 4px;
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+}
 
 /* 본문 영역. 한 줄짜리 본문이 제목과 다음 블록 사이에 끼면 글이 아니라 메모처럼 보여서 최소
    높이를 준다. 긴 본문은 이 높이를 넘겨 그대로 늘어나므로 짧은 글에만 영향이 있다.

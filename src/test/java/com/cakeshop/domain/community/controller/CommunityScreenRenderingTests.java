@@ -103,6 +103,30 @@ class CommunityScreenRenderingTests {
                 .andExpect(content().string(containsString("아직 등록된 글이 없습니다.")));
     }
 
+    /** 카테고리 탭과 정렬을 한 줄 도구 줄에 그리고, 고른 탭·정렬에만 aria-current 를 단다. */
+    @Test
+    void communityList_rendersCategoryTabsAndSortInOneToolbar() throws Exception {
+        MvcResult result = mockMvc.perform(get("/community")
+                        .param("categoryId", String.valueOf(categoryId))
+                        .param("sort", "VIEWS"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String html = result.getResponse().getContentAsString();
+
+        assertThat(html)
+                .contains("<div class=\"community-toolbar section\">")
+                .contains("<nav class=\"community-tabs\" aria-label=\"카테고리\">")
+                .contains("<nav class=\"community-sort\" aria-label=\"정렬\">")
+                .contains("/css/community.css");
+        assertThat(html.split("aria-current=\"page\"", -1)).hasSize(2);
+        assertThat(html.split("aria-current=\"true\"", -1)).hasSize(2);
+        assertThat(html.replaceAll("\\s+", " "))
+                .contains("community-tabs__item is-active\" aria-current=\"page\" href=\"/community?categoryId="
+                        + categoryId)
+                .contains("community-sort__item is-active\" aria-current=\"true\" href=\"/community?categoryId="
+                        + categoryId + "&amp;keyword=&amp;sort=VIEWS\"");
+    }
+
     /** 페이지를 이동해도 현재 카테고리와 정렬 조건을 함께 유지한다. */
     @Test
     void communityList_paginationLink_preservesCategoryAndSort() throws Exception {
