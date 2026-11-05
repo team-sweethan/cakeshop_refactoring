@@ -3,6 +3,8 @@ package com.cakeshop.domain.community;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.cakeshop.global.config.MariaDbIntegrationTest;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -112,6 +114,16 @@ class CommunityDemoSeedIntegrationTests {
                    OR l.created_at < p.created_at
                 """
         )).isZero();
+
+        // 실행한 날의 어제(한국 시간)로 인기글이 한 번만 확정된다. 배치 스냅샷 크기는 20건이다.
+        LocalDate activityDay = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT post_count FROM popular_post_batch_runs WHERE ranking_date = ?",
+                Integer.class, activityDay
+        )).isEqualTo(20);
+        assertThat(count(
+                "SELECT COUNT(*) FROM daily_popular_posts WHERE ranking_date = '" + activityDay + "'"
+        )).isEqualTo(20);
     }
 
     private void runCommunityDemoSeed() {

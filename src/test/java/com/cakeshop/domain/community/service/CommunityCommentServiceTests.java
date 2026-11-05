@@ -102,7 +102,7 @@ class CommunityCommentServiceTests {
     @Test
     void getComments_fillsAuthorFromMemberContract() {
         givenComments(commentOf(1L, CommentStatus.PUBLISHED));
-        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", false));
+        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", false, false));
 
         CommentSectionView section = communityCommentService.getComments(POST_ID, null, null);
 
@@ -114,7 +114,7 @@ class CommunityCommentServiceTests {
     @Test
     void getComments_withdrawnAuthor_showsPlaceholderName() {
         givenComments(commentOf(1L, CommentStatus.PUBLISHED));
-        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", true));
+        givenAuthors(new MemberCommunityView(AUTHOR_ID, "글쓴이", true, false));
 
         CommentSectionView section = communityCommentService.getComments(POST_ID, null, null);
 

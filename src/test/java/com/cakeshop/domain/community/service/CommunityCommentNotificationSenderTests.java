@@ -49,7 +49,7 @@ class CommunityCommentNotificationSenderTests {
         when(commentMapper.findCommentById(PARENT_COMMENT_ID))
                 .thenReturn(parentComment(PARENT_AUTHOR_ID));
         when(memberViewLoader.findByIds(any()))
-                .thenReturn(Map.of(ACTOR_ID, new MemberCommunityView(ACTOR_ID, "답글쓴이", false)));
+                .thenReturn(Map.of(ACTOR_ID, new MemberCommunityView(ACTOR_ID, "답글쓴이", false, false)));
 
         sender.sendNewReply(POST_ID, REPLY_ID, PARENT_COMMENT_ID, ACTOR_ID);
 

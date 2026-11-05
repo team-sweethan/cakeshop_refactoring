@@ -13,13 +13,26 @@
 --   시연 회원(member01~12@cakeshop.local)이 없으면 그 회원의 글·댓글·좋아요는 넣지 않는다.
 --   카테고리(QNA·REVIEW·FREE)가 없으면 글을 넣지 않는다.
 --
--- 조회수는 숫자만 넣고 조회 이력(post_views)은 만들지 않는다. 좋아요 수는 넣은 좋아요 행으로 다시 센다.
+-- 조회수(posts.view_count)는 숫자로 넣는다. 좋아요 수는 넣은 좋아요 행으로 다시 센다.
+--
+-- 인기글: 실행한 날의 "어제"(한국 시간)에 시연 글 조회 이력을 만들고, 배치와 같은 집계식으로
+--   그날 인기글을 확정한다. 화면은 확정된 날짜 중 가장 최근 것만 읽는데, 매일 00:05 배치가
+--   활동이 없는 날도 0건으로 확정하므로 다음 날 활동이 없으면 사이드바가 다시 비어 보인다.
+--   그때는 이 파일을 다시 실행하면 새 "어제"로 채워진다.
 -- 이 파일은 Spring ScriptUtils 로도 실행하므로 문자열 안에 세미콜론을 쓰지 않는다.
 
 SET time_zone = '+09:00';
+SET @activity_day := CURDATE() - INTERVAL 1 DAY;
 
 DROP TEMPORARY TABLE IF EXISTS `_demo_community_posts`;
 DROP TEMPORARY TABLE IF EXISTS `_demo_community_comments`;
+DROP TEMPORARY TABLE IF EXISTS `_demo_numbers`;
+
+-- 어제 조회 이력을 글마다 여러 줄 만들 때 쓰는 1~20
+CREATE TEMPORARY TABLE `_demo_numbers` (`k` TINYINT NOT NULL PRIMARY KEY);
+INSERT INTO `_demo_numbers` (`k`) VALUES
+    (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+    (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 
 CREATE TEMPORARY TABLE `_demo_community_posts` (
     `post_key`      VARCHAR(10)  NOT NULL PRIMARY KEY,
@@ -341,7 +354,112 @@ LEFT JOIN (
 SET post.`like_count` = COALESCE(likes.`like_count`, 0),
     post.`updated_at` = post.`updated_at`;
 
+-- 6. 어제 조회 이력: 시연 글마다 조회수의 1/12(최대 20회)만큼 어제 조회가 있었던 것으로 둔다.
+--    조회수 숫자는 이 이력까지 포함한 누적값으로 보고 따로 올리지 않는다.
+INSERT INTO `post_views` (`post_id`, `viewer_key`, `viewed_on`, `created_at`)
+SELECT
+    post.`id`,
+    CONCAT('demo-seed-viewer-', n.`k`),
+    @activity_day,
+    TIMESTAMP(@activity_day, '09:00:00') + INTERVAL (n.`k` * 41) MINUTE
+FROM `_demo_community_posts` sample
+INNER JOIN `members` post_author
+        ON post_author.`email` = sample.`author_email`
+INNER JOIN `posts` post
+        ON post.`member_id` = post_author.`id`
+       AND post.`title` = sample.`title`
+INNER JOIN `_demo_numbers` n
+        ON n.`k` <= LEAST(20, CEIL(sample.`view_count` / 12))
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM `post_views` existing
+    WHERE existing.`post_id` = post.`id`
+      AND existing.`viewer_key` = CONCAT('demo-seed-viewer-', n.`k`)
+      AND existing.`created_at` >= @activity_day
+      AND existing.`created_at` < @activity_day + INTERVAL 1 DAY
+);
+
+-- 7. 어제 인기글 확정
+--    배치는 활동이 없는 날도 0건으로 확정한다. 서버가 어제 00:05 이후에 0건으로 확정해 두었으면
+--    그 기록만 지우고 다시 확정한다. 1건 이상 확정된 날은 배치 규칙(D4)대로 건드리지 않는다.
+DELETE FROM `popular_post_batch_runs`
+WHERE `ranking_date` = @activity_day
+  AND `post_count` = 0;
+
+-- 아래 SELECT 는 CommunityPopularPostMapper.xml 의 insertDailyRanking 을 그대로 옮긴 것이다.
+-- 가중치(조회 1 · 좋아요 25 · 댓글 쓴 사람 15)와 하루 창, PUBLISHED 조건이 그쪽 정본을 따른다.
+-- 정본이 바뀌면 이 절과 seed-community.sql 8절을 함께 고친다.
+INSERT INTO `daily_popular_posts`
+        (`ranking_date`, `ranking`, `post_id`, `popularity_score`,
+         `view_count`, `like_count`, `comment_count`)
+SELECT @activity_day,
+       ROW_NUMBER() OVER (ORDER BY s.`popularity_score` DESC, s.`post_id` DESC),
+       s.`post_id`,
+       s.`popularity_score`,
+       s.`view_count`,
+       s.`like_count`,
+       s.`comment_count`
+  FROM (
+        SELECT e.`post_id`,
+               SUM(e.`view_count`)    AS `view_count`,
+               SUM(e.`like_count`)    AS `like_count`,
+               SUM(e.`comment_count`) AS `comment_count`,
+               SUM(e.`view_count`) * 1
+                 + SUM(e.`like_count`) * 25
+                 + SUM(e.`comment_count`) * 15 AS `popularity_score`
+          FROM (
+                SELECT `post_id`, 1 AS `view_count`, 0 AS `like_count`, 0 AS `comment_count`
+                  FROM `post_views`
+                 WHERE `created_at` >= @activity_day
+                   AND `created_at` <  @activity_day + INTERVAL 1 DAY
+
+                UNION ALL
+
+                SELECT `post_id`, 0, 1, 0
+                  FROM `post_likes`
+                 WHERE `created_at` >= @activity_day
+                   AND `created_at` <  @activity_day + INTERVAL 1 DAY
+
+                UNION ALL
+
+                SELECT `post_id`, 0, 0, 1
+                  FROM (
+                        SELECT `post_id`, `member_id`
+                          FROM `comments`
+                         WHERE `status` = 'PUBLISHED'
+                           AND `created_at` >= @activity_day
+                           AND `created_at` <  @activity_day + INTERVAL 1 DAY
+                         GROUP BY `post_id`, `member_id`
+                       ) commenters
+               ) e
+          JOIN `posts` p
+            ON p.`id` = e.`post_id`
+           AND p.`status` = 'PUBLISHED'
+         GROUP BY e.`post_id`
+         ORDER BY `popularity_score` DESC, e.`post_id` DESC
+         LIMIT 20
+       ) s
+ WHERE NOT EXISTS (
+       SELECT 1 FROM `popular_post_batch_runs` run WHERE run.`ranking_date` = @activity_day
+ )
+   AND NOT EXISTS (
+       SELECT 1 FROM `daily_popular_posts` ranked WHERE ranked.`ranking_date` = @activity_day
+ );
+
+-- COUNT(*) 는 행이 없어도 한 줄을 돌려주므로, 이미 확정된 날짜를 거르는 조건은 바깥에 둔다.
+INSERT INTO `popular_post_batch_runs` (`ranking_date`, `post_count`)
+SELECT @activity_day, ranked.`post_count`
+  FROM (
+        SELECT COUNT(*) AS `post_count`
+          FROM `daily_popular_posts`
+         WHERE `ranking_date` = @activity_day
+       ) ranked
+ WHERE NOT EXISTS (
+       SELECT 1 FROM `popular_post_batch_runs` run WHERE run.`ranking_date` = @activity_day
+ );
+
 COMMIT;
 
 DROP TEMPORARY TABLE `_demo_community_posts`;
 DROP TEMPORARY TABLE `_demo_community_comments`;
+DROP TEMPORARY TABLE `_demo_numbers`;
