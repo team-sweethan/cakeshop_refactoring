@@ -1,5 +1,6 @@
 package com.cakeshop.domain.order.service.admin;
 
+
 import com.cakeshop.domain.order.service.admin.FulfillmentService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,6 +48,7 @@ class FulfillmentServiceTests {
 
     @Mock
     private OrderMapper orderMapper;
+
 
     private FulfillmentService fulfillmentService;
 

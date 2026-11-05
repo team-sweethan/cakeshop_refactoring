@@ -131,6 +131,12 @@ donworry:
     read-timeout: ${DONWORRY_PAYMENT_READ_TIMEOUT:5s}
     # 돈워리 결제창이 결과를 돌려보낼 이 쇼핑몰 주소
     shop-base-url: ${DONWORRY_PAYMENT_SHOP_BASE_URL:http://localhost:8080}
+  # P6 주문 상품 송신 설정
+  pickup:
+    enabled: ${DONWORRY_PICKUP_ENABLED:false}
+    base-url: ${DONWORRY_PICKUP_BASE_URL:}
+    merchant-code: ${DONWORRY_MERCHANT_CODE:CAKESHOP}
+    key-environment-variable: DONWORRY_MERCHANT_HMAC_CAKESHOP
 
 ---
 # Google/Kakao OAuth login. Team members configure both providers in .env.
