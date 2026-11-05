@@ -23,6 +23,8 @@
 | `failure_code` | VARCHAR(100) |  | O | NULL | 실패 코드 |
 | `requested_at` | DATETIME(6) |  | X | `CURRENT_TIMESTAMP(6)` | 요청 시각 |
 | `approved_at` | DATETIME(6) | INDEX | O | NULL | 승인 시각 |
+| `gateway_held_at` | DATETIME(6) |  | O | NULL | PG(돈워리)가 매입을 보류(HELD)한 채 결제를 완료한 시각. 보류가 아니면 NULL |
+| `gateway_captured_at` | DATETIME(6) |  | O | NULL | 보류했던 결제가 PG 직원 승인으로 매입(CAPTURED)된 시각 |
 | `canceled_at` | DATETIME(6) |  | O | NULL | 취소 시각 |
 | `expiration_checked_at` | DATETIME(6) |  | O | NULL | 관리자 결제 만료 확인 시각 |
 | `created_at` | DATETIME(6) |  | X | `CURRENT_TIMESTAMP(6)` | 생성 시각 |
@@ -42,6 +44,12 @@
 - INDEX: `idx_payments_updated_at_approved_at` (`updated_at`, `approved_at`)
 - `expiration_checked_at`이 `NULL`이면 미확인 만료 결제이며, 시각이 있으면 관리자가 확인한 만료 결제다.
   이 값은 결제 기록과 관리자 대시보드의 `확인 필요` 집계에서 `EXPIRED` 결제를 제외하는 기준으로 쓴다.
+- PG 결제 확인 중 = `status = 'DONE'`이고 `gateway_held_at`은 있고 `gateway_captured_at`은 `NULL`이며
+  `failure_code`가 `GATEWAY_VOIDED_KEPT`가 아닌 결제다
+  (DonWorry ADR-0064 4절, [pg-decisions 007](../order/pg-decisions/007-donworry-held-payment-review.md)).
+  PG 직원이 거절(VOIDED)하면 결제는 `CANCELED`(`failure_code = 'GATEWAY_VOIDED'`)가 되므로 따로 컬럼을 두지 않는다.
+  다만 가맹점이 이미 진행한 주문이라 결제를 유지하면 `DONE` 그대로 `failure_code = 'GATEWAY_VOIDED_KEPT'`만 남는다.
+  이 결제는 판정이 끝난 것이라 확인 중이 아니다.
 
 ## `payment_cancellations`
 

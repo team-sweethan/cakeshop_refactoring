@@ -3,10 +3,10 @@
         xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
   <div class="customer-header__inner">
     <div class="customer-header__left">
-      <a class="customer-header__brand" th:href="@{/}" aria-label="케이크 쇼핑몰 홈">
+      <a class="customer-header__brand" th:href="@{/}" aria-label="스윗한 케이크 홈">
         <span class="customer-header__brand-mark" aria-hidden="true">🍰</span>
         <span class="customer-header__brand-copy">
-          <strong>케이크 쇼핑몰</strong>
+          <strong>스윗한 케이크</strong>
           <small>CAKE SHOP</small>
         </span>
       </a>
@@ -16,11 +16,35 @@
       <span class="badge" sec:authorize="hasRole('ADMIN')" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}">
         관리자 계정 · <span sec:authentication="principal.displayName">Admin</span>님
       </span>
+      <!--/* 종 버튼은 /notifications 링크다. notification-panel.js 가 있으면 읽지 않은 알림을 펼치고, 없으면 알림 페이지로 이동한다. 지난 알림은 알림 페이지(전체 알림 보기)에서 본다. */-->
+      <div class="notification-bell" sec:authorize="hasRole('USER')" data-notification-bell>
+        <a class="btn notification-bell__button" th:href="@{/notifications}"
+           aria-label="알림" aria-haspopup="true" aria-expanded="false" aria-controls="notification-panel"
+           data-notification-toggle>
+          <svg class="notification-bell__icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+          </svg>
+          <span class="visually-hidden">알림</span>
+          <span class="badge" data-unread-count style="display: none;">0</span>
+        </a>
+        <section class="notification-panel" id="notification-panel" aria-label="새 알림" hidden
+                 data-notification-panel
+                 th:attr="data-csrf=${_csrf?.token},data-csrf-header=${_csrf?.headerName}">
+          <div class="notification-panel__head">
+            <strong>알림</strong>
+            <button class="notification-panel__read-all" type="button" data-panel-read-all>모두 읽음</button>
+          </div>
+          <div class="stack notification-list notification-panel__list" data-panel-list></div>
+          <a class="notification-panel__more" th:href="@{/notifications}">전체 알림 보기</a>
+        </section>
+      </div>
       <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/mypage}" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}">
         <span sec:authentication="principal.displayName">회원</span>님
       </a>
-      <a class="btn" th:href="@{/products}">검색</a>
-      <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/notifications}">알림 <span class="badge" data-unread-count style="display: none;">0</span></a>
+      <a class="btn customer-header__search" th:href="@{/products}">상품 찾기</a>
       <a class="btn" sec:authorize="hasRole('USER')" th:href="@{/cart}" data-cart-count>장바구니</a>
       <a class="btn" sec:authorize="isAnonymous()" th:href="@{/login}">로그인</a>
       <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post">
@@ -31,4 +55,5 @@
   <script defer th:src="@{/js/lib/sockjs.min.js}"></script>
   <script defer th:src="@{/js/lib/stomp.min.js}"></script>
   <script defer th:src="@{/js/notification-websocket.js}"></script>
+  <script defer sec:authorize="hasRole('USER')" th:src="@{/js/notification-panel.js}"></script>
 </header>

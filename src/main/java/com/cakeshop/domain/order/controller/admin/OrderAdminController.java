@@ -1,6 +1,7 @@
 package com.cakeshop.domain.order.controller.admin;
 
 import com.cakeshop.domain.order.dto.form.OrderCancelForm;
+import com.cakeshop.domain.order.entity.OrderStatus;
 import com.cakeshop.domain.order.service.admin.AdminOrderService;
 import com.cakeshop.domain.order.service.admin.FulfillmentService;
 import com.cakeshop.domain.payment.service.RefundFacade;
@@ -39,6 +40,11 @@ public class OrderAdminController {
     public String detail(@PathVariable("orderId") long orderId, Model model) {
         var order = orderAdminService.getOrder(orderId);
         model.addAttribute("order", order);
+        // PG(돈워리)가 결제를 확인 중이면 "결제 확인 중"을 함께 보인다 (DonWorry ADR-0064 4절)
+        model.addAttribute(
+                "paymentUnderReview",
+                order.status() != OrderStatus.PICKED_UP && fulfillmentService.isPaymentUnderGatewayReview(orderId)
+        );
         if (order.isFulfillmentManageable()) {
             model.addAttribute(
                     "fulfillmentPage",

@@ -82,8 +82,10 @@ public class OrderViewAssembler {
         if (order.getOrderType() == OrderType.CUSTOM) {
             return order.getStatus() == OrderStatus.UNDER_REVIEW;
         }
+        // 일반 주문의 UNDER_REVIEW는 PG가 결제를 확인 중인 주문이다. 픽업 준비와 같은 규칙으로 취소할 수 있다.
         return order.getOrderType() == OrderType.GENERAL
-                && order.getStatus() == OrderStatus.READY_FOR_PICKUP
+                && (order.getStatus() == OrderStatus.READY_FOR_PICKUP
+                || order.getStatus() == OrderStatus.UNDER_REVIEW)
                 && order.getPickupAt() != null
                 && now.isBefore(order.getPickupAt());
     }

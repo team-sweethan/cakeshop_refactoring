@@ -42,6 +42,7 @@ import com.cakeshop.domain.payment.service.RefundFacade;
 import com.cakeshop.domain.product.service.ProductQueryService;
 import com.cakeshop.domain.product.controller.ProductController;
 import com.cakeshop.domain.product.service.ProductService;
+import com.cakeshop.domain.review.service.ReviewMemberQueryService;
 import com.cakeshop.domain.review.service.ReviewProductQueryService;
 import com.cakeshop.global.security.MemberDetails;
 import java.io.IOException;
@@ -145,6 +146,7 @@ class CustomerPageControllerTests {
                                 memberService,
                                 couponMemberQueryService,
                                 orderMemberQueryService,
+                                mock(ReviewMemberQueryService.class),
                                 mock(SessionRegistry.class)),
                         new NotificationUserController())
                 .setCustomArgumentResolvers(
@@ -261,6 +263,189 @@ class CustomerPageControllerTests {
                 .contains("data-final-amount");
     }
 
+    // 주문서 스크립트는 상품 주문서(달력 · 시 · 분 버튼, 접는 픽업자 칸)와 장바구니 주문서(날짜 선택 상자)를 함께 다룬다.
+    // 픽업 일시를 고르지 않아 막힌 제출에서는 결제 버튼을 잠그지 않는다.
+    @Test
+    void orderCheckoutScript_supportsPickupPickerAndDateSelect() throws IOException {
+        String checkoutScript = new ClassPathResource("static/js/order-checkout.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(checkoutScript)
+                .contains("[data-pickup-date]")
+                .contains("[data-pickup-picker]")
+                .contains("[data-pickup-calendar]")
+                .contains("if (slot) slot.input.checked = true;")
+                .contains("if (event.defaultPrevented) return;")
+                .contains("showMissingPickup(true);")
+                .contains("[data-pickup-submit-error]")
+                // 다시 그려도 키보드 포커스가 같은 버튼으로 돌아온다(#48 Codex 리뷰)
+                .contains("function keepFocus(draw)")
+                .contains("element.dataset.pickerKey = key;")
+                .contains("[data-pickup-contact]")
+                .contains("pickupContact.hidden = sameAsOrderer.checked && !pickupHasError");
+        // 제출 검사가 한 번만 제출 처리보다 먼저 등록돼야 막힌 제출에서 버튼이 잠기지 않는다
+        assertThat(checkoutScript.indexOf("initializePickupPicker();"))
+                .isLessThan(checkoutScript.indexOf("initializeSingleSubmit();"));
+    }
+
+    // 상품 주문서 전용 스타일은 공통 app.css가 아니라 주문서 CSS에 둔다(docs/frontend-template-format.md 6절)
+    @Test
+    void productCheckoutStyles_liveInOrderCheckoutCss() throws IOException {
+        String orderForm = new ClassPathResource("templates/customer/order/form.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String checkoutStyles = new ClassPathResource("static/css/order-checkout.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(orderForm).containsSubsequence(
+                "th:href=\"@{/css/app.css}\"",
+                "th:href=\"@{/css/order-checkout.css}\"");
+        assertThat(appStyles).doesNotContain(".checkout-");
+        assertThat(checkoutStyles)
+                .contains(".checkout-card {")
+                .contains(".checkout-summary {")
+                .contains("@container (max-width: 620px)");
+    }
+
+    // 마이페이지는 쇼핑 · 활동 · 계정으로 묶은 메뉴와 프로필 한 줄, 요약 숫자 3칸, 최근 주문을 보인다.
+    // 회원 정보 표(전화번호 · 생년월일)는 회원정보 수정 화면에서 본다. 화면 전용 스타일은 member-mypage.css에 둔다.
+    @Test
+    void myPage_groupsMenuAndShowsSummaryCounts() throws IOException {
+        String myPage = new ClassPathResource("templates/customer/member/mypage.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String mypageNav = new ClassPathResource("templates/fragments/customer/mypage-nav.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(mypageNav)
+                .containsSubsequence(">마이페이지</a>", ">쇼핑</p>", ">주문 내역</a>", ">보유 쿠폰</a>",
+                        ">활동</p>", ">작성할 후기</a>", ">내 후기</a>", ">1:1 문의</a>",
+                        ">계정</p>", ">회원정보 수정</a>");
+        assertThat(myPage)
+                .containsSubsequence(
+                        "th:href=\"@{/css/mypage-layout.css}\"",
+                        "th:href=\"@{/css/member-mypage.css}\"")
+                .contains("mypageNav('home')")
+                .contains("<h1 class=\"visually-hidden\">마이페이지</h1>")
+                .contains("${orderSummary.inProgressCount}")
+                .contains("${availableCouponCount}")
+                .contains("${writableReviewCount}")
+                .containsSubsequence("진행 중인 주문", "완료된 주문")
+                .doesNotContain("member.birthDate")
+                .doesNotContain("member.phone")
+                .doesNotContain("style=\"");
+        assertThat(appStyles).doesNotContain(".mypage-");
+    }
+
+    // 1:1 채팅 문의는 두 칸을 화면 높이에 맞춘 고정 높이로 두고 메시지 · 주문 목록을 각자 안에서 스크롤한다.
+    // 왼쪽 주문 목록은 진행 중 주문을 위에, 지난 주문은 접어 두고, 긴 주문번호는 카드 안에서 말줄임한다.
+    @Test
+    void chatRoom_fixedHeightLayoutAndGroupedOrderCards() throws IOException {
+        String chatRoom = new ClassPathResource("templates/customer/chat/room.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String chatScript = new ClassPathResource("static/js/chat-customer.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String chatStyles = new ClassPathResource("static/css/chat-room.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(chatRoom)
+                .contains("th:href=\"@{/css/chat-room.css}\"")
+                .contains("class=\"page-container chat-page\"")
+                .contains("data-chat-order-count")
+                .doesNotContain("max-width:1040px");
+        assertThat(chatScript)
+                .contains("PAST_ORDER_STATUSES")
+                .contains("chat-order-past")
+                .contains("case \"READY_FOR_PICKUP\": return \"픽업 준비\";")
+                .doesNotContain("픽업 대기");
+        assertThat(chatStyles)
+                .contains(".chat-page .chat-layout {")
+                .contains("grid-template-columns: 260px minmax(0, 1fr)")
+                .doesNotContain("max-width: 1040px")
+                .contains(".chat-page .chat-messages { flex: 1; max-height: none")
+                .contains("text-overflow: ellipsis");
+    }
+
+    // 마이페이지 하위 화면(보유 쿠폰 · 작성할 후기 · 내 후기 · 회원정보 수정 · 1:1 문의)도 마이페이지와 같은 왼쪽 메뉴를 쓰고,
+    // 지금 화면 메뉴를 강조한다. "마이페이지로 돌아가기" 버튼 대신 메뉴로 오간다.
+    @Test
+    void mypageSubpages_shareMypageNavWithActiveItem() throws IOException {
+        Map<String, String> subpages = Map.of(
+                "templates/customer/coupon/list.html", "coupons",
+                "templates/customer/review/writable.html", "writable-reviews",
+                "templates/customer/review/my.html", "reviews",
+                "templates/customer/member/profile-edit.html", "profile",
+                "templates/customer/chat/room.html", "chat");
+
+        for (Map.Entry<String, String> subpage : subpages.entrySet()) {
+            String template = new ClassPathResource(subpage.getKey())
+                    .getContentAsString(StandardCharsets.UTF_8);
+            assertThat(template)
+                    .as(subpage.getKey())
+                    .contains("th:href=\"@{/css/mypage-layout.css}\"")
+                    .contains("mypageNav('" + subpage.getValue() + "')")
+                    .contains("class=\"layout-sidebar mypage-layout\"")
+                    .doesNotContain("마이페이지로 돌아가기")
+                    // 화면 제목은 왼쪽 메뉴 강조가 대신하고, 화면 읽기 도구용 제목만 남긴다.
+                    .contains("<h1 class=\"visually-hidden\">");
+        }
+        assertThat(new ClassPathResource("templates/customer/member/profile-edit.html")
+                .getContentAsString(StandardCharsets.UTF_8))
+                .contains("th:href=\"@{/css/member-profile.css}\"")
+                .contains("class=\"profile-grid\"")
+                .contains("id=\"new-password-match-message\"");
+    }
+
+    // 결제 완료 화면은 결제가 끝난 것만 알리고 주문 진행은 주문 내역에서 보게 한다.
+    // 결제가 보류(돈워리 확인 중)된 주문도 같은 화면이라 상태나 픽업 방문 안내를 넣지 않는다.
+    @Test
+    void paymentCompletePage_announcesPaymentOnlyAndPointsToOrderHistory() throws IOException {
+        String completeTemplate = new ClassPathResource("templates/customer/order/complete.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(completeTemplate)
+                .contains("<title>결제 완료 | 스윗한 케이크</title>")
+                .contains("결제가 완료되었습니다")
+                .contains("마이페이지 &gt; 주문 내역")
+                .contains("th:href=\"@{/css/payment-complete.css}\"")
+                .contains("th:href=\"@{/orders/{id}(id=${completion.orderId})}\"")
+                .doesNotContain("결제와 주문이 완료되었습니다")
+                .doesNotContain("주문 완료 |")
+                .doesNotContain("확인 중");
+    }
+
+    // 결제 수단은 결제 화면에서 바로 고르고(돈워리 추천), 결제하기를 누르면 고른 결제사로 바로 진행한다.
+    // 고른 결제사를 저장하는 요청(CSRF 폼)과 돈워리 결제창 모달은 그대로 쓴다. 결제 화면 전용 스타일은 별도 파일이다.
+    @Test
+    void paymentPage_choosesGatewayOnPageAndShowsRemainingTime() throws IOException {
+        String paymentForm = new ClassPathResource("templates/customer/payment/form.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String paymentScript = new ClassPathResource("static/js/payment.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(paymentForm)
+                .contains("th:href=\"@{/css/payment-checkout.css}\"")
+                .contains("name=\"paymentGateway\"")
+                .contains("value=\"donworry\"")
+                .contains("value=\"toss\"")
+                .contains("class=\"payment-method__badge\"")
+                .contains("id=\"choose-donworry-form\"")
+                .contains("id=\"choose-toss-form\"")
+                .contains("data-payment-timer")
+                .contains("id=\"payment-modal\"")
+                .contains("id=\"donworry-frame\"")
+                .doesNotContain("pg-choice");
+        assertThat(paymentScript)
+                .contains("[data-payment-gateway]:checked")
+                .contains("payWithDonWorry()")
+                .contains("payWithToss()")
+                .contains("event.origin !== checkoutOrigin")
+                .contains("target.origin !== location.origin")
+                .contains("timer.dataset.expiresAt + \"+09:00\"");
+    }
+
     @Test
     void orderDetailShowsPaymentButtonForEveryPendingPaymentFlow() throws IOException {
         String orderDetailTemplate =
@@ -271,7 +456,7 @@ class CustomerPageControllerTests {
     }
 
     @Test
-    void pickupViewUsesDedicatedInitializationMarker() throws IOException {
+    void pickupViewUsesDedicatedInitializationMarkerAndDisclosesMockData() throws IOException {
         String pickupTemplate =
                 new ClassPathResource("templates/customer/order/pickup-setting.html")
                         .getContentAsString(StandardCharsets.UTF_8);
@@ -279,7 +464,9 @@ class CustomerPageControllerTests {
                 new ClassPathResource("static/js/customer-mockup.js")
                         .getContentAsString(StandardCharsets.UTF_8);
 
-        assertThat(pickupTemplate).contains("data-pickup-root");
+        assertThat(pickupTemplate)
+                .contains("data-pickup-root")
+                .contains("표시된 상품, 가격, 날짜와 시간은 실제 주문 데이터가 아닙니다.");
         assertThat(mockupScript)
                 .contains("document.querySelector(\"[data-pickup-root]\")")
                 .doesNotContain(
@@ -294,9 +481,10 @@ class CustomerPageControllerTests {
 
         assertThat(productDetailTemplate)
                 .contains("and product.productType.name() == 'GENERAL'")
+                // 옵션 선택 영역은 옵션이 있는 일반 케이크에만 그린다
                 .containsSubsequence(
                         "data-product-option-groups",
-                        "th:if=\"${product.productType.name() == 'GENERAL'}\""
+                        "th:if=\"${product.productType.name() == 'GENERAL' and !optionGroups.isEmpty()}\""
                 )
                 .contains("th:href=\"@{/orders/custom/options(productId=${product.id})}\"")
                 .doesNotContain("th:href=\"@{/orders/custom/options}\"");
@@ -334,6 +522,25 @@ class CustomerPageControllerTests {
                 .contains("new URL(\"/orders/checkout\", location.origin)")
                 .contains("url.searchParams.set(\"productId\"")
                 .contains("url.searchParams.append(\"optionIds\"");
+    }
+
+    // 평균 별점은 고정 별 다섯 개가 아니라 평균 평점 비율만큼 채운 별로 보여 준다
+    @Test
+    void productDetail_reviewSummary_fillsStarsByAverageRating() throws IOException {
+        String productDetail = new ClassPathResource(
+                "templates/customer/product/detail.html"
+        ).getContentAsString(StandardCharsets.UTF_8);
+        String styles = new ClassPathResource(
+                "static/css/app.css"
+        ).getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(productDetail)
+                .contains("class=\"rating-stars\"")
+                .contains("th:style=\"|--rating: ${product.averageRating}|\"")
+                .contains("aria-label=|5점 만점에 ${product.averageRating}점|")
+                .contains("<span class=\"rating-stars__fill\" aria-hidden=\"true\">★★★★★</span>");
+        assertThat(styles)
+                .contains("width: calc(var(--rating, 0) / 5 * 100%)");
     }
 
     @Test

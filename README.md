@@ -161,11 +161,34 @@ Google·카카오 소셜 로그인은 `.env`에 각 서비스의 Client ID와 Cl
 SOURCE src/main/resources/db/seed/seed-local.sql;
 SOURCE src/main/resources/db/seed/seed-community.sql;
 SOURCE src/main/resources/db/seed/seed-review.sql;
+SOURCE src/main/resources/db/seed/seed-notice.sql;
+SOURCE src/main/resources/db/seed/seed-review-demo.sql;
+SOURCE src/main/resources/db/seed/seed-community-demo.sql;
 ```
 
 `seed-local.sql`이 회원·상품을 먼저 준비하므로 실행 순서를 바꾸지 않습니다. `seed-community.sql`과
 `seed-review.sql`은 각각 커뮤니티와 후기 확인용 데이터가 필요할 때만 실행해도 됩니다. 경로는 MariaDB
 클라이언트를 시작한 위치에 맞게 절대 경로로 바꿔도 됩니다.
+
+`seed-notice.sql`은 홈과 공지사항 화면에 보일 실제 매장 공지 5건을 넣습니다. 기존 공지를 지우지 않고 같은
+제목이 없을 때만 넣으므로 공용 개발·시연 DB에도 `seed-rds-demo.sql` 다음에 그대로 실행할 수 있습니다.
+`seed-community.sql`은 공지를 전부 지우고 상태 확인용 공지를 다시 넣으므로 반드시 그보다 먼저 실행합니다.
+
+`seed-review-demo.sql`은 별점 시연용으로 일반 회원 12명(`member01@cakeshop.local` ~ `member12@cakeshop.local`)과
+픽업 완료 주문 40건, 주문마다 공개 후기 1건을 넣고 상품 평균 별점·후기 수를 맞춥니다. 회원 비밀번호는 관리자
+계정 비밀번호와 같습니다. 기존 데이터를 지우지 않고 없는 것만 넣으므로 여러 번 실행해도 결과가 같습니다.
+회원·주문을 모두 지우는 `seed-local.sql`보다 뒤에 실행합니다. 홈 "지금 가장 사랑받는 케이크"는 후기 수가 많은 순이라 이 seed를 넣으면
+딸기 생크림 케이크 1호, 초코 가나슈 케이크 1호 다크초코, 레몬 바스크 치즈케이크, 레터링 생크림 케이크가 보입니다.
+
+`seed-community-demo.sql`은 위 시연 회원 12명이 쓴 커뮤니티 글 24건(질문·후기·자유 8건씩)과 댓글·답글 48건,
+좋아요를 넣습니다. 질문 글에는 관리자 답변이 달립니다. 시연 회원이 필요하므로 `seed-review-demo.sql` 다음에,
+게시글을 모두 지우는 `seed-community.sql`보다 뒤에 실행합니다. 기존 데이터를 지우지 않고 없는 것만 넣습니다.
+실행한 날의 어제 날짜로 조회 이력을 만들고 배치와 같은 계산식으로 인기글을 확정하므로 목록 오른쪽에 인기글이
+바로 보입니다. 다음 날 활동이 없으면 00:05 배치가 0건으로 확정해 인기글이 비는데, 이때 다시 실행하면 채워집니다.
+
+상품 이미지는 `src/main/resources/static/images/products/`의 정적 파일을 가리킵니다. 업로드 폴더나 S3에 따로
+올릴 필요가 없고, 관리자 화면에서 이미지를 지워도 파일은 남습니다. 대표 매장 사진도 비어 있을 때만
+`src/main/resources/static/images/home/store.jpg`로 채우고, 관리자가 올린 사진은 덮어쓰지 않습니다.
 
 ### 6. 빌드와 테스트
 

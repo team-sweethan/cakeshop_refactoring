@@ -1,0 +1,96 @@
+/* 상품 주문서(customer/order/form.html) 전용 스타일. 공통 app.css 다음에 불러온다.
+   단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
+
+/* 상품 주문서: 왼쪽 번호 카드 세 장, 오른쪽 주문 요약.
+   그리드가 요약 칸을 폼 높이만큼 늘이지 않게 위쪽에 맞추고, 요약은 헤더 아래에 붙어 따라온다. */
+.checkout-layout { align-items: start }
+.checkout-steps > * + * { margin-top: 16px }
+.checkout-card { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(68, 43, 34, .05); padding: 20px 24px }
+.checkout-card__title { align-items: center; display: flex; font-size: 17px; gap: 10px; margin: 0 0 14px }
+.checkout-card__step { align-items: center; background: var(--color-brand); border-radius: 50%; color: #fff; display: inline-flex; flex: none; font-size: 13px; height: 24px; justify-content: center; width: 24px }
+.checkout-card__optional { color: var(--color-muted); font-size: var(--font-xs); font-weight: 500 }
+
+/* 픽업 일시: 왼쪽 달력, 오른쪽 시 → 분 버튼. 스크립트가 그린다(order-checkout.js initializePickupPicker). */
+.checkout-picker { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 280px) minmax(0, 1fr) }
+/* 픽업 카드 폭이 달력(280) + 간격(24) + 시 버튼 4개(64 × 4 + 간격)보다 좁으면 달력 아래로 시간을 내린다.
+   창 너비가 아니라 카드 폭으로 판단한다. 주문 요약 칸(최소 260px) 때문에 768px 근처에서도 카드가 좁아진다(#48 Codex 리뷰). */
+.checkout-picker-card { container-type: inline-size }
+@container (max-width: 620px) {
+    .checkout-picker { grid-template-columns: minmax(0, 1fr) }
+    .checkout-calendar { max-width: 320px }
+}
+.checkout-picker[hidden] { display: none }
+.checkout-picker-ready .checkout-fallback-times { display: none }
+
+.checkout-calendar { border: 1px solid #eadbd0; border-radius: var(--radius-sm); padding: 12px }
+.checkout-calendar__head { align-items: center; display: flex; gap: 4px; margin-bottom: 8px }
+.checkout-calendar__head strong { flex: 1; font-size: var(--font-sm) }
+.checkout-calendar__nav { background: transparent; border: 1px solid transparent; border-radius: 50%; color: var(--color-text); cursor: pointer; font-size: 18px; height: 28px; line-height: 1; width: 28px }
+.checkout-calendar__nav:hover:not(:disabled) { border-color: #eadbd0 }
+.checkout-calendar__nav:disabled { color: #d6c8bf; cursor: default }
+.checkout-calendar__grid { display: grid; gap: 2px; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center }
+.checkout-calendar__weekday { color: var(--color-muted); font-size: 11px; font-weight: 700; padding: 4px 0 }
+.checkout-calendar__weekday:first-child { color: #c0564f }
+.checkout-calendar__day { align-items: center; aspect-ratio: 1 / 1; background: transparent; border: 1px solid transparent; border-radius: 50%; color: var(--color-text); display: inline-flex; font-size: var(--font-xs); font-weight: 600; justify-content: center }
+button.checkout-calendar__day { cursor: pointer }
+button.checkout-calendar__day:hover { border-color: var(--color-brand) }
+.checkout-calendar__day.is-unavailable { color: #d6c8bf; font-weight: 400 }
+.checkout-calendar__day.is-active { background: var(--color-brand); border-color: var(--color-brand); color: #fff }
+
+.checkout-clock__label { color: var(--color-muted); font-size: var(--font-xs); font-weight: 700; margin: 0 0 6px }
+.checkout-clock__label + .checkout-clock__hours { margin-bottom: 16px }
+/* 시 버튼은 칸 폭에 맞춰 열 수가 정해진다. 칸이 좁아져도 버튼이 64px보다 좁아지거나 서로 겹치지 않는다. */
+.checkout-clock__hours { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)) }
+.checkout-clock__minutes { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px }
+.checkout-clock__option { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); cursor: pointer; font-size: var(--font-sm); font-weight: 600; min-height: 34px; min-width: 64px; padding: 6px 10px }
+.checkout-clock__option:hover:not(:disabled) { border-color: var(--color-brand) }
+.checkout-clock__option:disabled { background: #faf6f3; border-color: #efe6e0; color: #cbbdb4; cursor: not-allowed }
+.checkout-clock__option.is-active { background: var(--color-brand); border-color: var(--color-brand); color: #fff }
+.checkout-clock__hint { align-self: center; color: var(--color-muted); font-size: var(--font-xs) }
+.checkout-calendar__day:focus-visible,
+.checkout-calendar__nav:focus-visible,
+.checkout-clock__option:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px }
+
+.checkout-picker__summary { background: #fdf7f9; border: 1px solid #f2e2e8; border-radius: var(--radius-sm); color: var(--color-brand-dark); font-size: var(--font-sm); font-weight: 700; margin: 0; padding: 10px 14px }
+
+/* 픽업 일시 없이 결제하기를 누른 경우: 결제하기 아래와 픽업 카드 맨 위의 안내 상자, 카드의 빨간 테두리.
+   작은 오류 글자만 있으면 왜 결제가 안 되는지 놓치기 쉬워 눈에 띄는 상자로 보인다. */
+.checkout-alert { align-items: center; background: var(--color-danger-soft); border: 1px solid #f3b3bc; border-radius: var(--radius-sm); color: var(--color-danger); display: flex; font-size: var(--font-sm); font-weight: 700; gap: 8px; margin: 0; padding: 10px 14px }
+.checkout-alert::before { content: "!"; align-items: center; background: var(--color-danger); border-radius: 50%; color: #fff; display: inline-flex; flex: none; font-size: 12px; height: 18px; justify-content: center; width: 18px }
+.checkout-alert[hidden] { display: none }
+.checkout-summary__alert { margin-top: 10px }
+.checkout-card { scroll-margin-top: 96px; transition: border-color .2s ease, box-shadow .2s ease }
+.checkout-card.is-invalid { border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(184, 51, 69, .15) }
+
+/* 주문 요약의 픽업 일시 줄: 고르기 전에는 경고색, 고르면 브랜드 색 */
+.checkout-summary__pickup-value { color: var(--color-brand-dark); font-weight: 700 }
+.checkout-summary__pickup-value.is-empty { color: var(--color-danger); font-weight: 600 }
+
+/* 스크립트가 돌지 않을 때 보이는 날짜별 시각 버튼(기본 보내는 라디오) */
+.checkout-times { display: grid; gap: 8px; grid-template-columns: repeat(6, minmax(0, 1fr)) }
+.checkout-times .pickup-choice__label { font-size: var(--font-xs); min-height: 34px; padding: 6px 4px }
+
+/* 주문자 · 픽업자: 이름과 전화번호를 한 줄에 나란히 */
+.checkout-fields { display: grid; gap: 0 16px; grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.checkout-same { margin-bottom: 0 }
+.checkout-pickup-contact { border-top: 1px dashed var(--color-border-light); margin-top: 12px; padding-top: 12px }
+.checkout-pickup-contact[hidden] { display: none }
+.checkout-request { min-height: 0; resize: vertical }
+
+/* 주문 요약 */
+.checkout-summary { padding: 20px; top: 96px }
+.checkout-summary__title { font-size: 17px; margin: 0 0 12px }
+.checkout-summary__product { border-bottom: 1px solid var(--color-border-light); display: grid; gap: 2px; margin-bottom: 4px; padding-bottom: 12px }
+.checkout-summary__options { color: var(--color-muted); font-size: var(--font-xs); list-style: none; margin: 6px 0 0; padding: 0 }
+.checkout-summary__options li { display: flex; gap: 8px; justify-content: space-between }
+.checkout-summary__coupon { margin: 12px 0 4px }
+.checkout-summary__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 12px }
+.checkout-summary__total strong { color: var(--color-brand); font-size: 22px }
+.checkout-summary__submit { font-size: 15px; margin-top: 14px; min-height: 48px }
+
+@media (max-width: 767px) {
+    .checkout-card { padding: 16px }
+    .checkout-fields { grid-template-columns: 1fr }
+    .checkout-times { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+    .checkout-picker { grid-template-columns: 1fr }
+}

@@ -13,15 +13,15 @@
     <header th:replace="~{fragments/admin/header :: header('결제 기록')}"></header>
     <main class="admin-content">
       <div th:replace="~{fragments/common/alert :: alert}"></div>
-      <div class="admin-content__header payment-admin-header">
+      <header class="admin-page-intro payment-admin-header">
         <div>
           <p class="payment-admin-eyebrow">PAYMENT RECORDS</p>
           <h1 class="admin-page-title">결제 기록</h1>
-          <p class="note">
-            실제 승인·취소·만료 결과를 확인하는 금전 기록입니다. 주문 검토·제작·픽업 업무는 주문 처리에서 진행합니다.
-          </p>
         </div>
-      </div>
+        <p>
+          실제 승인·취소·만료 결과를 확인하는 금전 기록입니다. 주문 검토·제작·픽업 업무는 주문 처리에서 진행합니다.
+        </p>
+      </header>
 
       <section class="grid grid--4 payment-metrics" aria-label="결제 상태 요약">
         <article class="metric-card">

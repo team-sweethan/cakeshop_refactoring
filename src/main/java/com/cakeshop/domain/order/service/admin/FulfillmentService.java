@@ -8,6 +8,7 @@ import com.cakeshop.domain.order.entity.OrderItemOption;
 import com.cakeshop.domain.order.entity.OrderStatus;
 import com.cakeshop.domain.order.error.OrderErrorCode;
 import com.cakeshop.domain.order.mapper.OrderMapper;
+import com.cakeshop.domain.payment.service.PaymentOrderQueryService;
 import com.cakeshop.global.common.paging.PageRequest;
 import com.cakeshop.global.common.paging.PageResult;
 import com.cakeshop.global.error.BusinessException;
@@ -38,6 +39,8 @@ public class FulfillmentService {
 
     private final OrderMapper orderMapper;
     private final Clock clock;
+    // 결제 도메인 공개 계약: PG(돈워리) 결제 확인 중 여부 (conventions 12절)
+    private final PaymentOrderQueryService paymentOrderQueryService;
 
     /** 검토·제작·픽업 업무 전체를 페이지 단위로 조회하고 상품·옵션 스냅샷을 조합한다. */
     @Transactional(readOnly = true)
@@ -79,21 +82,76 @@ public class FulfillmentService {
         return page == null ? 1 : page;
     }
 
+    /** PG(돈워리)가 주문의 결제를 아직 확인 중인지(판정 전) 조회한다 (DonWorry ADR-0064 4절). */
+    @Transactional(readOnly = true)
+    public boolean isPaymentUnderGatewayReview(long orderId) {
+        return paymentOrderQueryService.isUnderGatewayReview(orderId);
+    }
+
     /** DONE 결제가 유지되는 픽업 준비 주문만 수령 완료로 원자적으로 변경한다. */
     @Transactional
     public void markPickedUp(long orderId, long adminMemberId) {
+        markPickedUp(orderId, adminMemberId, false);
+    }
+
+    /**
+     * 픽업 준비 주문을 수령 완료로 변경한다. PG가 결제를 확인 중이면 확인 창 동의(reviewAcknowledged)가 있어야 하고
+     * 처음 진행한 관리자와 시각을 남긴다(DonWorry ADR-0064 4절).
+     */
+    @Transactional
+    public void markPickedUp(long orderId, long adminMemberId, boolean reviewAcknowledged) {
         if (orderId <= 0 || adminMemberId <= 0) {
             throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
         }
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireReviewAcknowledged(orderId, adminMemberId, reviewAcknowledged, now);
         // 상태가 READY_FOR_PICKUP 인지
         int affectedRows = orderMapper.markPickedUpIfReady(
                 orderId,
                 adminMemberId,
-                LocalDateTime.now(clock)
+                now
         );
         if (affectedRows != 1) {
             throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
         }
+    }
+
+    /**
+     * ******************************
+     * 작성자 : 수민
+     * 담당자 : 주환
+     * 작성일 : 2026-11-04
+     * 기능 : PG 결제 확인 중인 일반 주문을 관리자가 픽업 준비로 넘긴다
+     * 설명 : 고객에게 확인해 판정 전에 진행할 때 쓴다. 결제가 아직 확인 중이면 확인 창 동의가 있어야 하고
+     *        진행 기록을 남긴다. 판정이 승인으로 끝나면 시스템이 자동으로 넘기므로 이 동작이 필요 없다.
+     * ******************************
+     */
+    @Transactional
+    public void moveToReadyForPickup(long orderId, long adminMemberId, boolean reviewAcknowledged) {
+        if (orderId <= 0 || adminMemberId <= 0) {
+            throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        requireReviewAcknowledged(orderId, adminMemberId, reviewAcknowledged, now);
+        if (orderMapper.markGeneralReadyForPickupIfUnderReview(orderId, now) != 1) {
+            throw new BusinessException(OrderErrorCode.INVALID_STATUS_TRANSITION);
+        }
+    }
+
+    // PG가 결제를 확인 중이면 확인 창 동의가 있어야 진행한다. 동의했으면 처음 진행한 관리자·시각을 남긴다.
+    private void requireReviewAcknowledged(
+            long orderId,
+            long adminMemberId,
+            boolean reviewAcknowledged,
+            LocalDateTime proceededAt
+    ) {
+        if (!paymentOrderQueryService.isUnderGatewayReview(orderId)) {
+            return;
+        }
+        if (!reviewAcknowledged) {
+            throw new BusinessException(OrderErrorCode.PAYMENT_UNDER_REVIEW_CONFIRM_REQUIRED);
+        }
+        orderMapper.recordGatewayReviewProceed(orderId, adminMemberId, proceededAt);
     }
 
     private OrderStatus normalizeStatus(OrderStatus status) {
@@ -123,6 +181,8 @@ public class FulfillmentService {
                 .toList();
 
         boolean requestedRefund = orderMapper.hasRequestedRefundCancellation(order.getId());
+        boolean paymentUnderReview = order.getStatus() != OrderStatus.PICKED_UP
+                && paymentOrderQueryService.isUnderGatewayReview(order.getId());
         return new FulfillmentListView.FulfillmentOrder(
                 order.getId(),
                 order.getOrderNumber(),
@@ -136,8 +196,17 @@ public class FulfillmentService {
                 isProductionCompletable(order, requestedRefund),
                 isProductionStartable(order, requestedRefund),
                 isPickupCompletable(order, requestedRefund),
+                isReadyForPickupMovable(order, requestedRefund),
+                paymentUnderReview,
                 items
         );
+    }
+
+    // 일반 주문의 UNDER_REVIEW는 PG가 결제를 확인 중인 주문이다. 관리자가 고객 확인 뒤 픽업 준비로 넘길 수 있다.
+    private boolean isReadyForPickupMovable(Order order, boolean requestedRefund) {
+        return order.getOrderType() == com.cakeshop.domain.order.entity.OrderType.GENERAL
+                && order.getStatus() == OrderStatus.UNDER_REVIEW
+                && !requestedRefund;
     }
 
     private boolean isProductionStartable(Order order, boolean requestedRefund) {

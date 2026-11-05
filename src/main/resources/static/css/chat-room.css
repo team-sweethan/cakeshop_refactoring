@@ -1,0 +1,56 @@
+/* 1:1 채팅 문의 화면(customer/chat/room.html) 전용 스타일. 공통 app.css 다음에 불러온다.
+   두 칸(왼쪽 내 주문, 오른쪽 채팅창)을 화면 높이에 맞춘 고정 높이로 두고, 메시지 · 주문 목록은 각자 안에서 스크롤한다.
+   단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
+
+/* 다른 화면과 같은 페이지 폭(app.css의 page-container)을 쓰고, 왼쪽은 마이페이지 메뉴(mypage-layout.css)다. */
+
+/* 화면 높이 - 헤더 · 아래 여백(화면 제목은 숨김이라 빠진다). 화면이 아주 작아도 520px 밑으로는 줄이지 않는다.
+   메뉴 오른쪽에서 내 주문 칸은 260px, 나머지는 채팅창. */
+.chat-page .chat-layout { align-items: stretch; grid-template-columns: 260px minmax(0, 1fr); height: max(520px, calc(100vh - 180px)) }
+
+/* 오른쪽 채팅창: 메시지 영역이 남은 높이를 다 쓰고, 입력창은 늘 맨 아래 */
+.chat-page .chat-room { min-height: 0 }
+.chat-page .chat-messages { flex: 1; max-height: none; min-height: 0 }
+.chat-page .empty-chat-notice { margin: auto }
+
+/* 왼쪽 내 주문: 제목은 고정, 목록만 안에서 스크롤 */
+.chat-page .chat-sidebar { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 0; position: static }
+.chat-sidebar__head { border-bottom: 1px solid var(--color-border-light); padding: 14px 16px 10px }
+.chat-sidebar__title { display: block; font-size: var(--font-md) }
+.chat-sidebar__count { color: var(--color-muted); font-weight: 400 }
+.chat-sidebar__hint { color: var(--color-muted); font-size: 11px; margin: 4px 0 0 }
+.chat-sidebar__list { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px 12px }
+.chat-sidebar__list > * + * { margin-top: 8px }
+.chat-sidebar__section { color: var(--color-muted); font-size: 11px; font-weight: 700; margin: 2px 2px 0 }
+.chat-sidebar__empty { color: var(--color-muted); font-size: var(--font-xs); margin: 0; padding: 4px 2px }
+
+/* 지난 주문(픽업 완료 · 만료 · 취소 · 거절)은 접어 둔다 */
+.chat-order-past > summary { cursor: pointer; list-style: none; padding: 4px 2px }
+.chat-order-past > summary::-webkit-details-marker { display: none }
+.chat-order-past > summary::after { content: " ▾" }
+.chat-order-past[open] > summary::after { content: " ▴" }
+.chat-order-past > summary:hover { color: var(--color-brand) }
+.chat-order-past > .chat-order-item { margin-top: 8px }
+
+/* 주문 카드 */
+.chat-order-item { background: #fff; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); cursor: pointer; display: grid; gap: 3px; min-width: 0; padding: 9px 12px; transition: background .15s ease, border-color .15s ease }
+.chat-order-item:hover { background: #fdf7f9; border-color: var(--color-brand) }
+.chat-order-item--past { opacity: .75 }
+
+/* 주문번호 · 상태 배지 한 줄. 긴 주문번호(ORD-…)는 카드 폭을 넘지 않게 작은 글씨 한 줄 말줄임으로 줄이고,
+   전체 값은 마우스를 올리면 보인다(title). 상품명은 그 아래 한 줄을 다 쓴다. */
+.chat-order-item__head { align-items: center; display: flex; gap: 8px; justify-content: space-between; min-width: 0 }
+.chat-order-item__head .badge { flex: none }
+.chat-order-item__number { color: var(--color-muted); font-size: 11px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.chat-order-item__product { font-size: var(--font-sm); overflow-wrap: anywhere }
+.chat-order-item__foot { align-items: baseline; display: flex; gap: 8px; justify-content: space-between }
+.chat-order-item__meta { color: var(--color-muted); font-size: 11px; min-width: 0 }
+.chat-order-item__link { color: var(--color-brand); flex: none; font-size: 11px; font-weight: 700 }
+.chat-order-item__link:hover { text-decoration: underline }
+
+/* 좁은 화면: 위아래 한 칸. 주문 목록은 최대 높이 안에서 스크롤하고 채팅창은 고정 높이 */
+@media (max-width: 767px) {
+    .chat-page .chat-layout { grid-template-columns: 1fr; height: auto }
+    .chat-page .chat-sidebar { max-height: 260px }
+    .chat-page .chat-room { height: max(480px, calc(100vh - 160px)) }
+}

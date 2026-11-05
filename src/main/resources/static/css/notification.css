@@ -1,0 +1,7 @@
+/* 고객 알림 페이지(/notifications) 전용 스타일. 알림 카드는 헤더 펼침 창과 같이 쓰므로 app.css 에 있다. */
+
+.notification-page__intro {
+    color: var(--color-muted);
+    font-size: var(--font-sm);
+    margin: -4px 0 18px
+}

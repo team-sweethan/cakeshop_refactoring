@@ -1,0 +1,144 @@
+# DonWorry 결제 연동
+
+- 관련: 로드맵 #1, [PG-3] #4, DonWorry #149(결제 API) · #219(HMAC) · #246(CakeShop 키) · #402(호스팅 결제창), DonWorry ADR-0064
+- 범위: DonWorry 결제 API 클라이언트, `OWN` 게이트웨이, **돈워리가 띄우는 호스팅 결제창**을 결제 모달 iframe으로 연결.
+  주문 완료는 기존 Toss와 같은 성공 콜백 → `confirm` 흐름을 그대로 쓴다.
+- 2026-11-02 변경: 예전에는 CakeShop이 결제창(모의 카드 4장)을 직접 그리고 카드 · 기기 · IP를 DonWorry로 보냈다.
+  실제 PG처럼 돈워리가 결제창을 직접 띄우는 방식(DonWorry ADR-0064)으로 바꿨다. CakeShop은 카드 정보를 받지 않는다.
+
+## 1. 구성
+
+| 클래스 | 역할 |
+|---|---|
+| `DonWorryPaymentClient` | HMAC(`DONWORRY-HMAC-V1`) 서명 후 결제 준비 · 조회 · 전액 취소. `donworry.payment.enabled=true`일 때만 빈 생성 |
+| `DonWorryPaymentSessionRequest` · `DonWorryPaymentSessionResponse` | 결제 준비(`POST /api/payment-sessions`) 요청 · 응답. 응답의 `checkoutUrl`을 iframe으로 연다 |
+| `DonWorryPaymentResponse` | 서명 조회 응답. `authorized`(카드 승인 완료 여부)로 `PENDING`의 두 의미(평가 중 / 승인 뒤 매입 대기)를 구분한다 |
+| `DonWorryPaymentException` | 실패. `resultUnknown()`이면 같은 `Idempotency-Key`·본문으로 한 번 다시 보낸다 |
+| `DonWorryPaymentGateway` | `PaymentProvider.OWN` 구현. `paymentKey`는 `DW-<DonWorry paymentId>`. `approve`는 새 승인 없이 조회로 `authorized`를 확인한다 |
+| `DonWorryCheckoutService` · `DonWorryCheckoutController` | 결제 준비(`…/donworry/session`), 결제창 성공 복귀(`…/donworry/return`). 결제 준비에 웹훅 주소 `{쇼핑몰 주소}/webhooks/donworry`를 보낸다 |
+| `DonWorryWebhookController` | 돈워리 결제 상태 웹훅 수신 `POST /webhooks/donworry`. 서명(`DONWORRY-WEBHOOK-V1`) · 시각(±300초) 확인 뒤 본문은 믿지 않고 `paymentId`로 다시 조회해 반영 |
+| `DonWorryPaymentSyncService` · `DonWorryPaymentSyncScheduler` | 웹훅 · 조회 배치(기본 60초, 50건) 공통 반영. 배치는 아직 바뀔 수 있는 결제만 다시 조회한다 — 판정 대기(`gateway_held_at` 있고 `gateway_captured_at` 없음) DONE 결제는 기간과 관계없이 먼저, 결제창을 닫아 READY로 남은 결제는 최근 3일, 진행 중(REQUESTED) 보상 요청 없이 만료된 결제는 생성 후 1시간. 승인됐는데 READY면 결제 완료(기한이 지났으면 늦은 승인 보상 취소, 4절), 보류 뒤 승인(CAPTURED)이면 결제 확인 중 해제, 보류 뒤 거절(VOIDED)이면 아래 2절 표대로 처리 |
+| `DonWorryPaymentCaptureService` | 보류 뒤 승인 반영 — `payments.gateway_captured_at` 기록, 주문 확인 중인 일반 주문은 픽업 준비로 |
+| `DonWorryPaymentVoidService` | 보류 뒤 거절 반영 — 이행 전이면 주문 취소, 가맹점이 이미 진행한 주문은 유지(손실은 가맹점 부담) |
+
+서명 규칙은 픽업 송신(PR #20 `DonWorryPickupClient`)과 같다. 둘 다 병합되면 서명 코드를 한곳으로 모은다.
+
+## 2. 결제 흐름
+
+```text
+주문 결제 화면(/orders/{id}/payment): 동의 체크 → [결제하기] → "결제 수단 선택" 모달(토스페이먼츠 · 돈워리)
+  ├ 토스 → POST /orders/{id}/payment/gateway/toss (PG를 TOSS로 저장) → 모달 닫고 Toss 결제창 (기존 흐름)
+  └ 돈워리 → POST /orders/{id}/payment/gateway/donworry (PG를 OWN으로 저장)
+      → POST /orders/{id}/payment/donworry/session
+          → DonWorry POST /api/payment-sessions (서명, 주문 · 금액 · successUrl · failUrl)
+          ← { sessionKey, checkoutUrl, expiresAt }
+      → 같은 모달 안 iframe에 checkoutUrl(돈워리 결제창): 구매자가 돈워리 화면에서 카드를 고르고 결제
+      → 돈워리 결제창이 postMessage로 결과 주소를 알림(CakeShop 출처로만 보냄, CakeShop은 돈워리 출처만 받음)
+          ├ 승인 완료(PENDING+authorized · HELD · CAPTURED) → successUrl(/orders/{id}/payment/donworry/return?paymentKey&orderId&amount)
+          │     → 기존 성공 콜백 → confirm → approve가 서명 조회로 authorized 확인 → 주문 완료
+          └ DENIED · DECLINED 등 → failUrl(?code=…) → 재결제 가능
+```
+
+- 복귀 주소의 값은 믿지 않는다. `confirm`에서 DonWorry 서명 조회로 금액 · 상태를 다시 확인한다.
+- **보류(HELD)는 구매자에게 결제 완료, 가맹점에는 "결제 확인 중"이다** (DonWorry ADR-0064 4절, #492 합의 2026-11-04).
+  카드 승인은 끝났지만 돈워리가 매입을 보류하고 보안 직원 판정을 기다리는 결제다. 판정 목표는 Case 접수 후 1시간 이내다.
+  근거와 대안은 [pg-decisions 007](pg-decisions/007-donworry-held-payment-review.md).
+
+  | 돈워리 상태 | CakeShop 결제 | 일반 주문 | 수제 주문 |
+  | --- | --- | --- | --- |
+  | 보류(HELD, 승인됨) | DONE + `gateway_held_at` | **주문 확인 중**(`UNDER_REVIEW`). 픽업 준비로 바로 넘기지 않는다 | 원래대로 주문 확인 중(`UNDER_REVIEW`) |
+  | 보류 뒤 승인(CAPTURED) | `gateway_captured_at` 기록 | 아직 주문 확인 중이면 **픽업 준비**로 | 상태 그대로(관리자 제작 승인을 기다림) |
+  | 보류 뒤 거절(VOIDED) | CANCELED(`GATEWAY_VOIDED`) | 아래 표 | 아래 표 |
+
+  - 구매자 화면에는 결제 검토 사실을 보이지 않는다. 주문 상태 이름만 "주문 확인 중"이다.
+  - 주문 확인 중인 일반 주문도 픽업 전이면 고객 · 가맹점이 취소할 수 있다. 보류 결제 취소는 돈워리가 승인을 취소한다(DonWorry #382).
+  - **가맹점(관리자) 화면** — 판정 전 결제 = `payments` 가 DONE이고 `gateway_held_at`은 있고 `gateway_captured_at`은 없음
+    - 주문 처리(`/admin/fulfillment`)와 주문 상세(`/admin/orders/{id}`)에 "결제 확인 중" 배지와 안내를 보인다.
+    - 보류 결제가 완료되면 활성 관리자에게 `ADMIN_PAYMENT_UNDER_REVIEW` 알림을 보낸다(고객에게는 보내지 않음).
+      결제 쪽이 `PaymentUnderGatewayReviewEvent`를 발행하고 주문 쪽 `OrderNotificationEventListener`가 커밋 뒤 보낸다.
+    - 오너 선택지: 기다리기(판정이 승인으로 끝나면 일반 주문은 자동으로 픽업 준비) · 고객 확인 후 진행 · 주문 취소(관리자 취소 폼).
+    - 고객 확인 후 진행: 판정 전에 제작 시작 · 제작 완료 · 픽업 준비로 넘기기(`POST /admin/fulfillment/{id}/ready`, 일반 주문) ·
+      픽업 완료를 누르면 확인 창("돈워리가 확인 중인 결제입니다. 진행 후 거절되면 손실은 가맹점이 부담합니다.")을 거친다.
+      서버는 `reviewAcknowledged=true` 없이 오면 `ORDER_013`(409)으로 거절하고, 동의한 첫 진행의 관리자 · 시각을
+      `orders.review_proceeded_by` · `review_proceeded_at`에 남긴다.
+
+  보류 뒤 보안 직원이 거절(VOIDED)하면 돈워리가 상태 웹훅을 보내고(웹훅을 놓쳐도 60초 조회 배치가 맞춘다) 주문을 이렇게 처리한다(DonWorry ADR-0064 4-1).
+
+  | 거절 때 주문 상태 | 처리 |
+  | --- | --- |
+  | 주문 확인 중 · 일반 상품 픽업 준비 · 결제 대기 · 만료 보상 | 주문 취소 — 재고 · 쿠폰 복구, 고객 알림. 결제 취소 기록 `request_type=GATEWAY_VOID`(관리자 화면 "결제 보안 거절"). 고객에게 보이는 사유: "결제 승인이 취소되어 주문이 취소되었습니다. 카드 청구는 되지 않습니다. 다시 주문하시거나 궁금한 점은 가게로 문의해 주세요." |
+  | 제작 중 · 수제 케이크 픽업 준비(제작 완료) · 픽업 완료 | **주문 유지** — 가맹점이 판정 전에 진행한 주문이라 **손실은 가맹점 부담**. 결제는 DONE 그대로, `failure_code=GATEWAY_VOIDED_KEPT` 표시와 경고 로그를 한 번 남긴다 |
+  | 이미 취소 · 반려 | 할 일 없음 |
+
+  판단은 주문 공개 서비스 `OrderPaymentQueryService.gatewayVoidHandling`이 한다.
+- CakeShop이 보내는 값: 주문번호, 회원 ID, 서버가 확정한 금액, 결제 창 시작 시각, 주문명, 회원 이메일(돈워리 형식 `[^@\s]+@[^@\s]+`에
+  맞을 때만), 복귀 주소, 주문자 · 픽업자 이름과 전화번호. 카드 · 기기 · IP는 보내지 않는다. 돈워리 결제창이 구매자에게서 직접 받는다.
+- 주문자 · 픽업자 (2026-11-04, 돈워리 고객정보 접근 보안 시나리오. 돈워리 수신은 P4 현규)
+
+  | JSON 필드 | CakeShop 출처 | 비고 |
+  | --- | --- | --- |
+  | `ordererName` | `orders.orderer_name` | 최대 50자 |
+  | `ordererPhone` | `orders.orderer_phone` | 최대 30자, 하이픈 포함 저장 형식 그대로(예: `010-1234-5678`) |
+  | `pickupName` | `orders.pickup_name` | 최대 50자. 값이 없으면 키를 빼고 보낸다(픽업 없는 가맹점과 같음) |
+  | `pickupPhone` | `orders.pickup_phone` | 최대 30자, 하이픈 포함 그대로. 값이 없으면 키를 빼고 보낸다 |
+
+  돈워리가 이 필드를 모르면(배포 전) 무시하므로 CakeShop이 먼저 배포돼도 결제는 그대로다.
+  이름 · 전화번호 원문은 CakeShop 로그에 남기지 않는다.
+- `orderCreatedAt`은 CakeShop 결제 기한 − 10분이다. DonWorry 요청 기한(+10분)이 CakeShop 결제 기한과 같아진다.
+- 로컬 결제 상태는 성공 콜백 이후 기존 `PaymentFacade`만 바꾼다.
+- PG 선택은 승인 시도 전 READY 결제에만 저장된다. DonWorry 결제가 진행 중이면 Toss로 바꿀 수 없다.
+  근거와 한계는 [pg-decisions 006](pg-decisions/006-customer-payment-gateway-choice.md) (채택).
+
+## 3. 로컬 실행
+
+1. DonWorry: `docker compose up -d` 후 `payment.http.enabled=true`로 백엔드 실행 (DonWorry `docs/demo/local-demo.md` 2절), 프론트(`npm run dev`, 결제창 화면)도 띄운다
+   - 가맹점 키는 DonWorry DB에 암호화 저장한다. 시드 `CAKESHOP`을 쓰려면 DonWorry에 `DONWORRY_HMAC_MASTER_KEY_V1`(Base64 32바이트)과
+     기존 키 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 두고 `--donworry.integration.legacy-import-enabled=true`로 한 번 기동해 키를 옮긴다 (DonWorry ADR-0052).
+2. 같은 값의 `DONWORRY_MERCHANT_HMAC_CAKESHOP`을 CakeShop 쪽에도 **OS 환경변수**로 둔다. `.env`는 Spring 속성으로만 읽혀서
+   `System.getenv`로 읽는 이 키에는 쓰이지 않는다.
+3. CakeShop `.env`: `DONWORRY_PAYMENT_ENABLED=true`, `DONWORRY_PAYMENT_BASE_URL=http://localhost:8081`,
+   `DONWORRY_PAYMENT_SHOP_BASE_URL`(결제창이 돌려보낼 이 쇼핑몰 주소)
+4. **CakeShop은 `http://127.0.0.1:8080`으로 연다.** DonWorry 화면(`localhost:5173`)과 같은 `localhost`면 로그인 쿠키가 섞이고,
+   복귀 주소(`DONWORRY_PAYMENT_SHOP_BASE_URL`)와 출처가 다르면 결제창의 이동 신호가 전달되지 않는다
+   (결제창은 4초 뒤 "쇼핑몰 화면으로 이동" 링크를 보인다. 결과 · 취소 · 만료 모두 같다). `DONWORRY_PAYMENT_SHOP_BASE_URL=http://127.0.0.1:8080`으로 맞춘다.
+5. **돈워리에 `donworry.payment.webhook.allow-local-targets=true`를 켠다.** CakeShop이 결제 준비에 웹훅 주소(`http://127.0.0.1:8080/webhooks/donworry`)를 보내는데,
+   돈워리 운영 기본값은 https · 공인 주소만 받아 결제 준비가 400으로 거절된다(DonWorry #402 PR②). 운영 CakeShop은 `DONWORRY_PAYMENT_SHOP_BASE_URL`이 https여야 한다
+6. 결제 화면에서 결제하기 → 돈워리를 고른다. 이미 승인된 기존 결제는 저장된 PG를 그대로 쓴다.
+
+> 테스트도 `.env`를 읽는다. `.env`에서 `DONWORRY_PAYMENT_ENABLED=true`로 두고 키 환경변수 없이 `./gradlew test`를 돌리면
+> 앱 컨텍스트를 쓰는 테스트가 키 설정 오류로 실패한다. 테스트할 때는 키를 OS 환경변수로 두거나 연동 설정을 끈다.
+> 브랜치를 바꾼 뒤 지워진 클래스가 `build/`에 남아 있으면 MyBatis 별칭 검색이 깨질 수 있다(`disagree on InnerClasses attribute`). `./gradlew clean test`로 돌린다.
+
+API만 확인할 때:
+
+```bash
+DONWORRY_LIVE_BASE_URL=http://localhost:8081 ./gradlew test --tests 'com.cakeshop.domain.payment.infra.DonWorryPaymentClientLiveTests'
+```
+
+`DONWORRY_LIVE_BASE_URL`이 없으면 이 테스트는 건너뛴다(CI 포함).
+
+## 4. 알려진 한계 (결정 필요)
+
+- **보류 뒤 거절 · 이행된 주문**: 주문을 유지한 경우(위 2절 표) 손실은 가맹점 부담이다(DonWorry ADR-0064 4-1 개정, 2026-11-04).
+  돈워리에 "이행됨"을 알리지 않고 PG 보상 · 정산도 없다. CakeShop은 `failure_code=GATEWAY_VOIDED_KEPT` 표시와 경고 로그만 남긴다.
+  거절 뒤 유지된 주문을 관리자 화면에 따로 보이는 기능은 아직 없다(판정 전 진행 기록은 `orders.review_proceeded_*`에 있다).
+- **고객 · 관리자 취소** (`DonWorryPaymentGateway.cancel` → DonWorry `POST /api/payments/{id}/cancellations`, 계약 DonWorry #381):
+  - 보류(HELD) · 매입 대기 결제는 돈워리가 승인을 취소한다(DonWorry #382). `SUCCEEDED` · `ALREADY_CANCELED`면 CakeShop 취소 완료
+  - 멱등 키는 CakeShop 취소 키(`CANCEL-{uuid}`)의 UUID 부분, 사유는 앞뒤 공백을 지운 1~200자(빈 값이면 "고객 요청으로 주문 취소")
+  - 결과 대기 · 진행 중 · 일시 장애는 `PAYMENT_RECOVERY_PENDING` — 취소 요청이 REQUESTED로 남고 복구 배치가 같은 키 · 같은 사유로 다시 보낸다
+  - 요청이 REQUESTED인 동안 돈워리 거절(VOIDED)이 오면 새 거절 기록을 만들지 않고 그 요청을 승인 취소 결과
+    (거래 키 `GATEWAY-VOID-{paymentKey}`)로 완료한다. 결제 · 주문은 요청 종류대로(고객 · 관리자 취소는 CANCELED, 수제 반려는 REJECTED) 확정된다.
+    뒤늦게 돈워리 취소 응답이 와도 이미 확정된 완료로 본다(`RefundService.completeRequestedCancellationByGatewayVoid`)
+  - **매입된(CAPTURED) 결제의 환불은 503 `CANCELLATION_NOT_READY`**다. DonWorry #383으로 환불 기반은 들어갔지만
+    환불 실행 연결(`PaymentRefundCompletion` 구현)이 아직 없다(2026-11-04 DonWorry `dev` 기준). 그동안 취소 요청이 REQUESTED로 남아 복구 배치가 계속 다시 보낸다
+  - 돈워리 결제 상태에는 `REFUNDED`가 없다. 환불돼도 `CAPTURED`로 남는다(DonWorry ADR-0058)
+- **결제 기한이 지난 뒤 늦게 승인된 결제** ([pg-decisions 008](pg-decisions/008-donworry-late-approval-compensation.md)):
+  구매자가 결제창을 닫아 성공 콜백이 오지 않은 채 CakeShop 결제 기한이 지나면 주문 · 결제가 만료되고, 돈워리에는 승인(청구)이 남을 수 있다.
+  웹훅 · 조회 배치가 "돈워리는 승인 · CakeShop은 기한 지남"을 보면(READY 완료가 `PAYMENT_EXPIRED`, 또는 이미 `EXPIRED`)
+  기존 보상 취소(`SYSTEM_COMPENSATION`, 키 `COMPENSATE-{결제 ID}`)로 돈워리 승인을 취소한다.
+  - 결과: 결제 `CANCELED`(`failure_code=INTERNAL_COMPLETION_FAILED`), 주문 `CANCELED`. 보류 · 매입 대기는 승인 취소로 청구가 사라진다
+  - 취소가 바로 안 끝나면(매입 결제 환불 503 등) 보상 요청이 REQUESTED로 남고 복구 배치가 같은 키로 다시 보낸다. 그동안 만료 배치는 그 주문을 건드리지 않는다
+  - 조회 배치는 진행 중(REQUESTED) 보상 요청 없이 만료된 돈워리 결제를 생성 후 1시간 동안 다시 조회한다(웹훅이 닿지 않는 환경 대비). 실패로 닫힌 옛 보상 기록은 막지 않는다
+  - 보상 요청 저장 자체가 실패하면 웹훅은 500으로 응답해 돈워리 재전송을 받고, 조회 배치는 다음 주기에 다시 본다
+  - 보상 복구는 돈워리 `VOIDED`(승인 취소 완료)를 "승인 안 됨"이 아니라 취소 완료로 본다(조회 결과에 승인 취소 기록 `DW-VOID-{id}`를 싣는다)
+- 위 구조(성공 콜백 재사용, `approve` = 조회)는 `pg-decisions` ADR로 남길 대상이다.

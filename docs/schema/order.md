@@ -37,15 +37,17 @@
 | `created_at` | DATETIME(6) | INDEX | X | `CURRENT_TIMESTAMP(6)` | 생성 시각 |
 | `updated_at` | DATETIME(6) | INDEX | X | `CURRENT_TIMESTAMP(6)` | 수정 시각, 수정 시 자동 갱신 |
 | `order_type` | VARCHAR(30) | INDEX | X | 없음 | 주문 유형 |
-| `under_review_at` | DATETIME(6) |  | O | NULL | 주문 제작 검토 시작 시각 |
+| `under_review_at` | DATETIME(6) |  | O | NULL | 주문 확인 중(`UNDER_REVIEW`) 시작 시각. 주문 제작 검토, 또는 PG가 결제를 확인 중인 일반 주문 |
 | `expired_at` | DATETIME(6) |  | O | NULL | 주문 만료 시각 |
 | `approved_by` | BIGINT | FK | O | NULL | 승인 처리 회원 식별자 |
 | `rejected_by` | BIGINT | FK | O | NULL | 거절 처리 회원 식별자 |
 | `picked_up_by` | BIGINT | FK | O | NULL | 픽업 처리 회원 식별자 |
+| `review_proceeded_by` | BIGINT | FK | O | NULL | PG(돈워리) 결제 확인 중에 확인 창에 동의하고 처음 진행한 관리자 |
+| `review_proceeded_at` | DATETIME(6) |  | O | NULL | 위 진행 시각. 진행 뒤 PG가 거절하면 손실은 가맹점 부담(DonWorry ADR-0064 4-1) |
 
 - UK: `uk_orders_order_number` (`order_number`)
 - UK: `uk_orders_member_request_key` (`member_id`, `request_key`)
-- FK: `member_id`, `approved_by`, `rejected_by`, `picked_up_by` → 각각 `members.id`
+- FK: `member_id`, `approved_by`, `rejected_by`, `picked_up_by`, `review_proceeded_by` → 각각 `members.id`
 - CHECK: `order_type IN ('GENERAL', 'CUSTOM')`
 - CHECK: `status IN ('PENDING_PAYMENT', 'UNDER_REVIEW', 'IN_PRODUCTION', 'READY_FOR_PICKUP', 'PICKED_UP', 'CANCELED', 'REJECTED', 'EXPIRED')`
 - CHECK: 세 금액은 0 이상이고 `REJECTED` 상태에는 `reject_reason`이 필요하다.

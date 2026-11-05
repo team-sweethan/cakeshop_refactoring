@@ -241,6 +241,66 @@ class RefundServiceTests {
         );
     }
 
+    // 고객 취소가 PG 응답을 기다리는 동안 돈워리가 승인을 취소(VOIDED)하면 그 요청을 승인 취소 결과로 완료한다 (#26 Codex 리뷰)
+    @Test
+    void completeRequestedCancellationByGatewayVoid_pendingCustomerRequest_completesWithVoidResult() {
+        PaymentCancellation cancellation = cancellation();
+        LocalDateTime voidedAt = NOW.plusMinutes(5);
+        when(paymentMapper.findRequestedCancellationByPaymentId(20L)).thenReturn(Optional.of(cancellation));
+        when(paymentMapper.findPaymentById(20L)).thenReturn(Optional.of(payment()));
+        when(orderPaymentCancellationCommandService.isPaymentCancellationAvailable(10L, "CUSTOMER", NOW))
+                .thenReturn(true);
+        when(paymentMapper.findPaymentCancellationByIdForUpdate(30L)).thenReturn(Optional.of(cancellation));
+        when(paymentMapper.completeCancellationIfRequested(30L, "GATEWAY-VOID-payment-key", voidedAt)).thenReturn(1);
+        when(orderPaymentCancellationCommandService.completePaymentCancellation(
+                10L, "CUSTOMER", 3L, "단순 변심", NOW, voidedAt
+        )).thenReturn(true);
+
+        assertThat(refundService.completeRequestedCancellationByGatewayVoid(payment(), voidedAt)).isTrue();
+
+        verify(paymentMapper).completeCancellationIfRequested(30L, "GATEWAY-VOID-payment-key", voidedAt);
+        verify(orderPaymentCancellationCommandService).completePaymentCancellation(
+                10L, "CUSTOMER", 3L, "단순 변심", NOW, voidedAt
+        );
+    }
+
+    // 시스템 보상 요청이나 진행 중 요청이 없으면 기존 거절 처리에 맡긴다
+    @Test
+    void completeRequestedCancellationByGatewayVoid_noRefundRequest_returnsFalse() {
+        PaymentCancellation compensation = cancellation();
+        compensation.setRequestType("SYSTEM_COMPENSATION");
+        when(paymentMapper.findRequestedCancellationByPaymentId(20L))
+                .thenReturn(Optional.of(compensation), Optional.empty());
+
+        assertThat(refundService.completeRequestedCancellationByGatewayVoid(payment(), NOW)).isFalse();
+        assertThat(refundService.completeRequestedCancellationByGatewayVoid(payment(), NOW)).isFalse();
+        verify(paymentMapper, never()).completeCancellationIfRequested(anyLong(), any(), any());
+    }
+
+    // 요청을 돈워리 거절로 먼저 닫은 뒤 진행 중이던 PG 취소 응답이 도착해도 완료로 본다(거래 키가 달라도)
+    @Test
+    void completeCancellation_requestClosedByGatewayVoid_acceptsLateProviderResult() {
+        PaymentCancellation cancellation = cancellation();
+        cancellation.setStatus(PaymentCancellationStatus.DONE);
+        cancellation.setTransactionKey("GATEWAY-VOID-payment-key");
+        Payment payment = payment();
+        payment.setStatus(PaymentStatus.CANCELED);
+        when(paymentMapper.findPaymentCancellationByIdForUpdate(30L)).thenReturn(Optional.of(cancellation));
+        when(paymentMapper.findPaymentById(20L)).thenReturn(Optional.of(payment));
+        when(orderPaymentCancellationCommandService.isPaymentCancellationCompleted(10L, "CUSTOMER"))
+                .thenReturn(true);
+        when(orderPaymentCancellationCommandService.completePaymentCancellation(
+                10L, "CUSTOMER", 3L, "단순 변심", NOW, NOW.plusSeconds(2)
+        )).thenReturn(true);
+
+        refundService.completeCancellation(
+                request(),
+                new CancellationResult(PaymentGatewayStatus.CANCELED, "DW-CANCEL-77", NOW.plusSeconds(2))
+        );
+
+        verify(paymentMapper, never()).completeCancellationIfRequested(anyLong(), any(), any());
+    }
+
     @Test
     void getRequestedCancellations_availableOrder_mapsRecoveryRequest() {
         PaymentCancellation cancellation = cancellation();

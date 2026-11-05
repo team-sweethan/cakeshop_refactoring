@@ -103,6 +103,30 @@ class CommunityScreenRenderingTests {
                 .andExpect(content().string(containsString("아직 등록된 글이 없습니다.")));
     }
 
+    /** 카테고리 탭과 정렬을 한 줄 도구 줄에 그리고, 고른 탭·정렬에만 aria-current 를 단다. */
+    @Test
+    void communityList_rendersCategoryTabsAndSortInOneToolbar() throws Exception {
+        MvcResult result = mockMvc.perform(get("/community")
+                        .param("categoryId", String.valueOf(categoryId))
+                        .param("sort", "VIEWS"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String html = result.getResponse().getContentAsString();
+
+        assertThat(html)
+                .contains("<div class=\"community-toolbar section\">")
+                .contains("<nav class=\"community-tabs\" aria-label=\"카테고리\">")
+                .contains("<nav class=\"community-sort\" aria-label=\"정렬\">")
+                .contains("/css/community.css");
+        assertThat(html.split("aria-current=\"page\"", -1)).hasSize(2);
+        assertThat(html.split("aria-current=\"true\"", -1)).hasSize(2);
+        assertThat(html.replaceAll("\\s+", " "))
+                .contains("community-tabs__item is-active\" aria-current=\"page\" href=\"/community?categoryId="
+                        + categoryId)
+                .contains("community-sort__item is-active\" aria-current=\"true\" href=\"/community?categoryId="
+                        + categoryId + "&amp;keyword=&amp;sort=VIEWS\"");
+    }
+
     /** 페이지를 이동해도 현재 카테고리와 정렬 조건을 함께 유지한다. */
     @Test
     void communityList_paginationLink_preservesCategoryAndSort() throws Exception {
@@ -224,6 +248,32 @@ class CommunityScreenRenderingTests {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("제목입니다")))
                 .andExpect(content().string(containsString("첫 줄")));
+    }
+
+    /** 글과 댓글을 각각 카드로 감싸고, 관리자 댓글에만 매장 배지를 붙인다. */
+    @Test
+    void communityDetail_wrapsPostAndCommentsInCards_andMarksAdminComment() throws Exception {
+        long postId = insertPost(memberId, "배지 확인 글", "본문", PostStatus.PUBLISHED);
+        long adminId = insertAdminMember();
+        insertComment(postId, memberId, "회원 댓글", CommentStatus.PUBLISHED, BASE_TIME.plusMinutes(1));
+        insertComment(postId, adminId, "매장 답변", CommentStatus.PUBLISHED, BASE_TIME.plusMinutes(2));
+
+        MvcResult result = mockMvc.perform(get("/community/" + postId))
+                .andExpect(status().isOk())
+                .andReturn();
+        String html = result.getResponse().getContentAsString();
+
+        assertThat(html)
+                .contains("<article class=\"community-card section\">")
+                .contains("<section class=\"community-card section\" id=\"comments\">")
+                .contains("← 커뮤니티 목록")
+                .contains("♡ 좋아요 0");
+        assertThat(html.split("class=\"badge comment-row__store-badge\"", -1)).hasSize(2);
+        assertThat(html.split("comment-row--admin", -1)).hasSize(2);
+        // 배지는 관리자 답변 줄에 붙는다
+        int badgeAt = html.indexOf("comment-row__store-badge");
+        assertThat(html.indexOf("회원 댓글")).isLessThan(badgeAt);
+        assertThat(html.indexOf("매장 답변")).isGreaterThan(badgeAt);
     }
 
     @Test

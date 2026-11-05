@@ -1,4 +1,72 @@
-/* 커뮤니티 화면 전용. 고객 게시글 상세·공지 상세와 관리자 게시글 상세가 함께 쓴다. */
+/* 커뮤니티 화면 전용. 고객 게시글 목록·상세, 공지 상세와 관리자 게시글 상세가 함께 쓴다. */
+
+/* 목록 도구 줄: 카테고리 탭은 왼쪽, 정렬은 오른쪽. 버튼 두 줄이 쌓이면 무엇이 필터이고
+   무엇이 정렬인지 구분되지 않아 모양을 다르게 한다. */
+.community-toolbar {
+    align-items: flex-end;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    justify-content: space-between;
+}
+
+.community-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.community-tabs__item {
+    border-bottom: 2px solid transparent;
+    color: var(--color-muted);
+    font-weight: 600;
+    margin-bottom: -1px;
+    padding: 10px 14px;
+}
+
+.community-tabs__item:hover {
+    color: var(--color-text);
+}
+
+.community-tabs__item.is-active {
+    border-bottom-color: var(--color-brand);
+    color: var(--color-brand);
+}
+
+.community-sort {
+    align-items: center;
+    display: flex;
+    font-size: var(--font-xs);
+    gap: var(--space-2);
+    padding-bottom: 10px;
+}
+
+.community-sort__item {
+    color: var(--color-muted);
+}
+
+.community-sort__item + .community-sort__item::before {
+    color: var(--color-border);
+    content: "·";
+    margin-right: var(--space-2);
+}
+
+.community-sort__item:hover,
+.community-sort__item.is-active {
+    color: var(--color-text);
+}
+
+.community-sort__item.is-active {
+    font-weight: 700;
+}
+
+.community-tabs__item:focus-visible,
+.community-sort__item:focus-visible {
+    border-radius: 4px;
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+}
 
 /* 본문 영역. 한 줄짜리 본문이 제목과 다음 블록 사이에 끼면 글이 아니라 메모처럼 보여서 최소
    높이를 준다. 긴 본문은 이 높이를 넘겨 그대로 늘어나므로 짧은 글에만 영향이 있다.
@@ -47,4 +115,213 @@
     background: var(--color-background-soft);
     outline: 2px solid var(--color-info);
     outline-offset: var(--space-1);
+}
+
+/* ---------- 고객 게시글 상세 (.community-detail) ----------
+   크림색 페이지 배경 위에 글과 댓글이 그냥 떠 있으면 구역이 보이지 않아, 각각 흰 카드로 감싼다.
+   댓글은 묶음(뿌리 + 답글)마다 연한 배경 상자로 나눈다. 위의 구분선 목록 규칙은 관리자 상세가
+   그대로 쓰므로 고객 상세 안에서만 덮어쓴다. */
+/* 읽기 폭. 공통 좁은 폭(640px)은 목록(1240px)에서 들어오면 절반으로 줄어 작아 보이고,
+   전체 폭은 본문 한 줄이 너무 길어진다. 카드 안쪽 한 줄이 한글 55~60자 정도가 되는 폭이다. */
+.page-container.community-detail {
+    max-width: 880px;
+}
+
+.community-detail__top {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: space-between;
+}
+
+.community-detail__back {
+    color: var(--color-muted);
+    font-size: var(--font-sm);
+    font-weight: 600;
+}
+
+.community-detail__back:hover {
+    color: var(--color-brand);
+}
+
+.community-card {
+    background: #fff;
+    border: 1px solid #e6d5c9;
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgba(68, 43, 34, .06);
+    padding: var(--space-6);
+}
+
+.community-post__head h1 {
+    margin: var(--space-2) 0 var(--space-2);
+}
+
+.community-post__head {
+    border-bottom: 1px solid var(--color-border-light);
+    padding-bottom: var(--space-3);
+}
+
+.community-detail .post-body {
+    min-height: 120px;
+}
+
+.community-post__actions {
+    align-items: center;
+    border-top: 1px solid var(--color-border-light);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    justify-content: space-between;
+    padding-top: var(--space-4);
+}
+
+.community-like {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e6d5c9;
+    border-radius: 999px;
+    color: var(--color-brand);
+    cursor: pointer;
+    display: inline-flex;
+    font-size: var(--font-sm);
+    font-weight: 700;
+    gap: var(--space-1);
+    min-height: 36px;
+    padding: 6px 16px;
+}
+
+.community-like:hover,
+.community-like.is-liked {
+    background: var(--color-brand-soft);
+    border-color: var(--color-brand);
+}
+
+.community-like--static {
+    cursor: default;
+}
+
+.community-like--static:hover {
+    background: #fff;
+    border-color: #e6d5c9;
+}
+
+.community-like:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+}
+
+.community-post__reported {
+    margin: 0;
+}
+
+/* 신고는 오른쪽 작은 글자. 펼치면 아래 줄 전체를 쓴다. */
+.community-report summary {
+    color: var(--color-muted);
+    cursor: pointer;
+    font-size: var(--font-xs);
+    text-align: right;
+}
+
+.community-report[open] {
+    flex-basis: 100%;
+}
+
+.community-report[open] summary {
+    margin-bottom: var(--space-2);
+}
+
+.community-comments__title {
+    font-size: var(--font-md);
+    margin-bottom: var(--space-3);
+}
+
+.community-comments {
+    display: grid;
+    gap: var(--space-2);
+}
+
+/* 댓글 목록과 작성 폼 사이를 띄워 폼이 마지막 댓글에 붙어 보이지 않게 한다. */
+.community-comments + form {
+    border-top: 1px solid var(--color-border-light);
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+}
+
+.community-detail .community-comments > .comment-item {
+    background: var(--color-background-faint);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3) var(--space-4);
+}
+
+.community-detail .community-comments > .comment-item:last-child {
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.comment-row__meta {
+    align-items: center;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-size: var(--font-xs);
+}
+
+.comment-row__author {
+    color: var(--color-text);
+    font-size: var(--font-sm);
+}
+
+.comment-row__store-badge {
+    background: var(--color-brand-soft);
+    border-color: var(--color-brand);
+    color: var(--color-brand);
+    font-weight: 700;
+}
+
+.comment-row__content {
+    line-height: 1.7;
+    margin-top: var(--space-1);
+    white-space: pre-wrap;
+}
+
+/* 관리자 답변(뿌리 댓글): 상자 왼쪽 안쪽에 브랜드 색 띠를 붙여 한 번 더 구분한다.
+   답글 안의 관리자 답변은 답글 선과 겹치므로 배지만 둔다. */
+.community-detail .community-comments > .comment-item > .comment-row--admin {
+    border-left: 3px solid var(--color-brand);
+    margin-left: calc(var(--space-4) * -1);
+    padding-left: calc(var(--space-4) - 3px);
+}
+
+.comment-link {
+    color: var(--color-muted);
+    font-size: var(--font-xs);
+    font-weight: 600;
+    margin-top: var(--space-2);
+}
+
+.comment-link:hover {
+    color: var(--color-brand);
+}
+
+.comment-replies {
+    border-left: 2px solid #e6d5c9;
+    margin-left: var(--space-2);
+    margin-top: var(--space-2);
+    padding-left: var(--space-4);
+}
+
+.community-detail .comment-replies .comment-item {
+    border-bottom: 1px dashed var(--color-border-light);
+    padding: var(--space-2) 0;
+}
+
+.community-detail .comment-replies .comment-item:last-of-type {
+    border-bottom: 0;
+}
+
+@media (max-width: 640px) {
+    .community-card {
+        padding: var(--space-4);
+    }
 }

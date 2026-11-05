@@ -172,6 +172,52 @@ class OrderPaymentCancellationCommandServiceTests {
         verify(couponOrderCommandService, never()).restoreCouponForCanceledOrder(10L);
     }
 
+    // PG(돈워리)가 결제를 확인 중인 일반 주문(UNDER_REVIEW)도 픽업 전이면 고객·가맹점이 취소할 수 있다 (DonWorry ADR-0064 4절)
+    @Test
+    void isPaymentCancellationAvailable_heldGeneralOrderUnderReview_allowsCustomerAndAdminCancel() {
+        Order order = order(3L);
+        order.setStatus(OrderStatus.UNDER_REVIEW);
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(order));
+
+        assertThat(service.isPaymentCancellationAvailable(10L, "CUSTOMER", REQUESTED_AT)).isTrue();
+        assertThat(service.isPaymentCancellationAvailable(10L, "ADMIN", REQUESTED_AT)).isTrue();
+        assertThat(service.isPaymentCancellationAvailable(10L, "ADMIN_REJECTION", REQUESTED_AT)).isFalse();
+        assertThat(service.isPaymentCancellationAvailable(10L, "CUSTOMER", order.getPickupAt())).isFalse();
+    }
+
+    @Test
+    void completePaymentCancellation_heldGeneralOrderUnderReview_cancelsWithCurrentStatus() {
+        Order order = order(3L);
+        order.setStatus(OrderStatus.UNDER_REVIEW);
+        when(orderMapper.findOrderByIdForUpdate(10L)).thenReturn(Optional.of(order));
+        when(orderMapper.cancelIfCurrent(
+                10L,
+                OrderStatus.UNDER_REVIEW,
+                "CUSTOMER",
+                "단순 변심",
+                REQUESTED_AT,
+                CANCELED_AT
+        )).thenReturn(1);
+        when(orderMapper.findStockDeductedItemsForRestore(10L)).thenReturn(List.of());
+
+        assertThat(service.completePaymentCancellation(
+                10L,
+                "CUSTOMER",
+                3L,
+                "단순 변심",
+                REQUESTED_AT,
+                CANCELED_AT
+        )).isTrue();
+
+        verify(couponOrderCommandService).restoreCouponForCanceledOrder(10L);
+        verify(orderMapper, never()).cancelCustomIfUnderReview(
+                anyLong(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
     private Order order(long memberId) {
         Order order = new Order();
         order.setId(10L);

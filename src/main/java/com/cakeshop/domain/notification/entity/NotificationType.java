@@ -21,7 +21,7 @@ public enum NotificationType {
     COUPON("쿠폰 발급", "%s 쿠폰이 발급되었습니다."),
     COUPON_EXPIRING_SOON("쿠폰 만료 임박", "%s 쿠폰의 사용 기한이 %s 남았습니다. 잊지 말고 사용하세요!"),
 
-    // === 관리자 관련 알림 (11종) ===
+    // === 관리자 관련 알림 (12종) ===
     NEW_ORDER("신규 주문", "새로운 일반 케이크 주문이 접수되었습니다."),
     NEW_CUSTOM_ORDER("신규 주문 제작 주문", "확인이 필요한 주문제작 주문이 접수되었습니다. 확인해주세요."),
     ORDER_CANCEL_REQUEST("주문 취소", "%s 주문이 취소되었습니다."),
@@ -32,7 +32,9 @@ public enum NotificationType {
     ADMIN_PICKUP_REMINDER_TODAY("픽업 당일", "%s 주문이 오늘 픽업 예정입니다."),
     ADMIN_PICKEDUP("픽업 완료", "%s 주문이 픽업 완료되었습니다."),
     ADMIN_CHAT("채팅 문의", "%s 고객님께서 새로운 채팅 문의를 남기셨습니다. 확인해주세요"),
-    REFUND_FAILED("환불 실패", "%s 주문의 결제 취소 처리에 실패했습니다. 확인해주세요.");
+    REFUND_FAILED("환불 실패", "%s 주문의 결제 취소 처리에 실패했습니다. 확인해주세요."),
+    // PG(돈워리)가 결제를 확인 중(매입 보류)인 주문. 확인 전에 진행하면 거절 시 손실은 가맹점 부담 (DonWorry ADR-0064 4절)
+    ADMIN_PAYMENT_UNDER_REVIEW("결제 확인 중", "%s 주문의 결제를 돈워리가 확인 중입니다. 확인 전에 진행하면 거절 시 손실은 가맹점이 부담합니다.");
 
     private final String defaultTitle;
     private final String defaultContent;

@@ -68,6 +68,11 @@
   function appendNotificationToDOM(notification) {
     if (!notification) return;
 
+    // 0. 헤더 종 버튼의 최근 알림 목록 (notification-panel.js, 고객 화면)
+    if (window.notificationPanel && typeof window.notificationPanel.receive === "function") {
+      window.notificationPanel.receive(notification);
+    }
+
     // 1. 고객용 알림 목록 컨테이너 (#notification-container)
     const customerContainer = document.getElementById("notification-container");
     if (customerContainer) {

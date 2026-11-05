@@ -84,6 +84,26 @@ class PaymentCheckoutServiceTests {
         lenient().when(tossPaymentAvailability.isEnabled()).thenReturn(true);
     }
 
+    // 돈워리 결제 준비 요청에 보낼 픽업자를 결제 화면 정보에 싣는다
+    @Test
+    void getCheckout_pickupPerson_isCarriedToCheckoutView() {
+        PaymentOrder base = order(true, true);
+        PaymentOrder order = new PaymentOrder(
+                base.orderId(), base.orderNumber(), base.orderType(), base.pendingPayment(),
+                base.originalAmount(), base.discountAmount(), base.finalAmount(),
+                base.pickupAt(), base.paymentExpiresAt(),
+                base.ordererName(), base.ordererPhone(), "김픽업", "010-3333-4444",
+                base.items()
+        );
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(order);
+        when(paymentService.getReadyPayment(1L)).thenReturn(payment(PaymentStatus.READY, null));
+
+        PaymentCheckoutView checkout = paymentCheckoutService.getCheckout(10L, "member@example.com", 1L);
+
+        assertThat(checkout.pickupName()).isEqualTo("김픽업");
+        assertThat(checkout.pickupPhone()).isEqualTo("010-3333-4444");
+    }
+
     @Test
     void getCheckout_ownedPendingOrder_returnsActualPaymentView() {
         PaymentOrder order = order(true, true);
@@ -102,6 +122,8 @@ class PaymentCheckoutServiceTests {
         assertThat(checkout.orderName()).isEqualTo("딸기 생크림 케이크");
         assertThat(checkout.amount()).isEqualByComparingTo("30000");
         assertThat(checkout.customerEmail()).isEqualTo("member@example.com");
+        assertThat(checkout.customerName()).isEqualTo("홍길동");
+        assertThat(checkout.customerPhone()).isEqualTo("010-1111-2222");
         assertThat(checkout.paymentAvailable()).isTrue();
         assertThat(checkout.items()).singleElement().satisfies(item -> {
             assertThat(item.productName()).isEqualTo("딸기 생크림 케이크");
@@ -215,6 +237,58 @@ class PaymentCheckoutServiceTests {
         assertThat(completion.items()).singleElement().satisfies(item ->
                 assertThat(item.productName()).isEqualTo("딸기 생크림 케이크")
         );
+    }
+
+    // 돈워리로 낸 결제는 완료 화면 결제 수단을 구매자가 고른 이름(돈워리 안전결제)으로 보인다.
+    @Test
+    void getCompletion_donWorryPayment_showsDonWorrySafePaymentAsMethod() {
+        Payment donWorryPayment = payment(PaymentStatus.DONE, "payment-key");
+        donWorryPayment.setProvider(PaymentProvider.OWN);
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L))
+                .thenReturn(order(true, false));
+        when(paymentService.getDonePayment(1L)).thenReturn(donWorryPayment);
+        when(storeService.getStoreView()).thenReturn(storeView());
+
+        PaymentCompletionView completion =
+                paymentCheckoutService.getCompletion(10L, 1L);
+
+        assertThat(completion.method()).isEqualTo("돈워리 안전결제");
+    }
+
+    // 0원 주문은 결제사를 거치지 않으므로 결제사가 돈워리로 저장돼 있어도 0원 결제로 보인다.
+    @Test
+    void getCompletion_zeroAmountPayment_showsZeroAmountEvenWhenDonWorrySelected() {
+        Payment zeroPayment = payment(PaymentStatus.DONE, null);
+        zeroPayment.setProvider(PaymentProvider.OWN);
+        zeroPayment.setMethod("ZERO_AMOUNT");
+        zeroPayment.setAmount(BigDecimal.ZERO);
+        PaymentOrder zeroOrder = new PaymentOrder(
+                1L,
+                "ORD-100",
+                true,
+                false,
+                BigDecimal.valueOf(30_000),
+                BigDecimal.valueOf(30_000),
+                BigDecimal.ZERO,
+                NOW.plusDays(1),
+                NOW.plusMinutes(10),
+                "홍길동",
+                "010-1111-2222",
+                List.of(new PaymentOrderItem(
+                        "딸기 생크림 케이크",
+                        1,
+                        BigDecimal.valueOf(30_000),
+                        List.of()
+                ))
+        );
+        when(orderPaymentQueryService.getMemberPaymentOrder(10L, 1L)).thenReturn(zeroOrder);
+        when(paymentService.getDonePayment(1L)).thenReturn(zeroPayment);
+        when(storeService.getStoreView()).thenReturn(storeView());
+
+        PaymentCompletionView completion =
+                paymentCheckoutService.getCompletion(10L, 1L);
+
+        assertThat(completion.method()).isEqualTo("0원 결제");
     }
 
     @ParameterizedTest

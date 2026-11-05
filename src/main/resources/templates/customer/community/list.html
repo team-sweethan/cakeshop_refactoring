@@ -13,8 +13,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>커뮤니티 | 케이크 쇼핑몰</title>
+  <title>커뮤니티 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/community.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/customer-mockup.js}"></script>
 </head>
@@ -34,25 +35,31 @@
              th:href="@{/community(categoryId=${selectedCategoryId}, sort=${selectedSort})}">검색 해제</a>
         </div>
 
-        <div class="cluster section">
-          <a class="btn"
-             th:classappend="${selectedCategoryId == null} ? ' is-active'"
-             th:href="@{/community(keyword=${selectedKeyword}, sort=${selectedSort})}">전체</a>
+        <!--/* 카테고리 탭(왼쪽)과 정렬(오른쪽)을 한 줄에 둔다. 좁은 화면에서는 두 줄로 내려간다. */-->
+        <div class="community-toolbar section">
+          <nav class="community-tabs" aria-label="카테고리">
+            <a class="community-tabs__item"
+               th:classappend="${selectedCategoryId == null} ? ' is-active'"
+               th:aria-current="${selectedCategoryId == null} ? 'page'"
+               th:href="@{/community(keyword=${selectedKeyword}, sort=${selectedSort})}">전체</a>
 
-          <a class="btn"
-             th:each="category : ${categories}"
-             th:text="${category.name}"
-             th:classappend="${selectedCategoryId != null
-                               and selectedCategoryId == category.id} ? ' is-active'"
-             th:href="@{/community(categoryId=${category.id}, keyword=${selectedKeyword}, sort=${selectedSort})}">카테고리</a>
-        </div>
+            <a class="community-tabs__item"
+               th:each="category : ${categories}"
+               th:with="selected=${selectedCategoryId != null and selectedCategoryId == category.id}"
+               th:text="${category.name}"
+               th:classappend="${selected} ? ' is-active'"
+               th:aria-current="${selected} ? 'page'"
+               th:href="@{/community(categoryId=${category.id}, keyword=${selectedKeyword}, sort=${selectedSort})}">카테고리</a>
+          </nav>
 
-        <div class="cluster section">
-          <a class="btn"
-             th:each="sortOption : ${sortOptions}"
-             th:classappend="${selectedSort == sortOption} ? ' is-active'"
-             th:href="@{/community(categoryId=${selectedCategoryId}, keyword=${selectedKeyword}, sort=${sortOption.parameter})}"
-             th:text="${sortOption.label}">정렬</a>
+          <nav class="community-sort" aria-label="정렬">
+            <a class="community-sort__item"
+               th:each="sortOption : ${sortOptions}"
+               th:classappend="${selectedSort == sortOption} ? ' is-active'"
+               th:aria-current="${selectedSort == sortOption} ? 'true'"
+               th:href="@{/community(categoryId=${selectedCategoryId}, keyword=${selectedKeyword}, sort=${sortOption.parameter})}"
+               th:text="${sortOption.label}">정렬</a>
+          </nav>
         </div>
 
         <div class="stack section">

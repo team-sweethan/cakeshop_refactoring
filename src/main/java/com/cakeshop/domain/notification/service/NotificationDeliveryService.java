@@ -1,6 +1,7 @@
 package com.cakeshop.domain.notification.service;
 
 import java.time.LocalDateTime;
+import java.time.Clock;
 import com.cakeshop.domain.notification.entity.NotificationDelivery;
 import com.cakeshop.domain.notification.mapper.NotificationMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class NotificationDeliveryService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationDeliveryService.class);
     private final NotificationMapper notificationMapper;
+    private final Clock clock;
 
     /**
      * 외부 SMS 전송 전, 시도 횟수를 원자적으로 예약(PENDING 상태로 사전 저장)한다.
@@ -46,7 +48,7 @@ public class NotificationDeliveryService {
                 return null;
             }
 
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(clock);
             NotificationDelivery delivery = NotificationDelivery.builder()
                     .notificationId(notificationId)
                     .recipient(recipient)
@@ -93,7 +95,7 @@ public class NotificationDeliveryService {
     public void recordSkippedAttempt(Long notificationId, String reason) {
         if (notificationId == null) return;
         try {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(clock);
             NotificationDelivery delivery = NotificationDelivery.builder()
                     .notificationId(notificationId)
                     .recipient("SKIPPED")

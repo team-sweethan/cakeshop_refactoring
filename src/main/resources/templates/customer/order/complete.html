@@ -3,47 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>주문 완료 | 케이크 쇼핑몰</title>
+  <title>결제 완료 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/payment-complete.css}">
   <script defer th:src="@{/js/app.js}"></script>
 </head>
-<body data-page-title="주문 완료">
+<body data-page-title="결제 완료">
   <header th:replace="~{fragments/common/header :: header}"></header>
   <main class="page-container page-container--form">
-    <h1 class="visually-hidden">주문 완료</h1>
-    <section class="panel" style="padding:32px;text-align:center">
-      <h2 style="font-size:20px">결제와 주문이 완료되었습니다.</h2>
-      <p class="text-muted section" th:text="|주문번호: ${completion.orderNumber}|">
-        주문번호
+    <h1 class="visually-hidden">결제 완료</h1>
+
+    <!--/* 결제가 끝난 것만 알린다. 주문은 결제 뒤에도 확인 · 제작 단계가 남을 수 있어(돈워리 안전결제 확인 포함)
+           "주문 완료"라고 하지 않고, 진행 상황은 주문 상세 · 주문 내역에서 보게 한다.
+           결제가 보류된 주문도 구매자에게는 같은 화면이다. 보류 여부를 구매자에게 드러내지 않는다. */-->
+    <section class="payment-complete" aria-labelledby="payment-complete-title">
+      <span class="payment-complete__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" focusable="false" fill="none"
+             stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7.5"/>
+        </svg>
+      </span>
+      <h2 class="payment-complete__title" id="payment-complete-title">결제가 완료되었습니다</h2>
+      <p class="payment-complete__guide">
+        주문 진행 상황은 <strong>마이페이지 &gt; 주문 내역</strong>에서 확인할 수 있습니다.
       </p>
 
-      <div style="text-align:left">
-        <h3 class="section-title">주문 정보</h3>
-        <div class="data-row" th:each="item : ${completion.items}">
-          <span class="data-row__label">상품</span>
-          <span th:text="|${item.productName} × ${item.quantity}|">상품 × 1</span>
+      <dl class="payment-complete__info">
+        <div class="payment-complete__row" th:each="item : ${completion.items}">
+          <dt>상품</dt>
+          <dd th:text="|${item.productName} × ${item.quantity}|">상품 × 1</dd>
         </div>
-        <div class="data-row">
-          <span class="data-row__label">결제 금액</span>
-          <span th:text="|${#numbers.formatInteger(completion.amount, 1, 'COMMA')}원|">0원</span>
+        <div class="payment-complete__row">
+          <dt>결제 금액</dt>
+          <dd class="payment-complete__amount"
+              th:text="|${#numbers.formatInteger(completion.amount, 1, 'COMMA')}원|">0원</dd>
         </div>
-        <div class="data-row">
-          <span class="data-row__label">결제 수단</span>
-          <span th:text="${completion.method}">카드</span>
+        <div class="payment-complete__row">
+          <dt>결제 수단</dt>
+          <dd th:text="${completion.method}">카드</dd>
         </div>
-        <div class="data-row">
-          <span class="data-row__label">픽업 일시</span>
-          <span th:text="${#temporals.format(completion.pickupAt, 'yyyy.MM.dd (E) HH:mm')}">
-            픽업 일시
-          </span>
+        <div class="payment-complete__row">
+          <dt>픽업 일시</dt>
+          <dd th:text="${#temporals.format(completion.pickupAt, 'yyyy.MM.dd (E) HH:mm')}">픽업 일시</dd>
         </div>
-        <div class="data-row">
-          <span class="data-row__label">픽업 장소</span>
-          <span th:text="${completion.pickupPlace}">픽업 장소</span>
+        <div class="payment-complete__row">
+          <dt>픽업 장소</dt>
+          <dd th:text="${completion.pickupPlace}">픽업 장소</dd>
         </div>
-      </div>
+        <div class="payment-complete__row payment-complete__row--sub">
+          <dt>주문번호</dt>
+          <dd th:text="${completion.orderNumber}">주문번호</dd>
+        </div>
+      </dl>
 
-      <div class="cluster" style="justify-content:center;margin-top:16px">
+      <div class="payment-complete__actions">
         <a class="btn"
            th:href="@{/orders/{id}(id=${completion.orderId})}">
           주문 상세 보기

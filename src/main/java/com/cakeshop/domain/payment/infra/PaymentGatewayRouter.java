@@ -37,4 +37,10 @@ public class PaymentGatewayRouter {
         }
         return gateway;
     }
+
+    /** 고객이 결제창에서 고를 수 있는 PG인지 확인한다. 구현체가 없거나 설정이 비어 있으면 false다. */
+    public boolean isAvailable(PaymentProvider provider) {
+        PaymentGateway gateway = provider == null ? null : gateways.get(provider);
+        return gateway != null && gateway.isAvailable();
+    }
 }

@@ -61,7 +61,10 @@ public class PaymentApprovalResolver {
             }
             PaymentLookupResult paymentLookup = lookup.get();
             return switch (paymentLookup.status()) {
-                case READY, ABORTED, EXPIRED -> ApprovalResolution.notApproved();
+                // 청구 없이 끝났더라도 승인 뒤 PG가 승인을 취소한 기록이 있으면(돈워리 VOIDED) 보상 취소가 끝난 것이다.
+                case READY, ABORTED, EXPIRED -> approvalCanceledByGateway(paymentLookup)
+                        .map(ApprovalResolution::canceled)
+                        .orElseGet(ApprovalResolution::notApproved);
                 case IN_PROGRESS -> ApprovalResolution.inProgress();
                 case DONE -> ApprovalResolution.done(paymentLookup.toApprovalResult(), paymentLookup);
                 case CANCELED -> ApprovalResolution.canceled(paymentLookup);
@@ -70,6 +73,27 @@ public class PaymentApprovalResolver {
         } catch (BusinessException lookupFailure) {
             return ApprovalResolution.finalOrUnknown();
         }
+    }
+
+    /**
+     * 승인 취소 기록이 있는 청구 없음 결과를 취소 완료 조회 결과로 바꾼다. Toss의 미승인 결과에는 취소 기록이 없어 해당하지 않는다.
+     * 보상 취소 복구 판단에만 쓴다(일반 승인 확인에서는 지금처럼 승인 실패로 본다).
+     */
+    private static Optional<PaymentLookupResult> approvalCanceledByGateway(PaymentLookupResult lookup) {
+        if (lookup.cancellation() == null
+                || lookup.cancellation().status() != PaymentGatewayStatus.CANCELED) {
+            return Optional.empty();
+        }
+        return Optional.of(new PaymentLookupResult(
+                lookup.paymentKey(),
+                lookup.orderId(),
+                lookup.method(),
+                PaymentGatewayStatus.CANCELED,
+                lookup.totalAmount(),
+                lookup.approvedAt(),
+                lookup.cancellation(),
+                lookup.heldForReview()
+        ));
     }
 
     private void validateApproval(Payment payment, PaymentConfirmForm form, ApprovalResult approval) {

@@ -15,13 +15,15 @@
       탈퇴 여부를 커뮤니티가 아니라 여기서 계산한다. 커뮤니티가 걷어낸
       (m.status = 'WITHDRAWN') 판정을 소유 도메인에 그대로 남기기 위한 것이다.
       탈퇴 회원도 닉네임을 그대로 반환하고, 표기 마스킹은 커뮤니티 View가 맡는다.
+      관리자 여부도 같은 이유로 여기서 계산해 넘긴다(댓글의 매장 배지).
     -->
     <select id="findMembersByIds"
             resultType="com.cakeshop.domain.member.dto.view.MemberCommunityView">
 
         SELECT id,
                nickname,
-               (status = 'WITHDRAWN') AS withdrawn
+               (status = 'WITHDRAWN') AS withdrawn,
+               (role = 'ADMIN') AS admin
           FROM members
          WHERE id IN
         <foreach collection="memberIds" item="memberId" open="(" separator="," close=")">

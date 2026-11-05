@@ -23,13 +23,15 @@ public record CommentView(
         Long memberId,
         String authorNickname,
         boolean authorWithdrawn,
+        // 매장 관리자가 쓴 댓글인지. 화면이 관리자 답변에 매장 배지를 붙인다.
+        boolean authorAdmin,
         String content,
         CommentStatus status,
         LocalDateTime createdAt
 ) {
 
     // CommentRow(댓글 테이블에서 읽은 한 줄) + 작성자 -> 화면용 한 줄로 합치는 정적 팩토리다.
-    // author = null 을 탈퇴로 보는 처리는 PostListView.of 와 같다.
+    // author = null 을 탈퇴로 보는 처리는 PostListView.of 와 같다. 탈퇴한 계정에는 배지를 붙이지 않는다.
     public static CommentView of(CommentRow row, MemberCommunityView author) {
         return new CommentView(
                 row.id(),
@@ -37,6 +39,7 @@ public record CommentView(
                 row.memberId(),
                 author == null ? null : author.nickname(),
                 author == null || author.withdrawn(),
+                author != null && author.admin() && !author.withdrawn(),
                 row.content(),
                 row.status(),
                 row.createdAt()

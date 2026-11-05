@@ -82,6 +82,25 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @WithUserDetails(value = "user@cakeshop.local", userDetailsServiceBeanName = "memberDetailsService")
+    void customerScreensIncludeKoreaTimeFormatter() throws Exception {
+        assertThat(jdbcTemplate.queryForObject("SELECT @@session.time_zone", String.class)).isEqualTo("+09:00");
+        for (String path : new String[]{"/chat", "/notifications"}) {
+            mockMvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("/js/korea-time.js")));
+        }
+    }
+
+    @Test
+    @WithUserDetails(value = "admin@cakeshop.local", userDetailsServiceBeanName = "memberDetailsService")
+    void adminScreensIncludeKoreaTimeFormatter() throws Exception {
+        for (String path : new String[]{"/admin/chat", "/admin/notifications"}) {
+            mockMvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("/js/korea-time.js")));
+        }
+    }
+
+    @Test
     void publicScreensRenderWithoutAuthentication() throws Exception {
         String[] paths = {
             "/screens", "/login", "/admin/login", "/signup", "/find-email",
@@ -114,11 +133,13 @@ class ScreenRenderingTests {
     void login_footer_rendersPublicStoreInformation() throws Exception {
         mockMvc.perform(get("/login"))
             .andExpect(status().isOk())
-            .andExpect(content().string(containsString("케이크 공방")))
+            // 헤더도 같은 이름을 쓰므로 푸터 하단 저작권 줄로 store.name 을 확인한다
+            .andExpect(content().string(containsString("<span>스윗한 케이크</span>. All rights reserved.")))
             .andExpect(content().string(containsString("서울특별시 강남구 테헤란로 1")))
             .andExpect(content().string(containsString("02-000-0000")))
-            .andExpect(content().string(containsString("평일 10:00 ~ 20:00 / 주말 11:00 ~ 21:00")))
-            .andExpect(content().string(containsString("매장 1층 픽업 데스크")))
+            // 영업시간과 픽업 장소는 각각 한 줄(p)로 나온다
+            .andExpect(content().string(containsString("<p>평일 10:00 ~ 20:00 / 주말 11:00 ~ 21:00</p>")))
+            .andExpect(content().string(containsString("<span>매장 1층 픽업 데스크</span>")))
             .andExpect(content().string(not(containsString("매장 정보를 준비 중입니다."))));
     }
 
@@ -308,7 +329,10 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @Transactional
     void productDetail_imagesMissing_rendersPlaceholderWithoutImageTag() throws Exception {
+        deleteProductImages(generalProductId);
+
         mockMvc.perform(get("/products/{productId}", generalProductId))
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("상품 이미지 준비 중")))
@@ -323,6 +347,7 @@ class ScreenRenderingTests {
             "SELECT id FROM products WHERE name = '딸기 생크림 케이크 1호'",
             Long.class
         );
+        deleteProductImages(productId);
         jdbcTemplate.update(
             """
             INSERT INTO product_images (
@@ -451,12 +476,22 @@ class ScreenRenderingTests {
         value = "user@cakeshop.local",
         userDetailsServiceBeanName = "memberDetailsService"
     )
-    void generalProductDetail_showsQuantityControlsInPriceSummary() throws Exception {
+    void generalProductDetail_withoutOptions_showsQuantityAndTotalInOneRow() throws Exception {
+        // 옵션 없는 일반 케이크는 옵션 영역 · 옵션 추가금액 · 수량 줄 없이 "수량 ……… 총금액" 한 줄로 그린다.
+        // 상품 안내 목록은 판매 상태 · 재고 · 취소 가능 기간 · 픽업 가능일 순서다(짧은 줄부터).
         mockMvc.perform(get("/products/{productId}", generalProductId))
             .andExpect(status().isOk())
+            .andExpect(content().string(containsString("product-purchase--compact")))
             .andExpect(content().string(containsString("data-quantity")))
-            .andExpect(content().string(containsString("data-selected-quantity")))
-            .andExpect(content().string(containsString("data-product-price-summary")));
+            .andExpect(content().string(containsString("data-product-price-summary")))
+            .andExpect(content().string(containsString("data-product-total-price")))
+            .andExpect(content().string(matchesPattern(
+                "(?s).*class=\"product-facts\".*판매 상태.*판매 중.*재고.*\\d+개 남음.*취소 가능 기간.*픽업 가능일.*"
+            )))
+            .andExpect(content().string(not(containsString("data-product-option-groups"))))
+            .andExpect(content().string(not(containsString("data-selected-option-price"))))
+            .andExpect(content().string(not(containsString("data-selected-quantity"))))
+            .andExpect(content().string(not(containsString("재고 있음 ("))));
     }
 
     @Test
@@ -469,6 +504,9 @@ class ScreenRenderingTests {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("/orders/custom/options")))
             .andExpect(content().string(containsString("data-product-price-summary")))
+            // 주문 제작 상품은 금액 상자를 줄이지 않는다
+            .andExpect(content().string(containsString("data-selected-option-price")))
+            .andExpect(content().string(not(containsString("product-purchase--compact"))))
             .andExpect(content().string(not(containsString("data-login-required"))))
             .andExpect(content().string(not(containsString("data-server-cart-form"))))
             .andExpect(content().string(not(containsString("data-quantity"))))
@@ -496,6 +534,23 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString("data-same-as-orderer")))
             .andExpect(content().string(containsString("value=\"테스트회원\"")))
             .andExpect(content().string(containsString("value=\"010-0000-0002\"")))
+            // 픽업 일시는 달력 · 시 · 분 버튼(스크립트가 날짜별 시각 라디오를 읽어 그림), 픽업자 칸은 접을 수 있는 영역이다
+            .andExpect(content().string(containsString("data-pickup-picker")))
+            .andExpect(content().string(containsString("data-pickup-calendar")))
+            .andExpect(content().string(containsString("data-pickup-hours")))
+            .andExpect(content().string(containsString("data-pickup-minutes")))
+            .andExpect(content().string(containsString("data-pickup-date-label=")))
+            // 픽업 일시 없이 결제하기를 누르면 결제 버튼 아래와 픽업 카드에 안내가 보인다. 요약에는 고르기 전 상태가 보인다
+            .andExpect(content().string(containsString("data-pickup-submit-error")))
+            .andExpect(content().string(containsString("data-pickup-picker-error")))
+            .andExpect(content().string(containsString("data-pickup-summary-value>아직 선택 안 함")))
+            .andExpect(content().string(containsString("data-pickup-contact")))
+            // 주문 요약 칸에 상품 · 쿠폰 · 최종 금액 · 결제 버튼이 함께 있다. 옵션이 없으면 옵션 추가 줄은 없다
+            .andExpect(content().string(matchesPattern(
+                "(?s).*class=\"order-summary checkout-summary\".*딸기 생크림 케이크 1호"
+                    + ".*id=\"memberCouponId\".*data-final-amount.*결제하기.*"
+            )))
+            .andExpect(content().string(not(containsString("옵션 추가"))))
             .andExpect(content().string(not(containsString("data-success-url"))))
             .andExpect(content().string(not(containsString("/orders/1/payment"))));
     }
@@ -743,6 +798,76 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString("style=\"white-space:pre-wrap\"")));
     }
 
+    // PG(돈워리)가 결제를 확인 중인 일반 주문: 오너 화면에 "결제 확인 중"과 확인 창, 동의 없이는 진행 거절,
+    // 동의하면 픽업 준비로 넘기고 진행 기록을 남긴다 (DonWorry ADR-0064 4절)
+    @Test
+    @Transactional
+    @WithUserDetails(
+        value = "admin@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void fulfillmentAdminScreen_paymentUnderReview_requiresConfirmationAndRecordsProceed()
+            throws Exception {
+        long orderId = createGeneralOrder();
+        jdbcTemplate.update(
+            """
+            UPDATE payments
+            SET status = 'DONE',
+                payment_key = ?,
+                approved_at = CURRENT_TIMESTAMP(6),
+                gateway_held_at = CURRENT_TIMESTAMP(6)
+            WHERE order_id = ?
+            """,
+            "SCREEN-HELD-" + orderId,
+            orderId
+        );
+        jdbcTemplate.update(
+            """
+            UPDATE orders
+            SET status = 'UNDER_REVIEW',
+                under_review_at = CURRENT_TIMESTAMP(6),
+                pickup_at = DATE_ADD(CURRENT_TIMESTAMP(6), INTERVAL 1 DAY)
+            WHERE id = ?
+            """,
+            orderId
+        );
+
+        mockMvc.perform(get("/admin/fulfillment"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("결제 확인 중")))
+            .andExpect(content().string(containsString("픽업 준비로 넘기기")))
+            .andExpect(content().string(containsString("/admin/fulfillment/" + orderId + "/ready")))
+            .andExpect(content().string(containsString("name=\"reviewAcknowledged\" value=\"true\"")))
+            .andExpect(content().string(containsString(
+                "돈워리가 확인 중인 결제입니다. 진행 후 거절되면 손실은 가맹점이 부담합니다."
+            )));
+        mockMvc.perform(get("/admin/orders/{orderId}", orderId))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("결제 확인 중")));
+
+        // 확인 창 동의 없이 오면 진행하지 않는다
+        mockMvc.perform(post("/admin/fulfillment/{orderId}/ready", orderId).with(csrf()))
+            .andExpect(status().isConflict());
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM orders WHERE id = ?", String.class, orderId
+        )).isEqualTo("UNDER_REVIEW");
+
+        mockMvc.perform(post("/admin/fulfillment/{orderId}/ready", orderId)
+                .with(csrf())
+                .param("reviewAcknowledged", "true"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/admin/fulfillment"));
+
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT status FROM orders WHERE id = ?", String.class, orderId
+        )).isEqualTo("READY_FOR_PICKUP");
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT review_proceeded_by FROM orders WHERE id = ?", Long.class, orderId
+        )).isEqualTo(jdbcTemplate.queryForObject(
+            "SELECT id FROM members WHERE email = ?", Long.class, "admin@cakeshop.local"
+        ));
+    }
+
     @Test
     @Transactional
     @WithUserDetails(
@@ -955,12 +1080,15 @@ class ScreenRenderingTests {
     }
 
     @Test
+    @Transactional
     @WithUserDetails(
         value = "admin@cakeshop.local",
         userDetailsServiceBeanName = "memberDetailsService"
     )
     void productEdit_imagesMissing_rendersUploadFormAndPlaceholder()
             throws Exception {
+        deleteProductImages(generalProductId);
+
         mockMvc.perform(get(
                 "/admin/products/{productId}/edit",
                 generalProductId
@@ -999,6 +1127,7 @@ class ScreenRenderingTests {
             "SELECT id FROM products WHERE name = '딸기 생크림 케이크 1호'",
             Long.class
         );
+        deleteProductImages(productId);
         jdbcTemplate.update(
             """
             INSERT INTO product_images (
@@ -1143,6 +1272,41 @@ class ScreenRenderingTests {
                 productName,
                 orderType
         );
+    }
+
+    // 회원 헤더는 종 버튼(알림 페이지 링크)과 최근 알림 펼침 창, 읽음 처리용 CSRF 값을 함께 그린다
+    @Test
+    @WithUserDetails(
+        value = "user@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void commonHeader_memberAccount_rendersNotificationBellPanel() throws Exception {
+        mockMvc.perform(get("/products"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("data-notification-toggle")))
+            .andExpect(content().string(containsString("aria-controls=\"notification-panel\"")))
+            .andExpect(content().string(containsString("id=\"notification-panel\"")))
+            .andExpect(content().string(containsString("data-csrf-header=\"X-CSRF-TOKEN\"")))
+            .andExpect(content().string(containsString("/js/notification-panel.js")))
+            .andExpect(content().string(containsString("전체 알림 보기")));
+    }
+
+    // 관리자 헤더에는 고객 알림 종 버튼과 펼침 창 스크립트가 없다
+    @Test
+    @WithUserDetails(
+        value = "admin@cakeshop.local",
+        userDetailsServiceBeanName = "memberDetailsService"
+    )
+    void commonHeader_adminAccount_doesNotRenderNotificationBellPanel() throws Exception {
+        mockMvc.perform(get("/products"))
+            .andExpect(status().isOk())
+            .andExpect(content().string(not(containsString("data-notification-bell"))))
+            .andExpect(content().string(not(containsString("/js/notification-panel.js"))));
+    }
+
+    // 시드 상품에는 정적 이미지가 있으므로 이미지 유무를 보는 테스트는 먼저 지운다
+    private void deleteProductImages(long productId) {
+        jdbcTemplate.update("DELETE FROM product_images WHERE product_id = ?", productId);
     }
 
     private void assertScreensRender(String[] paths) throws Exception {

@@ -1,25 +1,29 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>회원정보 수정 | 케이크 쇼핑몰</title>
+  <title>회원정보 수정 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/mypage-layout.css}">
+  <link rel="stylesheet" th:href="@{/css/member-profile.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/customer-mockup.js}"></script>
 </head>
 <body data-page-title="회원정보 수정">
 <header th:replace="~{fragments/common/header :: header}"></header>
-<main class="page-container page-container--form">
-  <div class="page-heading cluster cluster--between">
-    <h1>회원정보 수정</h1>
-    <a class="btn" th:href="@{/mypage}">마이페이지로 돌아가기</a>
-  </div>
+<!--/* 마이페이지 하위 화면: 왼쪽에 마이페이지 메뉴(공용 조각), 오른쪽에 회원정보 수정.
+       기본 정보와 비밀번호 변경을 두 칸으로 나란히 두고, 저장 버튼은 그 아래, 회원 탈퇴는 맨 아래에 둔다. */-->
+<main class="page-container">
+  <h1 class="visually-hidden">회원정보 수정</h1>
+  <div class="layout-sidebar mypage-layout">
+    <nav th:replace="~{fragments/customer/mypage-nav :: mypageNav('profile')}"></nav>
+    <div class="mypage-content">
 
   <form th:action="@{/mypage/profile/update}" th:method="post" th:object="${profileForm}">
-    <section class="section">
-      <h2 class="section-title">기본 정보</h2>
-      <div class="panel">
+    <div class="profile-grid">
+    <section class="panel profile-card" aria-labelledby="profile-basic-title">
+      <h2 class="profile-card__title" id="profile-basic-title">기본 정보</h2>
         <div class="form-group">
           <label class="form-label" for="profile-name">이름 <span class="required">*</span></label>
           <input class="form-control" id="profile-name" name="name" th:field="*{name}" required>
@@ -41,10 +45,13 @@
           <input class="form-control" id="profile-phone" name="phone" type="tel" th:field="*{phone}" required maxlength="13">
           <p class="form-error" th:if="${#fields.hasErrors('phone')}" th:errors="*{phone}"></p>
         </div>
+    </section>
 
+    <section class="panel profile-card" aria-labelledby="profile-password-title">
+      <h2 class="profile-card__title" id="profile-password-title">
+        비밀번호 변경 <span class="text-muted">(선택)</span>
+      </h2>
         <div th:if="${hasPasswordLogin}">
-          <hr class="divider">
-          <h3 class="section-title">비밀번호 변경 <span class="text-muted">(선택)</span></h3>
           <div class="form-group">
             <label class="form-label" for="current-password">현재 비밀번호</label>
             <input class="form-control" id="current-password" type="password" th:field="*{currentPassword}">
@@ -69,13 +76,15 @@
         <p class="form-help" th:unless="${hasPasswordLogin}">
           소셜 로그인 회원은 별도의 비밀번호를 사용하지 않습니다.
         </p>
-
-        <button class="btn btn--primary" type="submit">변경사항 저장</button>
-      </div>
     </section>
+    </div>
+
+    <div class="profile-actions">
+      <button class="btn btn--primary" type="submit">변경사항 저장</button>
+    </div>
   </form>
 
-  <section class="section">
+  <section class="section profile-withdraw">
     <h2 class="section-title">회원 탈퇴</h2>
     <div class="panel panel--danger panel--dashed">
       <ul class="text-muted">
@@ -106,6 +115,8 @@
       </form>
     </div>
   </section>
+    </div>
+  </div>
 </main>
 <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>
 

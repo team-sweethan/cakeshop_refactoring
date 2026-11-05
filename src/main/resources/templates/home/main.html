@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>메인 | 케이크 쇼핑몰</title>
+  <title>메인 | 스윗한 케이크</title>
 
   <link rel="stylesheet"
-        th:href="@{/css/app.css(v='home-product-square')}">
+        th:href="@{/css/app.css(v='showcase-refresh')}">
   <link rel="stylesheet" th:href="@{/css/home.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/home-banner-rotation.js}"></script>
@@ -17,8 +17,8 @@
 <body>
   <header th:replace="~{fragments/common/header :: header}"></header>
 
-  <main class="page-container">
-    <h1 class="visually-hidden">케이크 쇼핑몰 메인</h1>
+  <main class="page-container page-container--home">
+    <h1 class="visually-hidden">스윗한 케이크 메인</h1>
     <div th:replace="~{fragments/common/alert :: alert}"></div>
 
     <section class="section" aria-labelledby="service-title">
@@ -61,38 +61,45 @@
       공지가 없으면 영역과 전체보기 링크를 유지하고 빈 상태 문구를 보여 준다.
       등록 개수에는 제한이 없고 화면 건수에만 있으므로 전체보기 링크가 반드시 함께 있어야
       한다 — 없으면 4번째부터는 접근 경로가 사라진다.
+
+      한 줄짜리 공지 바다. 왼쪽 "공지"와 오른쪽 "전체보기"는 고정이고, 가운데 공지만
+      home-notice-rotation.js 가 위로 밀어 올리며 바꾼다. 스크립트가 없으면 첫 공지만 보인다.
     */-->
     <section id="notices"
-             class="section"
+             class="section home-section home-notices"
              aria-labelledby="notices-title">
 
-      <div class="cluster cluster--between">
-        <h2 id="notices-title" class="section-title">공지사항</h2>
-        <a class="btn" th:href="@{/community/notices}">전체보기</a>
-      </div>
+      <h2 id="notices-title" class="home-notices__label">공지</h2>
 
-      <div class="stack"
+      <div class="home-notices__viewport"
            data-notice-rotation="true">
-        <a class="panel cluster cluster--between"
+        <a class="home-notices__item"
            data-notice-item="true"
            th:each="notice, noticeStat : ${noticeSection.notices}"
            th:hidden="${!noticeStat.first}"
            th:href="@{/community/notices/{noticeId}(noticeId=${notice.id})}">
-          <strong th:text="${notice.title}">제목</strong>
-          <span class="text-muted"
+          <span class="home-notices__title" th:text="${notice.title}">제목</span>
+          <span class="home-notices__date"
                 th:text="${#temporals.format(notice.displayedAt, 'yyyy.MM.dd')}">2026.01.01</span>
         </a>
 
-        <div class="panel panel--dashed text-muted"
-             th:if="${noticeSection.isEmpty()}"
-             style="text-align:center">
+        <p class="home-notices__empty"
+           th:if="${noticeSection.isEmpty()}">
           등록된 공지가 없습니다.
-        </div>
+        </p>
       </div>
+
+      <a class="home-notices__more" th:href="@{/community/notices}">전체보기 →</a>
     </section>
 
-    <section class="section" aria-labelledby="category-title">
-      <h2 id="category-title" class="section-title">카테고리</h2>
+    <section class="section home-section" aria-labelledby="category-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CHOOSE YOUR MOMENT</p>
+          <h2 id="category-title" class="section-title">어떤 케이크를 찾으세요?</h2>
+        </div>
+        <p>필요한 방식에 맞춰 케이크를 골라보세요.</p>
+      </div>
 
       <div class="grid grid--2">
         <a class="category-card home-category-card"
@@ -113,12 +120,16 @@
     </section>
 
     <section id="recommended-products"
-             class="section"
+             class="section home-section"
              aria-labelledby="recommended-title">
 
-      <h2 id="recommended-title" class="section-title">
-        추천 · 인기 상품
-      </h2>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">BEST SELLERS</p>
+          <h2 id="recommended-title" class="section-title">지금 가장 사랑받는 케이크</h2>
+        </div>
+        <a class="btn btn--ghost" th:href="@{/products}">전체 상품 보기 →</a>
+      </div>
 
       <!-- HomeController가 전달한 추천 상품이 있을 때만 상품 목록을 출력한다. -->
       <div class="grid grid--4 product-grid"
@@ -201,10 +212,16 @@
       </div>
     </section>
 
-    <section class="section" aria-labelledby="store-title">
-      <h2 id="store-title" class="section-title">매장 정보</h2>
+    <section class="section home-section" aria-labelledby="store-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">VISIT OUR STORE</p>
+          <h2 id="store-title" class="section-title">픽업 전, 매장을 확인하세요</h2>
+        </div>
+        <p>예약한 시간에 맞춰 정성껏 준비해 둘게요.</p>
+      </div>
 
-      <div class="panel grid grid--2 store-panel">
+      <div class="panel grid grid--2 store-panel store-panel--showcase">
         <div>
           <div class="data-row">
             <span class="data-row__label">매장명</span>

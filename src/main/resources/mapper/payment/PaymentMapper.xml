@@ -189,6 +189,15 @@
         LIMIT 1
     </select>
 
+    <!-- 승인 시도 전(payment_key 없음)인 READY 결제만 고객이 고른 PG로 바꾼다. -->
+    <update id="changeReadyPaymentProvider">
+        UPDATE payments
+        SET provider = #{provider}
+        WHERE id = #{paymentId}
+          AND status = 'READY'
+          AND payment_key IS NULL
+    </update>
+
     <update id="completeIfReady">
         UPDATE payments
         SET status = 'DONE',
@@ -553,5 +562,148 @@
           AND cancellation.request_type = 'SYSTEM_COMPENSATION'
           AND payment.status IN ('READY', 'DONE', 'EXPIRED')
           AND (payment.payment_key IS NULL OR payment.payment_key = #{paymentKey})
+    </update>
+
+    <!-- 돈워리 웹훅·조회 배치: 돈워리 결제의 주문 참조(gateway order id)로 결제 한 건을 찾는다. -->
+    <select id="findPaymentByGatewayOrderId"
+            resultType="com.cakeshop.domain.payment.entity.Payment">
+        SELECT
+            id,
+            order_id,
+            toss_order_id AS gateway_order_id,
+            provider,
+            payment_key,
+            idempotency_key,
+            method,
+            amount,
+            status,
+            active_payment_order_id,
+            failure_code,
+            requested_at,
+            approved_at,
+            canceled_at,
+            created_at,
+            updated_at
+        FROM payments
+        WHERE toss_order_id = #{gatewayOrderId}
+    </select>
+
+    <!--
+        조회 배치 대상: 돈워리에서 아직 상태가 바뀔 수 있는 결제만 고른다(웹훅을 놓쳤을 때 복구용).
+        * 판정 대기 DONE 결제(보류 시각은 있고 매입 시각은 없음): 직원 승인(CAPTURED)·거절(VOIDED)을 기다린다. 기간과 관계없이 본다.
+          거절됐지만 이미 진행한 주문이라 결제를 유지한 경우(failure_code GATEWAY_VOIDED_KEPT)는 판정이 끝났으므로 뺀다.
+        * READY 결제(최근 #{since} 이후): 구매자가 결제창을 닫아 성공 콜백이 오지 않았지만 돈워리에서는 승인됐을 수 있다.
+        * 진행 중인 보상 요청 없이 만료된 EXPIRED 결제(#{expiredSince} 이후 생성): 결제 기한 뒤 늦게 승인됐으면 승인을 취소해야 한다
+          (pg-decisions 008). 진행 중(REQUESTED) 보상 요청이 있으면 복구 배치가 맡으므로 뺀다.
+          실패(FAILED)로 닫힌 옛 보상 기록(예: Toss 미승인 해제 뒤 돈워리로 재시도)은 복구 배치가 보지 않으므로 빼지 않는다.
+        이미 끝난 정상 결제(보류가 아니었거나 매입 확인된 DONE)는 다시 묻지 않는다. 거절(VOIDED)은 보류 결제에서만 생긴다.
+        판정 대기를 먼저 보되 한 번에 최대 절반(heldLimit)만 쓴다. 판정 대기가 많이 쌓여도 READY · 만료 결제 복구가 밀리지 않는다
+        (#27 Codex 리뷰). 남는 자리는 READY → 만료 순으로 쓴다. 같은 종류 안에서는 최신순이다.
+    -->
+    <select id="findDonWorryGatewayOrderIdsToSync" resultType="string">
+        <bind name="heldLimit" value="limit &gt; 1 ? limit / 2 : 1"/>
+        SELECT toss_order_id
+        FROM (
+            (SELECT toss_order_id, 0 AS priority, id
+             FROM payments
+             WHERE provider = 'OWN'
+               AND status = 'DONE'
+               AND gateway_held_at IS NOT NULL
+               AND gateway_captured_at IS NULL
+               AND (failure_code IS NULL OR failure_code &lt;&gt; 'GATEWAY_VOIDED_KEPT')
+             ORDER BY id DESC
+             LIMIT #{heldLimit})
+            UNION ALL
+            (SELECT toss_order_id, CASE status WHEN 'READY' THEN 1 ELSE 2 END AS priority, id
+             FROM payments
+             WHERE provider = 'OWN'
+               AND (
+                   (status = 'READY'
+                       AND requested_at &gt;= #{since})
+                   OR (status = 'EXPIRED'
+                       AND requested_at &gt;= #{expiredSince}
+                       AND NOT EXISTS (
+                           SELECT 1
+                           FROM payment_cancellations AS compensation
+                           WHERE compensation.payment_id = payments.id
+                             AND compensation.request_type = 'SYSTEM_COMPENSATION'
+                             AND compensation.status = 'REQUESTED'
+                       ))
+               )
+             ORDER BY priority, id DESC
+             LIMIT #{limit})
+        ) AS sync_target
+        ORDER BY priority, id DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 돈워리가 결제를 거절(VOIDED)한 뒤 완료했던 결제를 취소로 기록한다. 같은 결제는 한 번만 기록된다. -->
+    <insert id="insertGatewayVoidCancellation">
+        INSERT INTO payment_cancellations (
+            payment_id,
+            idempotency_key,
+            cancel_amount,
+            cancel_reason,
+            request_type,
+            requested_by,
+            status,
+            transaction_key,
+            canceled_at
+        )
+        SELECT
+            payment.id,
+            CONCAT('GATEWAY-VOID-', payment.id),
+            payment.amount,
+            #{reason},
+            'GATEWAY_VOID',
+            NULL,
+            'DONE',
+            CONCAT('GATEWAY-VOID-', payment.payment_key),
+            #{canceledAt}
+        FROM payments AS payment
+        WHERE payment.id = #{paymentId}
+          AND payment.status = 'DONE'
+          AND payment.payment_key = #{paymentKey}
+    </insert>
+
+    <!-- 돈워리가 승인을 취소했지만 주문이 이미 이행돼 유지한다(DonWorry ADR-0064 4-1). 결제는 DONE 그대로, 표시만 한 번 남긴다 -->
+    <update id="markGatewayVoidKept">
+        UPDATE payments
+        SET failure_code = 'GATEWAY_VOIDED_KEPT'
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND failure_code IS NULL
+    </update>
+
+    <update id="cancelPaymentByGatewayVoid">
+        UPDATE payments
+        SET status = 'CANCELED',
+            canceled_at = #{canceledAt},
+            failure_code = 'GATEWAY_VOIDED'
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+    </update>
+
+    <!-- 돈워리가 매입을 보류(HELD)한 채 완료한 결제. 가맹점에는 판정 전까지 "결제 확인 중"이다(DonWorry ADR-0064 4절). -->
+    <update id="markGatewayHeld">
+        UPDATE payments
+        SET gateway_held_at = #{heldAt}
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND gateway_held_at IS NULL
+    </update>
+
+    <!-- 보류했던 결제를 돈워리 직원이 승인해 매입(CAPTURED)됐다. 판정 대기가 끝난다. -->
+    <update id="markGatewayCaptured">
+        UPDATE payments
+        SET gateway_captured_at = #{capturedAt}
+        WHERE id = #{paymentId}
+          AND status = 'DONE'
+          AND payment_key = #{paymentKey}
+          AND gateway_held_at IS NOT NULL
+          AND gateway_captured_at IS NULL
     </update>
 </mapper>

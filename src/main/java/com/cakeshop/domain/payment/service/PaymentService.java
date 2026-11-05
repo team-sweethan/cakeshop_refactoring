@@ -6,11 +6,13 @@ import com.cakeshop.domain.order.entity.OrderType;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentExecutionOrder;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.PaymentProduct;
 import com.cakeshop.domain.payment.entity.Payment;
+import com.cakeshop.domain.payment.entity.PaymentProvider;
 import com.cakeshop.domain.payment.error.PaymentErrorCode;
 import com.cakeshop.domain.payment.infra.ApprovalResult;
 import com.cakeshop.domain.payment.mapper.PaymentMapper;
 import com.cakeshop.domain.payment.event.CustomPaymentChatCompletedEvent;
 import com.cakeshop.domain.payment.event.GeneralPaymentCompletedEvent;
+import com.cakeshop.domain.payment.event.PaymentUnderGatewayReviewEvent;
 import com.cakeshop.domain.product.service.ProductStockService;
 import com.cakeshop.global.error.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,14 @@ public class PaymentService {
     public Payment getReadyPayment(long orderId) {
         return paymentMapper.findReadyPaymentByOrderId(orderId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.READY_PAYMENT_NOT_FOUND));
+    }
+
+    /** 승인 시도 전 READY 결제의 PG를 고객이 고른 PG로 바꾼다. */
+    @Transactional
+    public void changeReadyPaymentProvider(Payment payment, PaymentProvider provider) {
+        if (paymentMapper.changeReadyPaymentProvider(payment.getId(), provider) != 1) {
+            throw new BusinessException(PaymentErrorCode.PAYMENT_GATEWAY_CHANGE_NOT_ALLOWED);
+        }
     }
 
     /** 실패·만료를 포함한 주문의 마지막 결제 기록을 조회한다. */
@@ -103,10 +113,19 @@ public class PaymentService {
                 approval.approvedAt()
         ));
 
-        orderPaymentCommandService.completeGeneralOrderAfterPayment(
-                order.orderId(),
-                approval.approvedAt()
-        );
+        if (approval.heldForReview()) {
+            // PG 판정 전에는 상품이 나가지 않도록 픽업 준비 대신 주문 확인 중으로 둔다(DonWorry ADR-0064 4절).
+            markGatewayHeld(order.orderId(), payment, approval);
+            orderPaymentCommandService.holdGeneralOrderForGatewayReview(
+                    order.orderId(),
+                    approval.approvedAt()
+            );
+        } else {
+            orderPaymentCommandService.completeGeneralOrderAfterPayment(
+                    order.orderId(),
+                    approval.approvedAt()
+            );
+        }
         couponOrderCommandService.useReservedCouponForOrder(order.orderId());
         paymentRecoveryService.discardApprovalRecovery(payment);
         // 장바구니에서 생성한 일반 주문만 결제 커밋 후 연결된 장바구니 항목을 정리한다.
@@ -131,6 +150,10 @@ public class PaymentService {
                 approval.method(),
                 approval.approvedAt()
         ));
+        if (approval.heldForReview()) {
+            // 수제 주문은 원래 관리자 검토(UNDER_REVIEW)로 가므로 결제 확인 중 표시만 남긴다.
+            markGatewayHeld(order.orderId(), payment, approval);
+        }
 
         orderPaymentCommandService.completeCustomOrderAfterPayment(
                 order.orderId(),
@@ -161,6 +184,16 @@ public class PaymentService {
         orderPaymentCommandService.completeGeneralOrderAfterPayment(order.orderId(), completedAt);
         couponOrderCommandService.useReservedCouponForOrder(order.orderId());
         eventPublisher.publishEvent(new GeneralPaymentCompletedEvent(order.orderId()));
+    }
+
+    private void markGatewayHeld(long orderId, Payment payment, ApprovalResult approval) {
+        requireOneRow(paymentMapper.markGatewayHeld(
+                payment.getId(),
+                approval.paymentKey(),
+                approval.approvedAt()
+        ));
+        // 커밋 뒤 관리자에게 "결제 확인 중"을 알린다(주문 도메인 리스너).
+        eventPublisher.publishEvent(new PaymentUnderGatewayReviewEvent(orderId));
     }
 
     private void requireOneRow(int affectedRows) {

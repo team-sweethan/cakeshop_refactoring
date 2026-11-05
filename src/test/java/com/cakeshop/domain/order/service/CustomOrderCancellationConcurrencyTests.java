@@ -50,7 +50,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 @MariaDbIntegrationTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({AdminCustomOrderService.class, RefundService.class,
-        OrderPaymentCancellationCommandService.class, ProductStockService.class})
+        OrderPaymentCancellationCommandService.class, ProductStockService.class,
+        // 제작 시작 전 PG 결제 확인 중 여부를 묻는 결제 도메인 계약 (실제 DB 조회)
+        com.cakeshop.domain.payment.service.PaymentOrderQueryService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class CustomOrderCancellationConcurrencyTests {
 

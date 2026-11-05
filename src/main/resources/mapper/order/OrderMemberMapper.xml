@@ -39,6 +39,19 @@
         LIMIT #{limit}
     </select>
 
+    <!-- 마이페이지 요약 숫자: 진행 중 주문 전체 건수(목록은 최근 5건만 보인다) -->
+    <select id="countInProgressOrders" resultType="long">
+        SELECT COUNT(*)
+        FROM orders o
+        WHERE o.member_id = #{memberId}
+          AND o.status IN (
+              'PENDING_PAYMENT',
+              'UNDER_REVIEW',
+              'IN_PRODUCTION',
+              'READY_FOR_PICKUP'
+          )
+    </select>
+
     <select id="findCompletedOrders"
             resultType="com.cakeshop.domain.order.dto.view.OrderMemberOrderRow">
         SELECT

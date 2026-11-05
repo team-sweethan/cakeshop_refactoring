@@ -85,7 +85,9 @@ a {
 
 /* ---------- common.css ---------- */
 html {
-    font-size: 16px
+    font-size: 16px;
+    /* 내용이 짧아 스크롤바가 없는 페이지에서도 자리를 비워 두어 헤더가 좌우로 밀리지 않게 한다. */
+    scrollbar-gutter: stable
 }
 
 body {
@@ -947,6 +949,28 @@ h2.section-title {
     border-color: var(--color-dark)
 }
 
+/* 상품 상세 평균 별점: 회색 별 위에 채운 별을 --rating(0~5) 비율 너비로 겹친다. */
+.rating-stars {
+    color: #e6d5c9;
+    display: inline-block;
+    font-size: 18px;
+    line-height: 1;
+    position: relative;
+    white-space: nowrap
+}
+
+.rating-stars::before {
+    content: "★★★★★"
+}
+
+.rating-stars__fill {
+    color: #f2a93b;
+    inset: 0 auto 0 0;
+    overflow: hidden;
+    position: absolute;
+    width: calc(var(--rating, 0) / 5 * 100%)
+}
+
 .product-detail__actions {
     align-items: flex-start;
     display: flex;
@@ -1712,15 +1736,6 @@ body > main {
    ============================================================= */
 
 /* 목업 안내 배너 */
-.mock-notice {
-    background: #fffbeb;
-    border: 1px solid #fbbf24;
-    color: #92400e;
-    font-size: var(--font-xs);
-    margin-bottom: var(--space-4);
-    padding: 10px 12px
-}
-
 /* 서버 플래시 / 검증 메시지 */
 .flash-stack > * + * {
     margin-top: var(--space-2)
@@ -1744,6 +1759,18 @@ body > main {
     background: var(--color-success-soft);
     border-color: #86efac;
     color: var(--color-success)
+}
+
+/* feedback.js가 성공 알림을 자동으로 접을 때 쓴다. 높이는 스크립트가 직접 줄인다. */
+.alert.is-dismissing {
+    border-width: 0;
+    margin-bottom: 0;
+    margin-top: 0;
+    opacity: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+    padding-top: 0;
+    transition: opacity .4s ease, height .4s ease, margin .4s ease, padding .4s ease, border-width .4s ease
 }
 
 .alert--error {
@@ -1854,6 +1881,11 @@ body > main {
     align-items: flex-end
 }
 
+.payment-admin-header > p {
+    max-width: 620px;
+    text-align: right
+}
+
 .admin-page-eyebrow,
 .payment-admin-eyebrow {
     color: var(--color-muted);
@@ -1869,19 +1901,23 @@ body > main {
 
 .payment-metrics .metric-card {
     background: #fff;
-    border-top: 3px solid var(--color-dark)
+    border-top: 1px solid var(--color-border-light)
 }
 
-.payment-metrics .payment-metric--done {
-    border-top-color: #15803d
+.payment-metrics .metric-card::before {
+    background: var(--color-dark)
 }
 
-.payment-metrics .payment-metric--canceled {
-    border-top-color: #2563eb
+.payment-metrics .payment-metric--done::before {
+    background: #15803d
 }
 
-.payment-metrics .payment-metric--attention {
-    border-top-color: #dc2626
+.payment-metrics .payment-metric--canceled::before {
+    background: #2563eb
+}
+
+.payment-metrics .payment-metric--attention::before {
+    background: #dc2626
 }
 
 .payment-history-panel {
@@ -2486,4 +2522,1095 @@ body > main {
         max-width: 100%;
         padding: 12px 14px;
     }
+}
+
+/* =============================================================
+   Showcase refresh — 따뜻한 베이커리 브랜드 톤과 시연용 시각 위계
+   ============================================================= */
+:root {
+    --color-text: #352b28;
+    --color-muted: #756762;
+    --color-border: #dfd1c8;
+    --color-border-light: #eee3dc;
+    --color-background: #fbf5ee;
+    --color-background-soft: #f9f1eb;
+    --color-background-faint: #fcf8f4;
+    --color-dark: #8f3f59;
+    --color-brand: #9e405f;
+    --color-brand-dark: #713046;
+    --color-brand-soft: #f7e6eb;
+    --color-cream: #fff5e9;
+    --color-caramel: #c78a45;
+    --color-danger: #b83345;
+    --color-danger-soft: #fff0f2;
+    --color-success: #3d7656;
+    --color-success-soft: #edf7f1;
+    --color-warning: #946421;
+    --color-info: #4c668c;
+    --space-6: 28px;
+    --space-8: 40px;
+    --font-sm: 14px;
+    --font-md: 17px;
+    --font-lg: 24px;
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 26px;
+    --shadow-sm: 0 8px 24px rgba(79, 49, 38, .07);
+    --shadow-md: 0 18px 50px rgba(79, 49, 38, .12);
+    --content-width: 1240px
+}
+
+html { scroll-behavior: smooth }
+
+body {
+    background: radial-gradient(circle at 4% 2%, rgba(247, 230, 235, .5), transparent 24rem),
+                var(--color-background);
+    color: var(--color-text);
+    font-family: Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-size: var(--font-sm);
+    line-height: 1.65
+}
+
+::selection { background: var(--color-brand-soft); color: var(--color-brand-dark) }
+h1, h2, h3, strong { letter-spacing: -.025em }
+
+h1 {
+    font-size: clamp(26px, 3vw, 38px);
+    line-height: 1.25;
+    margin-bottom: var(--space-5)
+}
+
+h2.section-title {
+    border: 0;
+    color: var(--color-text);
+    font-size: clamp(21px, 2.2vw, 29px);
+    font-weight: 800;
+    letter-spacing: -.035em;
+    margin-bottom: var(--space-4);
+    padding: 0;
+    text-transform: none
+}
+
+.page-container { padding: 34px 0 }
+.page-container--home { padding-top: 24px }
+.section { margin-bottom: var(--space-8) }
+.grid { gap: var(--space-5) }
+.stack { gap: var(--space-3) }
+
+.panel {
+    background: rgba(255, 255, 255, .94);
+    border-color: var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: var(--space-5)
+}
+
+.panel--soft { background: var(--color-background-faint) }
+.panel--dashed { border: 1px dashed #d4c0b4; box-shadow: none }
+
+.eyebrow {
+    color: var(--color-brand);
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 800;
+    letter-spacing: .18em;
+    line-height: 1.4;
+    text-transform: uppercase
+}
+
+.text-muted, .note { color: var(--color-muted) }
+.note { font-style: normal }
+
+.btn {
+    background: #fff;
+    border-color: var(--color-border);
+    border-radius: 999px;
+    color: #554743;
+    font-weight: 700;
+    min-height: 36px;
+    padding: 8px 16px;
+    transition: background-color .18s ease, border-color .18s ease, color .18s ease,
+                box-shadow .18s ease, transform .18s ease
+}
+
+.btn:hover, .btn.is-active {
+    background: var(--color-brand-soft);
+    border-color: #d9acbb;
+    color: var(--color-brand-dark);
+    transform: translateY(-1px)
+}
+
+.btn:focus-visible, .form-control:focus-visible, a:focus-visible {
+    outline: 3px solid rgba(158, 64, 95, .28);
+    outline-offset: 3px
+}
+
+.btn--primary {
+    background: var(--color-brand);
+    border-color: var(--color-brand);
+    box-shadow: 0 8px 20px rgba(158, 64, 95, .2);
+    color: #fff
+}
+
+.btn--primary:hover, .btn--primary.is-active {
+    background: var(--color-brand-dark);
+    border-color: var(--color-brand-dark);
+    color: #fff
+}
+
+.btn--ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--color-brand);
+    padding-inline: 8px
+}
+
+.btn--ghost:hover { background: transparent; border-color: transparent }
+.btn--large { min-height: 48px; padding: 12px 22px }
+
+.badge {
+    background: #fff;
+    border-color: var(--color-border-light);
+    border-radius: 999px;
+    font-weight: 700;
+    padding: 4px 10px
+}
+
+.badge--success { background: var(--color-success-soft); border-color: #b9dac6 }
+.badge--danger { background: var(--color-danger-soft); border-color: #efbcc4 }
+.badge--info { background: #f0f4fa; border-color: #c5d1e1 }
+
+.form-label {
+    color: var(--color-text);
+    font-size: var(--font-sm);
+    font-weight: 800;
+    margin-bottom: 7px
+}
+
+.form-control {
+    background: #fff;
+    border-color: var(--color-border);
+    border-radius: var(--radius-sm);
+    min-height: 43px;
+    padding: 10px 13px;
+    transition: border-color .18s ease, box-shadow .18s ease
+}
+
+.form-control:hover { border-color: #c8b4a8 }
+.form-control:focus { border-color: var(--color-brand); box-shadow: 0 0 0 4px rgba(158, 64, 95, .08) }
+.choice { gap: 8px }
+.choice input { accent-color: var(--color-brand) }
+.data-row { border-bottom-color: var(--color-border-light); padding: 11px 0 }
+.data-row__label { color: var(--color-muted); font-weight: 700 }
+
+.data-table {
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    overflow: hidden
+}
+
+.data-table th { background: var(--color-background-soft); color: #65554f; font-weight: 800 }
+.data-table th, .data-table td { border-color: var(--color-border-light); padding: 12px 14px }
+
+/* 고객 공통 헤더 */
+.customer-header {
+    background: rgba(251, 245, 238, .92);
+    border-bottom-color: rgba(223, 209, 200, .8);
+    box-shadow: 0 4px 22px rgba(68, 43, 34, .05);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px)
+}
+
+.customer-header__inner { min-height: 76px; padding: 10px 20px }
+.customer-header__left { gap: 32px }
+
+.customer-header__brand {
+    align-items: center;
+    border: 0;
+    display: inline-flex;
+    gap: 10px;
+    padding: 0
+}
+
+.customer-header__brand-mark {
+    align-items: center;
+    background: var(--color-brand);
+    border-radius: 50% 50% 44% 56%;
+    box-shadow: inset 0 -5px 0 rgba(86, 22, 44, .13);
+    color: #fff;
+    display: inline-flex;
+    font-family: Georgia, serif;
+    font-size: 20px;
+    font-style: italic;
+    height: 42px;
+    justify-content: center;
+    transform: rotate(-5deg);
+    width: 42px
+}
+
+.customer-header__brand-copy { display: flex; flex-direction: column; line-height: 1.1 }
+
+.customer-header__brand-copy strong {
+    color: var(--color-brand-dark);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 16px;
+    letter-spacing: .05em
+}
+
+.customer-header__brand-copy small {
+    color: var(--color-muted);
+    font-size: 10px;
+    letter-spacing: .04em;
+    margin-top: 4px
+}
+
+.customer-header__nav { gap: 24px }
+
+.customer-header__nav a {
+    color: #594b47;
+    font-size: 13px;
+    font-weight: 750;
+    padding: 10px 0;
+    position: relative
+}
+
+.customer-header__nav a::after {
+    background: var(--color-brand);
+    bottom: 4px;
+    content: "";
+    height: 2px;
+    left: 50%;
+    position: absolute;
+    transform: translateX(-50%) scaleX(0);
+    transition: transform .18s ease;
+    width: 100%
+}
+
+.customer-header__nav a:hover { color: var(--color-brand); text-decoration: none }
+.customer-header__nav a:hover::after { transform: translateX(-50%) scaleX(1) }
+.customer-header__actions { gap: 7px }
+.customer-header__actions form { display: flex }
+.customer-header__actions .btn { min-height: 34px; padding: 7px 12px }
+/* 알림 수 배지가 공용 .badge 여백(4px 10px)을 쓰면 버튼만 40px로 커진다. 헤더 버튼 높이(34px) 안에 맞춘다 */
+.customer-header__actions .btn .badge {
+    font-size: 11px;
+    line-height: 16px;
+    margin-left: 2px;
+    min-width: 18px;
+    padding: 0 6px;
+    text-align: center;
+    vertical-align: middle
+}
+.customer-header__search { color: var(--color-brand) }
+
+/* 고객 알림 카드: 알림 페이지 목록과 헤더 펼침 창이 같이 쓴다.
+ * 마크업은 화면 스크립트·notification-panel.js·notification-websocket.js 가 같은 구조로 만든다. */
+.notification-list {
+    gap: 10px
+}
+
+/* 로딩·빈 목록·오류 문구 */
+.notification-list > p.text-muted {
+    background: #fff;
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-md);
+    margin: 0;
+    text-align: center
+}
+
+.notification-list .notification-item {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 2px rgba(53, 43, 40, .04);
+    gap: 16px;
+    overflow: hidden;
+    padding: 16px 18px;
+    position: relative;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease
+}
+
+.notification-list .notification-item:hover {
+    border-color: var(--color-border);
+    box-shadow: 0 8px 20px rgba(53, 43, 40, .08);
+    transform: translateY(-1px)
+}
+
+/* 읽지 않은 알림: 왼쪽 강조 줄 + 연한 배경 */
+.notification-list .notification-item.is-unread {
+    background: #fff8fa;
+    border-color: #efd3dc;
+    cursor: pointer
+}
+
+.notification-list .notification-item.is-unread::before {
+    background: var(--color-brand);
+    bottom: 0;
+    content: "";
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 4px
+}
+
+.notification-list .notification-item > .cluster {
+    align-items: flex-start;
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 12px;
+    min-width: 0
+}
+
+.notification-list .notification-dot {
+    background: var(--color-brand);
+    box-shadow: 0 0 0 3px rgba(158, 64, 95, .16);
+    flex: none;
+    height: 8px;
+    margin-top: 7px;
+    width: 8px
+}
+
+/* 제목은 테두리 배지 대신 굵은 글자로 */
+.notification-list .notification-item .badge {
+    background: none;
+    border: 0;
+    border-radius: 0;
+    color: var(--color-text);
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.4;
+    padding: 0
+}
+
+.notification-list .notification-item.is-unread .badge {
+    color: var(--color-brand-dark)
+}
+
+.notification-list .notification-item p {
+    color: var(--color-text);
+    font-size: var(--font-sm);
+    line-height: 1.6;
+    margin: 3px 0 4px;
+    overflow-wrap: anywhere
+}
+
+.notification-list .notification-item time {
+    display: block;
+    font-size: 12px;
+    line-height: 1.4
+}
+
+/* 읽은 알림은 한 단계 흐리게 */
+.notification-list .notification-item:not(.is-unread) .badge,
+.notification-list .notification-item:not(.is-unread) p {
+    color: var(--color-muted)
+}
+
+.notification-list .notification-item > .btn {
+    border-radius: 999px;
+    flex: none;
+    font-size: 13px;
+    min-height: 32px;
+    padding: 6px 14px;
+    white-space: nowrap
+}
+
+@media (max-width: 767px) {
+    .notification-list .notification-item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        padding: 14px 16px
+    }
+
+    .notification-list .notification-item > .btn {
+        margin-left: auto
+    }
+}
+
+/* 헤더 종 버튼과 최근 알림 펼침 창 (notification-panel.js) */
+.notification-bell { position: relative }
+
+.customer-header__actions .notification-bell__button {
+    justify-content: center;
+    min-width: 40px;
+    padding: 7px 10px;
+    position: relative
+}
+
+.notification-bell__icon { display: block }
+.notification-bell.is-open .notification-bell__button { border-color: var(--color-brand); color: var(--color-brand) }
+
+/* 안 읽은 수는 종 오른쪽 위에 작은 점 배지로 */
+.customer-header__actions .notification-bell__button .badge {
+    background: var(--color-brand);
+    border-color: var(--color-brand);
+    color: #fff;
+    font-size: 10px;
+    line-height: 15px;
+    margin: 0;
+    min-width: 17px;
+    padding: 0 4px;
+    position: absolute;
+    right: -5px;
+    top: -5px
+}
+
+.notification-panel {
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 18px 48px rgba(53, 43, 40, .16);
+    overflow: hidden;
+    position: absolute;
+    right: 0;
+    text-align: left;
+    top: calc(100% + 10px);
+    width: 380px;
+    z-index: 60
+}
+
+.notification-panel[hidden] { display: none }
+
+.notification-panel__head {
+    align-items: center;
+    border-bottom: 1px solid var(--color-border-light);
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 16px 12px
+}
+
+.notification-panel__head strong { font-size: 15px }
+
+.notification-panel__read-all {
+    background: none;
+    border: 0;
+    color: var(--color-brand);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 0
+}
+
+.notification-panel__read-all:hover { text-decoration: underline }
+
+.notification-panel__list {
+    gap: 8px;
+    max-height: min(420px, 60vh);
+    overflow-y: auto;
+    padding: 10px
+}
+
+.notification-panel__list .notification-item {
+    box-shadow: none;
+    color: inherit;
+    padding: 12px 14px;
+    text-decoration: none
+}
+
+.notification-panel__list .notification-item:hover { text-decoration: none; transform: none }
+.notification-panel__list .notification-item .badge { font-size: 14px }
+.notification-panel__list .notification-item p { font-size: 13px; line-height: 1.5 }
+.notification-panel__list > p.text-muted { border: 0; color: var(--color-muted); font-size: 13px; padding: 28px 12px; text-align: center }
+
+.notification-panel__more {
+    border-top: 1px solid var(--color-border-light);
+    color: var(--color-brand);
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px;
+    text-align: center
+}
+
+.notification-panel__more:hover { background: var(--color-background-faint); text-decoration: none }
+
+/* 모바일: 버튼 줄이 가로 스크롤이라 창을 헤더 기준 전체 폭으로 연다 */
+@media (max-width: 767px) {
+    /* 아래쪽 모바일 규칙의 .customer-header { position: static } 보다 우선하도록 요소 선택자를 붙인다 */
+    header.customer-header { position: relative }
+    .notification-bell { position: static }
+    .notification-panel { left: 12px; right: 12px; top: calc(100% - 4px); width: auto }
+}
+
+/* 고객 공통 푸터 */
+.customer-footer {
+    background: #34272b;
+    border: 0;
+    color: #dfd3d5;
+    margin-top: 48px;
+    padding: 36px 20px 0
+}
+
+.customer-footer__inner {
+    display: grid;
+    gap: 56px;
+    grid-template-columns: minmax(260px, 1.4fr) minmax(130px, .6fr) minmax(280px, 1fr)
+}
+
+.customer-footer__brand, .customer-footer__nav, .customer-footer__store {
+    display: flex;
+    flex-direction: column
+}
+
+.customer-footer__brand strong {
+    color: #fff;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 24px;
+    margin: 6px 0 8px
+}
+
+.customer-footer__brand p, .customer-footer__store p { color: #c6b8ba; line-height: 1.65 }
+.customer-footer__eyebrow { color: #e9b5c5; font-size: 10px; font-weight: 800; letter-spacing: .2em }
+.customer-footer__nav strong, .customer-footer__store strong { color: #fff; font-size: 13px; margin-bottom: 10px }
+.customer-footer__nav { gap: 5px }
+.customer-footer__nav a { color: #c6b8ba; width: fit-content }
+.customer-footer__nav a:hover { color: #fff }
+.customer-footer__store p + p { margin-top: 3px }
+.customer-footer__divider { color: #8f7a7e; margin: 0 6px }
+
+.customer-footer__bottom {
+    border-top: 1px solid rgba(255, 255, 255, .1);
+    display: flex;
+    justify-content: space-between;
+    margin: 24px auto 0;
+    max-width: var(--content-width);
+    padding: 14px 0
+}
+
+.customer-footer__bottom p { color: #95878a; font-size: 10px; letter-spacing: .06em }
+
+/* 메인 쇼케이스 */
+.home-hero {
+    background: linear-gradient(132deg, #fff5e9 0%, #f8e2e8 100%);
+    border: 1px solid rgba(210, 178, 163, .5);
+    border-radius: 34px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr);
+    min-height: 520px;
+    overflow: hidden;
+    position: relative
+}
+
+.home-hero::before {
+    border: 1px solid rgba(158, 64, 95, .12);
+    border-radius: 50%;
+    content: "";
+    height: 300px;
+    left: -170px;
+    position: absolute;
+    top: -160px;
+    width: 300px
+}
+
+.home-hero__content { align-self: center; padding: 64px 36px 58px 64px; position: relative; z-index: 2 }
+
+.home-hero__content h2 {
+    color: #453134;
+    font-family: Georgia, "Times New Roman", "Noto Serif KR", serif;
+    font-size: clamp(38px, 5vw, 66px);
+    font-weight: 700;
+    letter-spacing: -.055em;
+    line-height: 1.08;
+    margin: 18px 0 24px
+}
+
+.home-hero__content h2 em { color: var(--color-brand); font-style: italic }
+.home-hero__description { color: #6f5b57; font-size: 15px; line-height: 1.9; max-width: 560px }
+.home-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px }
+
+.home-hero__features {
+    border-top: 1px solid rgba(125, 83, 73, .15);
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    margin-top: 42px;
+    max-width: 560px;
+    padding-top: 20px
+}
+
+.home-hero__features li { align-items: center; display: flex; gap: 9px }
+.home-hero__features strong { color: var(--color-caramel); font-family: Georgia, serif; font-size: 17px }
+.home-hero__features span { color: #685550; font-size: 11px; font-weight: 700 }
+
+.home-hero__visual {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    min-height: 500px;
+    position: relative
+}
+
+.home-hero__visual::before {
+    background: rgba(255, 255, 255, .43);
+    border: 1px solid rgba(255, 255, 255, .62);
+    border-radius: 50%;
+    content: "";
+    height: 390px;
+    position: absolute;
+    width: 390px
+}
+
+.home-hero__stamp {
+    align-items: center;
+    background: var(--color-brand);
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    font-family: Georgia, serif;
+    font-size: 10px;
+    font-weight: 700;
+    height: 78px;
+    justify-content: center;
+    letter-spacing: .12em;
+    line-height: 1.45;
+    position: absolute;
+    right: 9%;
+    text-align: center;
+    top: 11%;
+    transform: rotate(10deg);
+    width: 78px;
+    z-index: 4
+}
+
+.cake-illustration { height: 310px; position: relative; transform: translateY(28px); width: 330px; z-index: 2 }
+.cake-illustration__plate { background: #f6e7dc; border-radius: 50%; bottom: 13px; box-shadow: 0 15px 25px rgba(99, 58, 50, .13); height: 34px; left: 15px; position: absolute; width: 300px }
+.cake-illustration__layer { left: 55px; position: absolute; width: 220px }
+.cake-illustration__layer--bottom { background: linear-gradient(90deg, #d99a73, #edbc99 42%, #c98264); border-radius: 12px 12px 30px 30px; bottom: 44px; box-shadow: inset 0 -15px 0 rgba(130, 64, 50, .08); height: 105px }
+.cake-illustration__layer--top { background: linear-gradient(90deg, #f7cfb7, #ffe3d1 44%, #e9b69b); border-radius: 34px 34px 12px 12px; bottom: 139px; height: 80px }
+
+.cake-illustration__cream {
+    background: #fffaf1;
+    border-radius: 50%;
+    bottom: 198px;
+    box-shadow: -68px 20px 0 -2px #fffaf1, 68px 18px 0 -1px #fffaf1,
+                -105px 35px 0 -5px #fffaf1, 104px 35px 0 -5px #fffaf1;
+    height: 62px;
+    left: 135px;
+    position: absolute;
+    width: 62px;
+    z-index: 3
+}
+
+.cake-illustration__berry {
+    background: radial-gradient(circle at 34% 28%, #f58ba0 0 12%, #b63857 38%, #76213a 100%);
+    border-radius: 50%;
+    box-shadow: 0 7px 12px rgba(111, 29, 51, .2);
+    height: 36px;
+    position: absolute;
+    width: 36px;
+    z-index: 5
+}
+
+.cake-illustration__berry--1 { bottom: 252px; left: 145px }
+.cake-illustration__berry--2 { bottom: 232px; left: 111px; transform: scale(.82) }
+.cake-illustration__berry--3 { bottom: 230px; left: 181px; transform: scale(.75) }
+.home-hero__spark { color: var(--color-caramel); font-size: 25px; position: absolute }
+.home-hero__spark--1 { left: 8%; top: 24% }
+.home-hero__spark--2 { bottom: 18%; right: 8%; transform: scale(.65) }
+.home-section { margin-top: 80px }
+
+.section-heading {
+    align-items: end;
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+    margin-bottom: 24px
+}
+
+.section-heading .section-title { margin: 7px 0 0 }
+.section-heading > p { color: var(--color-muted); font-size: 13px; text-align: right }
+
+/* 홈 공지 바: 한 줄 띠. 왼쪽 "공지"·오른쪽 "전체보기"는 고정, 가운데 공지만 위로 넘어간다
+ * (home-notice-rotation.js). 모든 공지가 같은 높이·한 줄이라 바뀔 때 크기가 흔들리지 않는다. */
+.home-notices {
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: 0 1px 2px rgba(53, 43, 40, .04);
+    display: flex;
+    gap: 18px;
+    padding: 0 22px
+}
+
+.home-notices__label {
+    background: var(--color-brand-soft);
+    border-radius: 999px;
+    color: var(--color-brand);
+    flex: none;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+    margin: 0;
+    padding: 4px 12px
+}
+
+.home-notices__viewport {
+    flex: 1;
+    height: 56px;
+    min-width: 0;
+    overflow: hidden
+}
+
+.home-notices__track { will-change: transform }
+
+.home-notices__item {
+    align-items: center;
+    color: var(--color-text);
+    display: flex;
+    gap: 16px;
+    height: 56px;
+    justify-content: space-between;
+    padding: 0 10px;
+    text-decoration: none
+}
+
+.home-notices__item[hidden] { display: none }
+.home-notices__item:hover { text-decoration: none }
+.home-notices__item:hover .home-notices__title { color: var(--color-brand) }
+/* 공지 칸은 넘치는 부분을 잘라 내므로(overflow: hidden) 공통 포커스 표시(바깥 3px)가 잘린다. 안쪽에 그린다 */
+.home-notices__item:focus-visible { border-radius: 10px; outline: 2px solid var(--color-brand); outline-offset: -2px }
+
+.home-notices__title {
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
+}
+
+.home-notices__date { color: var(--color-muted); flex: none; font-size: 13px }
+
+.home-notices__empty {
+    align-items: center;
+    color: var(--color-muted);
+    display: flex;
+    height: 56px;
+    margin: 0
+}
+
+.home-notices__more {
+    color: var(--color-brand);
+    flex: none;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap
+}
+
+.home-notices__more:hover { text-decoration: underline }
+
+@media (max-width: 767px) {
+    .home-notices { gap: 10px; padding: 0 14px }
+    .home-notices__date { display: none }
+}
+
+
+.category-card {
+    background: linear-gradient(145deg, #fff 0%, var(--color-background-faint) 100%);
+    border-color: var(--color-border-light);
+    border-radius: var(--radius-lg);
+    min-height: 235px;
+    overflow: hidden;
+    padding: 34px;
+    position: relative;
+    text-align: left;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease
+}
+
+.category-card::after {
+    border: 24px solid var(--color-brand-soft);
+    border-radius: 50%;
+    content: "";
+    height: 125px;
+    opacity: .65;
+    position: absolute;
+    right: -25px;
+    top: -30px;
+    width: 125px
+}
+
+.category-card:nth-child(2)::after { border-color: #f4dfbd }
+.category-card:hover { border-color: #d8b4c0; box-shadow: var(--shadow-md); transform: translateY(-5px) }
+.category-card__number { color: #d9c5bd; font-family: Georgia, serif; font-size: 13px; font-weight: 700; letter-spacing: .12em }
+.category-card__name { font-family: Georgia, "Noto Serif KR", serif; font-size: 28px; font-weight: 700; margin-top: 22px }
+.category-card__desc { font-size: 13px; line-height: 1.8; margin-top: 9px }
+.category-card__link { bottom: 28px; color: var(--color-brand); font-size: 12px; font-weight: 800; position: absolute }
+
+.store-panel--showcase { align-items: stretch; background: #fff; overflow: hidden; padding: 0 }
+.store-panel--showcase > div:first-child { padding: 30px }
+.store-panel--showcase .store-photo, .store-panel--showcase .store-map { border: 0; border-radius: 0; min-height: 330px; width: 100% }
+
+/* 상품 카드와 목록 */
+.product-card {
+    background: #fff;
+    /* 크림 배경 위에서도 카드 경계가 보이도록 테두리를 한 단계 진하게 둔다 */
+    border-color: #e6d5c9;
+    border-radius: var(--radius-md);
+    box-shadow: 0 6px 20px rgba(68, 43, 34, .08);
+    min-width: 0;
+    overflow: hidden;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease
+}
+
+.product-card:hover { border-color: #d7b3bf; box-shadow: var(--shadow-md); transform: translateY(-6px) }
+.placeholder-image { background: linear-gradient(135deg, rgba(255, 255, 255, .35), transparent), var(--color-background-soft); border-color: var(--color-border-light); color: #a28e85 }
+.placeholder-image.product-card__image { border: 0; transition: transform .35s ease }
+.product-card:hover .product-card__image { transform: scale(1.025) }
+.product-card__body { padding: 17px }
+.product-card__name { font-size: 15px; font-weight: 800; line-height: 1.4 }
+.product-card__price { color: var(--color-brand-dark); font-size: 15px; font-weight: 800; margin: 7px 0 12px }
+
+.page-intro {
+    background: linear-gradient(120deg, var(--color-cream), #f8e8ed);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    margin-bottom: 28px;
+    overflow: hidden;
+    padding: 40px 44px;
+    position: relative
+}
+
+.page-intro::after { border: 32px solid rgba(255, 255, 255, .42); border-radius: 50%; content: ""; height: 160px; position: absolute; right: 5%; top: -48px; width: 160px }
+.page-intro h1 { margin: 8px 0 10px; max-width: 700px; position: relative; z-index: 1 }
+.page-intro > p:last-child { color: var(--color-muted); max-width: 670px; position: relative; z-index: 1 }
+
+.product-search-bar {
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 12px
+}
+
+.product-search-bar .form-control { border: 0; box-shadow: none; font-size: 14px }
+
+.catalog-filter {
+    align-self: start;
+    background: #fff;
+    border-color: var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    position: sticky;
+    top: 94px
+}
+
+.catalog-filter .section-title, .order-summary .section-title {
+    border-bottom: 1px solid var(--color-border-light);
+    font-size: 17px;
+    margin-bottom: 18px;
+    padding-bottom: 12px
+}
+
+.catalog-filter .form-group + .form-group { border-top: 1px solid var(--color-border-light); padding-top: 16px }
+.filter-options { gap: 9px }
+
+/* 상품 상세 */
+.page-breadcrumb { color: var(--color-muted); display: flex; flex-wrap: wrap; font-size: 12px; gap: 8px }
+.page-breadcrumb a:hover { color: var(--color-brand) }
+.product-detail-layout { align-items: start; gap: 54px }
+/* 사진은 앨범처럼: 큰 사진은 흰 매트와 그림자로 띄우고, 아래 띠는 작은 액자 여러 장을 연한 바탕 위에 놓는다.
+   지금 크게 보이는 사진의 액자만 브랜드 색 테두리로 선명하게 보인다. */
+.product-gallery__main { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-lg); box-shadow: 0 10px 28px rgba(68, 43, 34, .10); overflow: hidden; padding: 10px }
+.placeholder-image.product-gallery__main-image { border: 0; border-radius: var(--radius-md); min-height: 450px; transition: opacity .35s ease }
+.product-gallery__main-image.is-fading { opacity: 0 }
+.product-gallery__thumbnails { background: #faf4ef; border-radius: var(--radius-md); display: grid; gap: 10px; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; margin-top: 14px; padding: 10px }
+.product-gallery__thumbnail-button { background: #fff; border: 1px solid #eadbd0; border-radius: 10px; opacity: .6; overflow: hidden; padding: 3px; transition: opacity .2s ease, border-color .2s ease, transform .2s ease }
+.product-gallery__thumbnail-button:hover { opacity: .9 }
+.product-gallery__thumbnail-button.is-active { border: 2px solid var(--color-brand); opacity: 1; padding: 2px; transform: translateY(-2px) }
+.placeholder-image.product-gallery__thumbnail { border: 0; border-radius: 7px }
+
+@media (prefers-reduced-motion: reduce) {
+    .placeholder-image.product-gallery__main-image,
+    .product-gallery__thumbnail-button { transition: none }
+    .product-gallery__thumbnail-button.is-active { transform: none }
+}
+
+.product-summary {
+    background: #fff;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 32px
+}
+
+.product-summary__type { background: var(--color-brand-soft); border-color: transparent; color: var(--color-brand-dark) }
+.product-summary__name { font-family: Georgia, "Noto Serif KR", serif; font-size: clamp(26px, 3vw, 36px); line-height: 1.25; margin: 14px 0 9px }
+.product-summary__price { color: var(--color-brand); font-size: 22px; font-weight: 850 }
+.product-summary__description { box-shadow: none; color: #665652; line-height: 1.8; margin-top: 24px }
+
+/* 수량과 금액. 기본은 수량 위, 금액 상자 아래. */
+.product-purchase { margin-top: 12px }
+.product-purchase__summary { margin-top: 16px }
+
+/* 옵션 없는 일반 케이크: "수량 [- 1 +] ……… 총금액" 한 줄. 금액 상자는 테두리 없이 총금액만 보인다. */
+.product-purchase--compact { align-items: center; display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: space-between; margin-top: 20px }
+.product-purchase--compact .product-purchase__quantity { align-items: center; display: flex; gap: 8px; margin-bottom: 0 }
+.product-purchase--compact .product-purchase__quantity .form-label { margin: 0 }
+.product-purchase--compact .product-purchase__summary { background: transparent; border: 0; box-shadow: none; margin-top: 0; padding: 0 }
+.product-purchase--compact .product-purchase__total { align-items: baseline; border-bottom: 0; display: flex; gap: 12px; justify-content: flex-end; padding: 0 }
+
+/* 경로 · 사진 · 상품 정보 · 주문을 흰 카드 하나로 묶는다. 안의 정보 칸은 따로 카드를 두르지 않는다. */
+.product-hero {
+    background: #fff;
+    border: 1px solid #e6d5c9;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 6px 20px rgba(68, 43, 34, .06);
+    padding: 24px 32px 32px
+}
+.product-hero .page-breadcrumb { margin-bottom: 20px }
+/* 오른쪽 칸을 왼쪽 사진 높이만큼 늘리고, 주문 상자는 칸 맨 아래(사진 아래 끝)에 붙인다. */
+.product-hero .product-detail-layout { align-items: stretch; gap: 40px; margin-bottom: 0 }
+.product-hero .product-summary { background: transparent; border: 0; box-shadow: none; display: flex; flex-direction: column; padding: 0 }
+.product-hero .product-summary__description { color: #665652; line-height: 1.8; margin: 16px 0 0 }
+.product-hero .product-summary__type { align-self: flex-start }
+
+/* 상품 안내: 표처럼 바깥 테두리 · 줄 사이 가로선 · 항목 칸과 값 칸 사이 세로선을 둔다.
+   항목 칸(아이콘 + 이름)은 연한 바탕으로 값과 구분한다. 순서는 판매 상태 · 재고 · 취소 가능 기간 · 픽업 가능일. */
+.product-facts { border: 1px solid #eadbd0; border-radius: var(--radius-sm); list-style: none; margin: 20px 0; overflow: hidden; padding: 0 }
+.product-facts__item { align-items: center; color: var(--color-text); column-gap: 14px; display: grid; font-size: var(--font-sm); grid-template-columns: 150px minmax(0, 1fr); justify-items: start; padding-right: 14px }
+.product-facts__item + .product-facts__item { border-top: 1px solid #eadbd0 }
+.product-facts__label { align-items: center; align-self: stretch; background: #fcf8f4; border-right: 1px solid #eadbd0; color: var(--color-muted); display: flex; font-weight: 700; gap: 8px; justify-self: stretch; padding: 11px 12px; white-space: nowrap }
+.product-facts__icon { color: var(--color-brand); flex: none }
+
+/* 주문 상자: 수량 · 금액 · 버튼을 연한 분홍 상자로 묶어 주문할 곳을 드러낸다 */
+.product-order-box { background: #fdf7f9; border: 1px solid #f2e2e8; border-radius: var(--radius-md); margin-top: auto; padding: 18px 20px 16px }
+.product-order-box .product-purchase { margin-top: 0 }
+.product-order-box .product-purchase__summary { background: #fff; margin-top: 0 }
+.product-order-box .product-purchase--compact .product-purchase__summary { background: transparent; margin-top: 0 }
+
+/* 버튼 배치: 주요 버튼은 상자 폭 전체, 그 아래 장바구니 · 1:1 문의가 나란히, 맨 아래 안내.
+   묶음 div(.cluster)는 display: contents로 빠져서 버튼들이 한 줄 흐름에 들어온다. */
+.product-order-box .product-detail__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px }
+.product-order-box .product-detail__actions > .cluster { display: contents }
+.product-order-actions__primary { flex: 1 1 100%; font-size: 15px; justify-content: center; min-height: 48px; order: 1 }
+.product-order-actions__secondary { flex: 1 1 0; order: 2 }
+.product-order-actions__secondary .btn,
+a.product-order-actions__secondary { justify-content: center; width: 100% }
+.product-order-actions__inquiry { flex: 1 1 0; justify-content: center; order: 3 }
+.product-order-actions__note { flex: 1 1 100%; order: 4; text-align: center }
+
+/* 장바구니와 인증 */
+.cart-layout { gap: 28px }
+.cart-item { transition: border-color .18s ease, box-shadow .18s ease }
+.cart-item:hover { border-color: #d9b9c3; box-shadow: var(--shadow-md) }
+.order-summary { background: #fff; border-color: var(--color-border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-sm) }
+
+.auth-shell { align-items: center; display: flex; min-height: calc(100vh - 230px) }
+
+.auth-card {
+    background: linear-gradient(#fff, #fff) padding-box,
+                linear-gradient(135deg, #efd6dd, #f2d9b4) border-box;
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    max-width: 520px;
+    padding: 38px;
+    width: 100%
+}
+
+.auth-card__intro { margin-bottom: 28px; text-align: center }
+.auth-card__intro h1 { font-family: Georgia, "Noto Serif KR", serif; font-size: 32px; margin: 9px 0 8px }
+.auth-card__intro > p:last-child { color: var(--color-muted); font-size: 13px }
+.auth-card .form-stack { gap: 16px }
+.auth-card .btn--block { min-height: 44px; margin-top: 8px }
+
+/* 관리자 화면 */
+.admin-layout { background: #f7f3f1 }
+.admin-sidebar { background: #392b30; border: 0; color: #e6dadd; flex-basis: 190px }
+.admin-sidebar-slot { flex-basis: 190px }
+.admin-sidebar__brand { border-bottom-color: rgba(255, 255, 255, .1); padding: 20px 18px }
+.admin-sidebar__eyebrow { color: #c18b9d; letter-spacing: .14em }
+.admin-sidebar__title { color: #fff; font-family: Georgia, "Noto Serif KR", serif; font-size: 18px; margin-top: 4px }
+.admin-sidebar__nav { padding: 10px }
+.admin-sidebar__section { color: #a9989d; margin: 20px 10px 7px }
+.admin-sidebar__link { border-radius: 9px; color: #d7c9cd; margin-bottom: 3px; padding: 9px 11px }
+.admin-sidebar__link:hover, .admin-sidebar__link.is-current { background: var(--color-brand); box-shadow: 0 8px 20px rgba(22, 8, 13, .2); color: #fff }
+
+.admin-header {
+    background: rgba(255, 255, 255, .9);
+    border-bottom-color: var(--color-border-light);
+    min-height: 64px;
+    padding: 10px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px)
+}
+
+.admin-header__title { font-size: 16px }
+.admin-content { padding: 30px }
+.admin-page-intro { align-items: end; display: flex; justify-content: space-between; margin-bottom: 24px }
+.admin-page-intro .admin-page-title { font-size: 32px; margin: 5px 0 0 }
+.admin-page-intro > p { color: var(--color-muted); font-size: 13px }
+
+.metric-card {
+    background: #fff;
+    border-color: var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    padding: 20px;
+    position: relative
+}
+
+.metric-card::before { background: var(--color-brand); border-radius: 0 0 8px 8px; content: ""; height: 4px; left: 18px; position: absolute; right: 18px; top: 0 }
+.metric-card p, .metric-card__label { color: var(--color-muted); font-size: 12px; font-weight: 700 }
+.metric-card strong, .metric-card__value { color: #3d3030; display: block; font-size: 25px; margin-top: 8px }
+.dashboard-content > .grid.grid--2 > .section { background: #fff; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 22px }
+.dashboard-content .section-title { font-size: 18px }
+
+@media (max-width: 980px) {
+    .home-hero { grid-template-columns: 1fr }
+    .home-hero__content { padding: 50px 42px 20px }
+    .home-hero__visual { min-height: 390px }
+    .customer-footer__inner { gap: 36px; grid-template-columns: 1.2fr .8fr }
+    .customer-footer__store { grid-column: 1 / -1 }
+    .product-detail-layout { gap: 28px }
+}
+
+@media (max-width: 767px) {
+    .page-container { padding: 22px 0 }
+    .customer-header { position: static }
+    .customer-header__inner { gap: 14px; padding: 13px 12px }
+    .customer-header__left { gap: 12px }
+    .customer-header__nav { gap: 8px 18px }
+    .customer-header__actions { justify-content: flex-start; padding-bottom: 2px }
+    .home-hero { border-radius: 22px }
+    .home-hero__content { padding: 38px 24px 16px }
+    .home-hero__content h2 { font-size: clamp(35px, 11vw, 50px) }
+    .home-hero__features { gap: 10px }
+    .home-hero__features li { align-items: flex-start; flex-direction: column; gap: 2px }
+    .home-hero__visual { min-height: 330px; transform: scale(.86); transform-origin: center top }
+    .home-section { margin-top: 56px }
+    .section-heading { align-items: flex-start; flex-direction: column; gap: 8px }
+    .section-heading > p { text-align: left }
+    .category-card { min-height: 220px; padding: 28px }
+    .page-intro { border-radius: 20px; padding: 30px 24px }
+    .catalog-filter { position: static }
+    .product-detail-layout { grid-template-columns: 1fr }
+    .placeholder-image.product-gallery__main-image { min-height: 330px }
+    .product-summary { padding: 24px }
+    .product-hero { padding: 16px 16px 20px }
+    .product-hero .product-detail-layout { gap: 24px }
+    .product-order-box { padding: 16px }
+    .customer-footer { margin-top: 36px; padding-top: 28px }
+    .customer-footer__inner { gap: 30px; grid-template-columns: 1fr }
+    .customer-footer__store { grid-column: auto }
+    .customer-footer__bottom { align-items: flex-start; flex-direction: column; gap: 6px }
+    .admin-content { padding: 20px 14px }
+    .admin-page-intro { align-items: flex-start; flex-direction: column; gap: 7px }
+    .payment-admin-header > p { text-align: left }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto }
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important }
 }

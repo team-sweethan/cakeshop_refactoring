@@ -15,6 +15,7 @@ import com.cakeshop.global.error.CommonErrorCode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,42 @@ public class OrderPaymentQueryService {
     private final OrderCustomerService orderCustomerService;
     private final MemberService memberService;
     private final OrderMapper orderMapper;
+
+    /**
+     * PG가 결제 완료 뒤 승인을 취소했을 때(돈워리 보류 뒤 보안 직원 거절) 이 주문을 어떻게 할지 (DonWorry ADR-0064 4-1)
+     * - 이행 전(주문 확인 중 · 일반 상품 픽업 준비 · 결제 대기 · 만료 보상): 주문 취소 — 재고 · 쿠폰을 되돌린다
+     * - 이행 시작(제작 중 · 수제 케이크 제작 완료 픽업 준비 · 픽업 완료): 주문 유지 — 가맹점이 "결제 확인 중"에
+     *   진행한 주문이라 손실은 가맹점이 부담한다
+     * - 이미 끝난 주문(취소 · 반려): 할 일 없음
+     */
+    public enum GatewayVoidHandling {
+        CANCEL_ORDER,
+        KEEP_FULFILLED,
+        NOTHING
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<GatewayVoidHandling> gatewayVoidHandling(long orderId) {
+        return orderMapper.findOrderById(orderId).map(order -> gatewayVoidHandling(order.getStatus(), order.getOrderType()));
+    }
+
+    static GatewayVoidHandling gatewayVoidHandling(OrderStatus status, OrderType type) {
+        return switch (status) {
+            case PENDING_PAYMENT, EXPIRED, UNDER_REVIEW -> GatewayVoidHandling.CANCEL_ORDER;
+            // 일반 상품은 이미 만들어 둔 재고라 픽업 전이면 되돌릴 수 있다. 수제 케이크의 픽업 준비는 제작이 끝난 뒤다
+            case READY_FOR_PICKUP -> type == OrderType.CUSTOM
+                    ? GatewayVoidHandling.KEEP_FULFILLED
+                    : GatewayVoidHandling.CANCEL_ORDER;
+            case IN_PRODUCTION, PICKED_UP -> GatewayVoidHandling.KEEP_FULFILLED;
+            case CANCELED, REJECTED -> GatewayVoidHandling.NOTHING;
+        };
+    }
+
+    /** PG 웹훅·조회 배치처럼 회원 요청이 아닌 결제 반영에서 주문 회원을 찾는다. */
+    @Transactional(readOnly = true)
+    public Optional<Long> findOrderMemberId(long orderId) {
+        return orderMapper.findOrderById(orderId).map(order -> order.getMemberId());
+    }
 
     /**
      * ******************************
@@ -60,6 +97,8 @@ public class OrderPaymentQueryService {
                 order.paymentExpiresAt(),
                 order.ordererName(),
                 order.ordererPhone(),
+                order.pickupName(),
+                order.pickupPhone(),
                 order.items().stream()
                         .map(item -> new PaymentOrderItem(
                                 item.productName(),
@@ -142,6 +181,12 @@ public class OrderPaymentQueryService {
         );
     }
 
+    /**
+     * 결제 대상 주문 정보.
+     *
+     * <p>2026-11-04 (수민): 돈워리 결제 준비 요청에 픽업자를 함께 보내려고 pickupName·pickupPhone을 추가했다.
+     * 기존 생성자는 픽업자 없이(null) 만든다.</p>
+     */
     public record PaymentOrder(
             long orderId,
             String orderNumber,
@@ -154,8 +199,43 @@ public class OrderPaymentQueryService {
             LocalDateTime paymentExpiresAt,
             String ordererName,
             String ordererPhone,
+            String pickupName,
+            String pickupPhone,
             List<PaymentOrderItem> items
     ) {
+
+        /** 픽업자 정보가 필요 없는 호출부의 호환용 생성자다. */
+        public PaymentOrder(
+                long orderId,
+                String orderNumber,
+                OrderType orderType,
+                boolean pendingPayment,
+                BigDecimal originalAmount,
+                BigDecimal discountAmount,
+                BigDecimal finalAmount,
+                LocalDateTime pickupAt,
+                LocalDateTime paymentExpiresAt,
+                String ordererName,
+                String ordererPhone,
+                List<PaymentOrderItem> items
+        ) {
+            this(
+                    orderId,
+                    orderNumber,
+                    orderType,
+                    pendingPayment,
+                    originalAmount,
+                    discountAmount,
+                    finalAmount,
+                    pickupAt,
+                    paymentExpiresAt,
+                    ordererName,
+                    ordererPhone,
+                    null,
+                    null,
+                    items
+            );
+        }
 
         /** 기존 일반 주문 조회 호출부의 호환용 상태다. */
         public boolean generalOrder() {

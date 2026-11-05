@@ -13,6 +13,14 @@ import java.util.List;
  */
 public record OrderMemberSummaryView(
         List<OrderMemberOrderView> inProgressOrders,
-        List<OrderMemberOrderView> completedOrders
+        List<OrderMemberOrderView> completedOrders,
+        // 진행 중 주문 전체 건수. 목록(inProgressOrders)은 최근 몇 건만 담는다.
+        long inProgressCount
 ) {
+    /** 건수를 따로 세지 않는 호출부(테스트 등)는 목록 크기를 건수로 쓴다. */
+    public OrderMemberSummaryView(
+            List<OrderMemberOrderView> inProgressOrders,
+            List<OrderMemberOrderView> completedOrders) {
+        this(inProgressOrders, completedOrders, inProgressOrders.size());
+    }
 }

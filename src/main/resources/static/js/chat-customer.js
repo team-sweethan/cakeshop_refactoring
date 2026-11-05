@@ -411,85 +411,105 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // 문의는 대부분 진행 중인 주문 이야기라 진행 중 주문을 위에 두고, 끝난 주문은 "지난 주문"으로 접어 둔다.
+  const PAST_ORDER_STATUSES = new Set(["PICKED_UP", "CANCELED", "REJECTED", "EXPIRED"]);
+
+  // 상태 이름은 마이페이지 · 주문 상세와 같은 말로 맞춘다.
+  function formatOrderStatus(status) {
+    if (!status) return "접수";
+    switch (String(status).toUpperCase()) {
+      case "READY_FOR_PICKUP": return "픽업 준비";
+      case "IN_PRODUCTION": return "제작 중";
+      case "UNDER_REVIEW": return "주문 확인 중";
+      case "PENDING_PAYMENT": return "결제 대기";
+      case "PICKED_UP": return "픽업 완료";
+      case "CANCELED": return "주문 취소";
+      case "REJECTED": return "주문 거절";
+      case "EXPIRED": return "만료";
+      default: return status;
+    }
+  }
+
+  function isPastOrder(ord) {
+    return PAST_ORDER_STATUSES.has(String(ord.orderStatus || "").toUpperCase());
+  }
+
+  // 주문 카드 하나. 카드 모양은 chat-room.css.
+  // 긴 주문번호는 작은 글씨 한 줄 말줄임(...)으로 줄이고 전체 값은 title로 보인다.
+  // 카드를 누르면 대화 속 그 주문 메시지로 이동하고, "상세"는 주문 상세 화면으로 간다.
+  function buildOrderCard(ord, past) {
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "chat-order-item" + (past ? " chat-order-item--past" : "");
+
+    const oNum = ord.orderNumber || ord.orderNo || `주문 #${ord.orderId}`;
+    const pName = ord.productName || ord.productSummary || "케이크 주문건";
+    const pTime = ord.pickupDateTime || ord.pickupAt || "-";
+    const amtStr = (ord.totalAmount !== null && ord.totalAmount !== undefined)
+      ? ord.totalAmount.toLocaleString() + "원"
+      : "-";
+
+    itemDiv.innerHTML = `
+      <div class="chat-order-item__head">
+        <span class="chat-order-item__number" title="${escapeHtml(oNum)}">${escapeHtml(oNum)}</span>
+        <span class="badge ${past ? "" : "badge--info"}">${escapeHtml(formatOrderStatus(ord.orderStatus))}</span>
+      </div>
+      <strong class="chat-order-item__product">${escapeHtml(pName)}</strong>
+      <div class="chat-order-item__foot">
+        <span class="chat-order-item__meta">픽업 ${escapeHtml(window.CakeShopTime.pickup(pTime))} · ${amtStr}</span>
+        <a class="chat-order-item__link" href="/orders/${ord.orderId}">상세 &gt;</a>
+      </div>
+    `;
+    itemDiv.addEventListener("click", (e) => {
+      if (e.target.closest("a, button")) return;
+      const targetAnchor = document.getElementById(`msg-ord-${ord.orderId}`);
+      if (targetAnchor) {
+        targetAnchor.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (chatMessagesContainer) {
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+      }
+    });
+    return itemDiv;
+  }
+
   function renderOrderSidebar(orders) {
     if (!orderSidebarStack) return;
     orderSidebarStack.innerHTML = "";
 
     // 주문 개수 헤더 동적 갱신
-    const sidebarTitle = document.querySelector(".chat-sidebar h3, .chat-sidebar .sidebar-title, .chat-sidebar strong");
+    const countNode = document.querySelector("[data-chat-order-count]");
     const count = orders ? orders.length : 0;
-    if (sidebarTitle && sidebarTitle.textContent.includes("주문")) {
-      sidebarTitle.textContent = `연동 주문 내역 (${count}건)`;
-    }
+    if (countNode) countNode.textContent = `(${count})`;
 
     if (!orders || orders.length === 0) {
-      orderSidebarStack.innerHTML = `<p class="text-muted" style="font-size:12px;">연동된 주문 내역이 없습니다.</p>`;
+      orderSidebarStack.innerHTML = `<p class="chat-sidebar__empty">연동된 주문 내역이 없습니다.</p>`;
       return;
     }
 
-    orders.forEach((ord) => {
-      const itemDiv = document.createElement("div");
-      itemDiv.className = "panel chat-order-item";
-      itemDiv.style.cssText = "cursor:pointer; padding:10px; margin-bottom:8px;";
+    const activeOrders = orders.filter((ord) => !isPastOrder(ord));
+    const pastOrders = orders.filter(isPastOrder);
 
-      const oNum = ord.orderNumber || ord.orderNo || `주문 #${ord.orderId}`;
-      const pName = ord.productName || ord.productSummary || "케이크 주문건";
-      const pTime = ord.pickupDateTime || ord.pickupAt || "-";
-      const amtStr = (ord.totalAmount !== null && ord.totalAmount !== undefined)
-        ? ord.totalAmount.toLocaleString() + "원"
-        : "-";
+    const activeLabel = document.createElement("p");
+    activeLabel.className = "chat-sidebar__section";
+    activeLabel.textContent = `진행 중 ${activeOrders.length}건`;
+    orderSidebarStack.appendChild(activeLabel);
+    if (activeOrders.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "chat-sidebar__empty";
+      empty.textContent = "진행 중인 주문이 없습니다.";
+      orderSidebarStack.appendChild(empty);
+    }
+    activeOrders.forEach((ord) => orderSidebarStack.appendChild(buildOrderCard(ord, false)));
 
-      function formatOrderStatus(status) {
-        if (!status) return "접수";
-        switch (String(status).toUpperCase()) {
-          case "READY_FOR_PICKUP": return "픽업 대기";
-          case "IN_PRODUCTION": return "제작 중";
-          case "UNDER_REVIEW": return "주문 확인 중";
-          case "PENDING_PAYMENT": return "결제 대기";
-          case "PICKED_UP": return "픽업 완료";
-          case "CANCELED": return "주문 취소";
-          case "REJECTED": return "주문 거절";
-          case "EXPIRED": return "만료";
-          default: return status;
-        }
-      }
-
-      function formatPickupDateTime(rawTime) {
-        if (!rawTime || rawTime === "-") return "-";
-        try {
-          const date = new Date(rawTime);
-          if (isNaN(date.getTime())) return String(rawTime);
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const hours = String(date.getHours()).padStart(2, "0");
-          const minutes = String(date.getMinutes()).padStart(2, "0");
-          return `${month}월 ${day}일 ${hours}:${minutes}`;
-        } catch (e) {
-          return String(rawTime);
-        }
-      }
-
-      itemDiv.innerHTML = `
-        <div class="cluster cluster--between" style="margin-bottom:4px;">
-          <strong>${escapeHtml(oNum)}</strong>
-          <span class="badge badge--warning">${escapeHtml(formatOrderStatus(ord.orderStatus))}</span>
-        </div>
-        <p class="text-muted" style="margin:0;">${escapeHtml(pName)}</p>
-        <p class="text-muted" style="font-size:11px;">금액: ${amtStr} | 픽업: ${escapeHtml(formatPickupDateTime(pTime))}</p>
-        <a class="btn btn--block" href="/orders/${ord.orderId}" style="margin-top:6px;">주문 상세 보기</a>
-      `;
-      itemDiv.addEventListener("click", (e) => {
-        if (e.target.tagName === "A" || e.target.tagName === "BUTTON") return;
-        const targetAnchor = document.getElementById(`msg-ord-${ord.orderId}`);
-        if (targetAnchor) {
-          targetAnchor.scrollIntoView({ behavior: "smooth", block: "center" });
-        } else if (chatMessagesContainer) {
-          chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
-        }
-      });
-
-      orderSidebarStack.appendChild(itemDiv);
-    });
+    if (pastOrders.length > 0) {
+      const pastGroup = document.createElement("details");
+      pastGroup.className = "chat-order-past";
+      const summary = document.createElement("summary");
+      summary.className = "chat-sidebar__section";
+      summary.textContent = `지난 주문 ${pastOrders.length}건`;
+      pastGroup.appendChild(summary);
+      pastOrders.forEach((ord) => pastGroup.appendChild(buildOrderCard(ord, true)));
+      orderSidebarStack.appendChild(pastGroup);
+    }
   }
 
   // Enter 키 전송 이벤트 연동 (Shift+Enter는 줄바꿈)
@@ -694,14 +714,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formatTime(isoString) {
-    try {
-      const date = new Date(isoString);
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    } catch (e) {
-      return "";
-    }
+    return window.CakeShopTime.time(isoString);
   }
 
   // 초기화 실행

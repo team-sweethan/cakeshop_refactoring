@@ -87,7 +87,7 @@ public class SecurityConfig {
 
         http
             // 웹훅 경로 및 웹소켓 SockJS 폴백 경로만 CSRF 제외 — 전체 비활성화 금지
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/webhooks/toss", "/ws/**"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/webhooks/toss", "/webhooks/donworry", "/ws/**"))
             .requestCache(cache -> cache.requestCache(requestCache))
             .authorizeHttpRequests(auth -> {
                 // ① 공개 GET을 먼저 선언 (matcher 순서 = 우선순위)
@@ -120,7 +120,7 @@ public class SecurityConfig {
                                 "/community/{postId:\\d+}/comments/{commentId:\\d+}",
                                 "/community/notices", "/community/notices/{id:\\d+}")
                         .permitAll();
-                auth.requestMatchers(HttpMethod.POST, "/webhooks/toss").permitAll();
+                auth.requestMatchers(HttpMethod.POST, "/webhooks/toss", "/webhooks/donworry").permitAll();
                 // 상품 상세에서 시작하는 주문·문의 흐름은 local 공개 미리보기에서도 회원 로그인이 필요하다.
                 auth.requestMatchers(
                         HttpMethod.GET,

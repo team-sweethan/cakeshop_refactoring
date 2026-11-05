@@ -77,9 +77,13 @@
     right: 14px
 }
 
-/* 카테고리 이미지를 자르거나 늘리지 않고 원본 비율 그대로 표시한다. */
+/* 카테고리 이미지를 자르거나 늘리지 않고 원본 비율 그대로 표시한다.
+ * 이미지 바탕이 크림색이라 테두리와 옅은 그림자로 카드 경계를 보이게 하고,
+ * 공통 .category-card 의 최소 높이(235px)를 풀어 이미지 아래에 빈 띠가 남지 않게 한다. */
 .home-category-card {
-    border: 0;
+    border: 1px solid #e6d5c9;
+    box-shadow: 0 6px 20px rgba(68, 43, 34, .07);
+    min-height: 0;
     overflow: hidden;
     padding: 0
 }
