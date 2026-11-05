@@ -15,7 +15,9 @@
   <main class="page-container">
     <h1>주문서 작성</h1>
 
-    <form class="layout-main-aside"
+    <!--/* 왼쪽은 번호 붙은 카드 세 장(픽업 일시 · 주문자와 픽업자 · 요청사항), 오른쪽은 주문 요약.
+           주문 요약은 내용 높이만큼만 그리고 스크롤해도 화면에 붙어 따라온다(.checkout-summary). */-->
+    <form class="layout-main-aside checkout-layout"
           method="post"
           th:action="@{/orders/general}"
           th:object="${orderForm}">
@@ -28,60 +30,40 @@
              name="optionIds"
              th:value="${option.id}">
 
-      <div class="stack">
+      <div class="stack checkout-steps">
         <p class="form-error"
            th:if="${#fields.hasGlobalErrors()}"
            th:errors="*{global}">
           상품 가격이 변경되었습니다. 주문 금액을 다시 확인해 주세요.
         </p>
 
-        <section>
-          <h2 class="section-title">주문 상품</h2>
-          <div class="panel stack" data-order-items>
-            <div>
-              <strong th:text="${checkout.productName}">상품명</strong>
-              <p class="text-muted"
-                 th:text="|${checkout.productTypeLabel} · ${checkout.quantity}개|">
-                일반 케이크 · 1개
-              </p>
-            </div>
-
-            <div th:if="${!checkout.selectedOptions.isEmpty()}">
-              <div class="data-row"
-                   th:each="option : ${checkout.selectedOptions}">
-                <span class="data-row__label"
-                      th:text="${option.groupName}">옵션</span>
-                <span>
-                  <span th:text="${option.name}">옵션명</span>
-                  <span th:text="|(+${#numbers.formatInteger(option.additionalPrice, 1, 'COMMA')}원)|">
-                    (+0원)
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h2 class="section-title">픽업 일시</h2>
-          <div class="panel stack" data-pickup-scheduler>
-            <div class="form-group" th:if="${!checkout.pickupDates.isEmpty()}">
-              <label class="form-label" for="pickupDate">픽업 날짜</label>
-              <select class="form-control" id="pickupDate" data-pickup-date>
-                <option th:each="pickupDate : ${checkout.pickupDates}"
-                        th:value="${pickupDate.date}"
-                        th:text="${pickupDate.label}">
-                  8월 5일 (수)
-                </option>
-              </select>
+        <!--/* ① 픽업 일시 */-->
+        <section class="checkout-card" aria-labelledby="checkout-step-pickup">
+          <h2 class="checkout-card__title" id="checkout-step-pickup">
+            <span class="checkout-card__step" aria-hidden="true">1</span>
+            픽업 일시
+          </h2>
+          <div class="stack" data-pickup-scheduler>
+            <!--/* 날짜는 가로 날짜 버튼으로 고른다. 날짜를 바꾸면 그 날짜의 시간 버튼만 보인다(order-checkout.js). */-->
+            <div class="checkout-dates" role="group" aria-label="픽업 날짜"
+                 th:if="${!checkout.pickupDates.isEmpty()}">
+              <button class="checkout-dates__option"
+                      type="button"
+                      th:each="pickupDate, dateStat : ${checkout.pickupDates}"
+                      th:classappend="${dateStat.first} ? ' is-active'"
+                      th:aria-pressed="${dateStat.first} ? 'true' : 'false'"
+                      th:attr="data-pickup-date-option=${pickupDate.date}"
+                      th:text="${pickupDate.label}">
+                8월 5일 (수)
+              </button>
             </div>
 
             <fieldset class="pickup-choice"
                       th:each="pickupDate, dateStat : ${checkout.pickupDates}"
                       th:attr="data-pickup-time-panel=${pickupDate.date}"
                       th:hidden="${!dateStat.first}">
-              <legend class="form-label">픽업 시간</legend>
-              <div class="grid grid--4 pickup-choice__times">
+              <legend class="visually-hidden" th:text="|${pickupDate.label} 픽업 시간|">픽업 시간</legend>
+              <div class="pickup-choice__times checkout-times">
                 <span th:each="pickupTime, timeStat : ${pickupDate.times}">
                   <input class="pickup-choice__input visually-hidden"
                          type="radio"
@@ -107,25 +89,14 @@
           </div>
         </section>
 
-        <section>
-          <h2 class="section-title">쿠폰</h2>
-          <div class="panel">
-            <label class="form-label" for="memberCouponId">적용 쿠폰</label>
-            <select class="form-control" id="memberCouponId" th:field="*{memberCouponId}">
-              <option value="">쿠폰을 선택하지 않음</option>
-              <option th:each="coupon : ${availableCoupons}"
-                      th:value="${coupon.memberCouponId}"
-                      th:attr="data-discount-type=${coupon.discountType},
-                               data-discount-value=${coupon.discountValue},
-                               data-maximum-discount-amount=${coupon.maximumDiscountAmount}"
-                      th:text="${coupon.name}">쿠폰명</option>
-            </select>
-          </div>
-        </section>
+        <!--/* ② 주문자 · 픽업자 */-->
+        <section class="checkout-card" aria-labelledby="checkout-step-contact">
+          <h2 class="checkout-card__title" id="checkout-step-contact">
+            <span class="checkout-card__step" aria-hidden="true">2</span>
+            주문자 · 픽업자
+          </h2>
 
-        <section>
-          <h2 class="section-title">주문자 정보</h2>
-          <div class="panel">
+          <div class="checkout-fields">
             <div class="form-group">
               <label class="form-label" for="ordererName">
                 주문자 이름 <span class="required">*</span>
@@ -154,95 +125,135 @@
                  th:if="${#fields.hasErrors('ordererPhone')}"
                  th:errors="*{ordererPhone}"></p>
             </div>
+          </div>
 
-            <div class="form-group">
-              <label class="cluster" for="sameAsOrderer">
-                <input id="sameAsOrderer"
-                       type="checkbox"
-                       data-same-as-orderer
-                       th:checked="${orderForm.ordererName == orderForm.pickupName
-                           and orderForm.ordererPhone == orderForm.pickupPhone}">
-                <span>픽업자가 주문자와 같습니다.</span>
-              </label>
-            </div>
+          <div class="form-group checkout-same">
+            <label class="cluster" for="sameAsOrderer">
+              <input id="sameAsOrderer"
+                     type="checkbox"
+                     data-same-as-orderer
+                     aria-controls="checkout-pickup-contact"
+                     th:checked="${orderForm.ordererName == orderForm.pickupName
+                         and orderForm.ordererPhone == orderForm.pickupPhone}">
+              <span>픽업자가 주문자와 같습니다.</span>
+            </label>
+          </div>
 
+          <!--/* 체크되어 있으면 접는다. 값은 스크립트가 주문자 값으로 채워 함께 보낸다.
+                 서버가 픽업자 칸에 오류를 돌려주면 체크와 상관없이 펼친다(order-checkout.js). */-->
+          <div class="checkout-pickup-contact" id="checkout-pickup-contact" data-pickup-contact>
             <h3 class="form-label">픽업자 정보</h3>
+            <div class="checkout-fields">
+              <div class="form-group">
+                <label class="form-label" for="pickupName">
+                  픽업자 이름 <span class="required">*</span>
+                </label>
+                <input class="form-control"
+                       id="pickupName"
+                       th:field="*{pickupName}"
+                       maxlength="50"
+                       required>
+                <p class="form-error"
+                   th:if="${#fields.hasErrors('pickupName')}"
+                   th:errors="*{pickupName}"></p>
+              </div>
 
-            <div class="form-group">
-              <label class="form-label" for="pickupName">
-                픽업자 이름 <span class="required">*</span>
-              </label>
-              <input class="form-control"
-                     id="pickupName"
-                     th:field="*{pickupName}"
-                     maxlength="50"
-                     required>
-              <p class="form-error"
-                 th:if="${#fields.hasErrors('pickupName')}"
-                 th:errors="*{pickupName}"></p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="pickupPhone">
-                픽업자 전화번호 <span class="required">*</span>
-              </label>
-              <input class="form-control"
-                     id="pickupPhone"
-                     type="tel"
-                     th:field="*{pickupPhone}"
-                     maxlength="30"
-                     required>
-              <p class="form-error"
-                 th:if="${#fields.hasErrors('pickupPhone')}"
-                 th:errors="*{pickupPhone}"></p>
+              <div class="form-group">
+                <label class="form-label" for="pickupPhone">
+                  픽업자 전화번호 <span class="required">*</span>
+                </label>
+                <input class="form-control"
+                       id="pickupPhone"
+                       type="tel"
+                       th:field="*{pickupPhone}"
+                       maxlength="30"
+                       required>
+                <p class="form-error"
+                   th:if="${#fields.hasErrors('pickupPhone')}"
+                   th:errors="*{pickupPhone}"></p>
+              </div>
             </div>
           </div>
         </section>
 
-        <section>
-          <h2 class="section-title">픽업 요청사항</h2>
-          <div class="panel">
-            <label class="form-label" for="requestMessage">요청사항</label>
-            <textarea class="form-control form-control--textarea"
-                      id="requestMessage"
-                      th:field="*{requestMessage}"
-                      maxlength="1000"
-                      placeholder="픽업 시 특이사항 또는 요청사항 입력"></textarea>
-            <p class="form-error"
-               th:if="${#fields.hasErrors('requestMessage')}"
-               th:errors="*{requestMessage}"></p>
-          </div>
+        <!--/* ③ 요청사항 */-->
+        <section class="checkout-card" aria-labelledby="checkout-step-request">
+          <h2 class="checkout-card__title" id="checkout-step-request">
+            <span class="checkout-card__step" aria-hidden="true">3</span>
+            요청사항 <span class="checkout-card__optional">(선택)</span>
+          </h2>
+          <label class="visually-hidden" for="requestMessage">픽업 요청사항</label>
+          <textarea class="form-control checkout-request"
+                    id="requestMessage"
+                    th:field="*{requestMessage}"
+                    rows="2"
+                    maxlength="1000"
+                    placeholder="픽업 시 특이사항 또는 요청사항 입력"></textarea>
+          <p class="form-error"
+             th:if="${#fields.hasErrors('requestMessage')}"
+             th:errors="*{requestMessage}"></p>
         </section>
       </div>
 
-      <aside class="order-summary">
-        <h2 class="section-title">결제 금액</h2>
-        <div class="data-row" data-order-total th:attr="data-original-amount=${checkout.totalAmount}">
-          <span class="data-row__label">쿠폰 할인</span>
-          <span data-coupon-discount>0원</span>
+      <!--/* 주문 요약: 주문 상품 · 금액 · 쿠폰 · 결제 버튼. 쿠폰은 금액에 바로 영향을 주므로 여기서 고른다. */-->
+      <aside class="order-summary checkout-summary" aria-labelledby="checkout-summary-title">
+        <h2 class="checkout-summary__title" id="checkout-summary-title">주문 요약</h2>
+
+        <div class="checkout-summary__product" data-order-items>
+          <strong th:text="${checkout.productName}">상품명</strong>
+          <span class="text-muted"
+                th:text="|${checkout.productTypeLabel} · ${checkout.quantity}개|">
+            일반 케이크 · 1개
+          </span>
+          <ul class="checkout-summary__options" th:if="${!checkout.selectedOptions.isEmpty()}">
+            <li th:each="option : ${checkout.selectedOptions}">
+              <span th:text="|${option.groupName}: ${option.name}|">옵션</span>
+              <span th:text="|+${#numbers.formatInteger(option.additionalPrice, 1, 'COMMA')}원|">+0원</span>
+            </li>
+          </ul>
         </div>
+
         <div class="data-row">
           <span class="data-row__label">상품 금액</span>
           <span th:text="|${#numbers.formatInteger(checkout.productAmount, 1, 'COMMA')}원|">
             0원
           </span>
         </div>
-        <div class="data-row">
+        <div class="data-row" th:if="${checkout.optionAmount.signum() > 0}">
           <span class="data-row__label">옵션 추가</span>
-          <span th:text="|${#numbers.formatInteger(checkout.optionAmount, 1, 'COMMA')}원|">
-            0원
+          <span th:text="|+${#numbers.formatInteger(checkout.optionAmount, 1, 'COMMA')}원|">
+            +0원
           </span>
         </div>
-        <div class="data-row">
-          <span class="data-row__label">예상 최종 결제 금액</span>
+
+        <div class="form-group checkout-summary__coupon">
+          <label class="form-label" for="memberCouponId">쿠폰</label>
+          <select class="form-control" id="memberCouponId" th:field="*{memberCouponId}">
+            <option value="">쿠폰을 선택하지 않음</option>
+            <option th:each="coupon : ${availableCoupons}"
+                    th:value="${coupon.memberCouponId}"
+                    th:attr="data-discount-type=${coupon.discountType},
+                             data-discount-value=${coupon.discountValue},
+                             data-maximum-discount-amount=${coupon.maximumDiscountAmount}"
+                    th:text="${coupon.name}">쿠폰명</option>
+          </select>
+        </div>
+
+        <div class="data-row" data-order-total th:attr="data-original-amount=${checkout.totalAmount}">
+          <span class="data-row__label">쿠폰 할인</span>
+          <span data-coupon-discount>0원</span>
+        </div>
+
+        <div class="checkout-summary__total">
+          <span>최종 결제 금액</span>
           <strong data-final-amount th:text="|${#numbers.formatInteger(checkout.totalAmount, 1, 'COMMA')}원|">
             0원
           </strong>
         </div>
-        <button class="btn btn--primary btn--block"
+
+        <button class="btn btn--primary btn--block checkout-summary__submit"
                 type="submit"
-                th:disabled="${checkout.pickupDates.isEmpty()}"
-                style="margin-top:12px">
+                th:disabled="${checkout.pickupDates.isEmpty()}">
           결제하기
         </button>
       </aside>

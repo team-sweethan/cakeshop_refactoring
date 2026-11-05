@@ -261,6 +261,19 @@ class CustomerPageControllerTests {
                 .contains("data-final-amount");
     }
 
+    // 주문서 스크립트는 상품 주문서(날짜 버튼 · 접는 픽업자 칸)와 장바구니 주문서(날짜 선택 상자)를 함께 다룬다
+    @Test
+    void orderCheckoutScript_supportsDateButtonsAndDateSelect() throws IOException {
+        String checkoutScript = new ClassPathResource("static/js/order-checkout.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(checkoutScript)
+                .contains("[data-pickup-date]")
+                .contains("[data-pickup-date-option]")
+                .contains("[data-pickup-contact]")
+                .contains("pickupContact.hidden = sameAsOrderer.checked && !pickupHasError");
+    }
+
     @Test
     void orderDetailShowsPaymentButtonForEveryPendingPaymentFlow() throws IOException {
         String orderDetailTemplate =

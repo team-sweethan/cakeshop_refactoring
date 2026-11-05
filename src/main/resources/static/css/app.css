@@ -3501,6 +3501,50 @@ a.product-order-actions__secondary { justify-content: center; width: 100% }
 .cart-item { transition: border-color .18s ease, box-shadow .18s ease }
 .cart-item:hover { border-color: #d9b9c3; box-shadow: var(--shadow-md) }
 .order-summary { background: #fff; border-color: var(--color-border-light); border-radius: var(--radius-md); box-shadow: var(--shadow-sm) }
+
+/* 상품 주문서: 왼쪽 번호 카드 세 장, 오른쪽 주문 요약.
+   그리드가 요약 칸을 폼 높이만큼 늘이지 않게 위쪽에 맞추고, 요약은 헤더 아래에 붙어 따라온다. */
+.checkout-layout { align-items: start }
+.checkout-steps > * + * { margin-top: 16px }
+.checkout-card { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(68, 43, 34, .05); padding: 20px 24px }
+.checkout-card__title { align-items: center; display: flex; font-size: 17px; gap: 10px; margin: 0 0 14px }
+.checkout-card__step { align-items: center; background: var(--color-brand); border-radius: 50%; color: #fff; display: inline-flex; flex: none; font-size: 13px; height: 24px; justify-content: center; width: 24px }
+.checkout-card__optional { color: var(--color-muted); font-size: var(--font-xs); font-weight: 500 }
+
+/* 픽업 날짜: 가로 날짜 버튼. 날짜가 많으면 가로로 넘긴다 */
+.checkout-dates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; scrollbar-color: #e6d5c9 transparent; scrollbar-width: thin }
+.checkout-dates__option { background: #fff; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text); cursor: pointer; flex: none; font-size: var(--font-sm); font-weight: 600; padding: 7px 14px }
+.checkout-dates__option:hover { border-color: var(--color-brand) }
+.checkout-dates__option.is-active { background: var(--color-brand); border-color: var(--color-brand); color: #fff }
+.checkout-dates__option:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px }
+
+/* 픽업 시간: 작은 버튼 6개씩 */
+.checkout-times { display: grid; gap: 8px; grid-template-columns: repeat(6, minmax(0, 1fr)) }
+.checkout-times .pickup-choice__label { font-size: var(--font-xs); min-height: 34px; padding: 6px 4px }
+
+/* 주문자 · 픽업자: 이름과 전화번호를 한 줄에 나란히 */
+.checkout-fields { display: grid; gap: 0 16px; grid-template-columns: repeat(2, minmax(0, 1fr)) }
+.checkout-same { margin-bottom: 0 }
+.checkout-pickup-contact { border-top: 1px dashed var(--color-border-light); margin-top: 12px; padding-top: 12px }
+.checkout-pickup-contact[hidden] { display: none }
+.checkout-request { min-height: 0; resize: vertical }
+
+/* 주문 요약 */
+.checkout-summary { padding: 20px; top: 96px }
+.checkout-summary__title { font-size: 17px; margin: 0 0 12px }
+.checkout-summary__product { border-bottom: 1px solid var(--color-border-light); display: grid; gap: 2px; margin-bottom: 4px; padding-bottom: 12px }
+.checkout-summary__options { color: var(--color-muted); font-size: var(--font-xs); list-style: none; margin: 6px 0 0; padding: 0 }
+.checkout-summary__options li { display: flex; gap: 8px; justify-content: space-between }
+.checkout-summary__coupon { margin: 12px 0 4px }
+.checkout-summary__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 12px }
+.checkout-summary__total strong { color: var(--color-brand); font-size: 22px }
+.checkout-summary__submit { font-size: 15px; margin-top: 14px; min-height: 48px }
+
+@media (max-width: 767px) {
+    .checkout-card { padding: 16px }
+    .checkout-fields { grid-template-columns: 1fr }
+    .checkout-times { grid-template-columns: repeat(4, minmax(0, 1fr)) }
+}
 .auth-shell { align-items: center; display: flex; min-height: calc(100vh - 230px) }
 
 .auth-card {
