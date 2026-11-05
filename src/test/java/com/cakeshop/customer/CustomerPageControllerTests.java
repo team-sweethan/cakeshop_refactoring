@@ -286,6 +286,26 @@ class CustomerPageControllerTests {
                 .isLessThan(checkoutScript.indexOf("initializeSingleSubmit();"));
     }
 
+    // 상품 주문서 전용 스타일은 공통 app.css가 아니라 주문서 CSS에 둔다(docs/frontend-template-format.md 6절)
+    @Test
+    void productCheckoutStyles_liveInOrderCheckoutCss() throws IOException {
+        String orderForm = new ClassPathResource("templates/customer/order/form.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String checkoutStyles = new ClassPathResource("static/css/order-checkout.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(orderForm).containsSubsequence(
+                "th:href=\"@{/css/app.css}\"",
+                "th:href=\"@{/css/order-checkout.css}\"");
+        assertThat(appStyles).doesNotContain(".checkout-");
+        assertThat(checkoutStyles)
+                .contains(".checkout-card {")
+                .contains(".checkout-summary {")
+                .contains("@container (max-width: 620px)");
+    }
+
     @Test
     void orderDetailShowsPaymentButtonForEveryPendingPaymentFlow() throws IOException {
         String orderDetailTemplate =
