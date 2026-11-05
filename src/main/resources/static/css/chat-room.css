@@ -2,11 +2,11 @@
    두 칸(왼쪽 내 주문, 오른쪽 채팅창)을 화면 높이에 맞춘 고정 높이로 두고, 메시지 · 주문 목록은 각자 안에서 스크롤한다.
    단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
 
-/* 다른 화면과 같은 페이지 폭(app.css의 page-container)을 쓴다. */
+/* 다른 화면과 같은 페이지 폭(app.css의 page-container)을 쓰고, 왼쪽은 마이페이지 메뉴(mypage-layout.css)다. */
 
 /* 화면 높이 - 헤더 · 제목 · 아래 여백. 화면이 아주 작아도 520px 밑으로는 줄이지 않는다.
-   왼쪽 주문 칸은 300px, 나머지는 채팅창. */
-.chat-page .chat-layout { align-items: stretch; grid-template-columns: 300px minmax(0, 1fr); height: max(520px, calc(100vh - 250px)) }
+   메뉴 오른쪽에서 내 주문 칸은 260px, 나머지는 채팅창. */
+.chat-page .chat-layout { align-items: stretch; grid-template-columns: 260px minmax(0, 1fr); height: max(520px, calc(100vh - 250px)) }
 
 /* 오른쪽 채팅창: 메시지 영역이 남은 높이를 다 쓰고, 입력창은 늘 맨 아래 */
 .chat-page .chat-room { min-height: 0 }

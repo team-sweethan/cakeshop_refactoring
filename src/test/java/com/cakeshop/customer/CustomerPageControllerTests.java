@@ -361,13 +361,13 @@ class CustomerPageControllerTests {
                 .doesNotContain("픽업 대기");
         assertThat(chatStyles)
                 .contains(".chat-page .chat-layout {")
-                .contains("grid-template-columns: 300px minmax(0, 1fr)")
+                .contains("grid-template-columns: 260px minmax(0, 1fr)")
                 .doesNotContain("max-width: 1040px")
                 .contains(".chat-page .chat-messages { flex: 1; max-height: none")
                 .contains("text-overflow: ellipsis");
     }
 
-    // 마이페이지 하위 화면(보유 쿠폰 · 작성할 후기 · 내 후기 · 회원정보 수정)도 마이페이지와 같은 왼쪽 메뉴를 쓰고,
+    // 마이페이지 하위 화면(보유 쿠폰 · 작성할 후기 · 내 후기 · 회원정보 수정 · 1:1 문의)도 마이페이지와 같은 왼쪽 메뉴를 쓰고,
     // 지금 화면 메뉴를 강조한다. "마이페이지로 돌아가기" 버튼 대신 메뉴로 오간다.
     @Test
     void mypageSubpages_shareMypageNavWithActiveItem() throws IOException {
@@ -375,7 +375,8 @@ class CustomerPageControllerTests {
                 "templates/customer/coupon/list.html", "coupons",
                 "templates/customer/review/writable.html", "writable-reviews",
                 "templates/customer/review/my.html", "reviews",
-                "templates/customer/member/profile-edit.html", "profile");
+                "templates/customer/member/profile-edit.html", "profile",
+                "templates/customer/chat/room.html", "chat");
 
         for (Map.Entry<String, String> subpage : subpages.entrySet()) {
             String template = new ClassPathResource(subpage.getKey())
