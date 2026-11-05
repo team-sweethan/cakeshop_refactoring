@@ -43,26 +43,30 @@
             <span class="checkout-card__step" aria-hidden="true">1</span>
             픽업 일시
           </h2>
-          <div class="stack" data-pickup-scheduler>
-            <!--/* 날짜는 가로 날짜 버튼으로 고른다. 날짜를 바꾸면 그 날짜의 시간 버튼만 보인다(order-checkout.js). */-->
-            <div class="checkout-dates" role="group" aria-label="픽업 날짜"
-                 th:if="${!checkout.pickupDates.isEmpty()}">
-              <button class="checkout-dates__option"
-                      type="button"
-                      th:each="pickupDate, dateStat : ${checkout.pickupDates}"
-                      th:classappend="${dateStat.first} ? ' is-active'"
-                      th:aria-pressed="${dateStat.first} ? 'true' : 'false'"
-                      th:attr="data-pickup-date-option=${pickupDate.date}"
-                      th:text="${pickupDate.label}">
-                8월 5일 (수)
-              </button>
+          <div class="stack" data-pickup-picker>
+            <!--/* 날짜는 달력, 시간은 시 → 분 버튼으로 고른다. 달력과 버튼은 order-checkout.js가 아래 픽업 시각
+                   라디오(서버가 준 실제 가능 시각)를 읽어 그리고, 고르면 그 라디오를 대신 체크한다. 보내는 값은 그대로다.
+                   스크립트가 돌지 않으면 아래 날짜별 시각 버튼이 그대로 보여 직접 고를 수 있다. */-->
+            <div class="checkout-picker" data-pickup-picker-ui hidden>
+              <div class="checkout-calendar" data-pickup-calendar></div>
+              <div class="checkout-clock">
+                <p class="checkout-clock__label" id="pickup-hour-label">시간</p>
+                <div class="checkout-clock__hours" role="group" aria-labelledby="pickup-hour-label"
+                     data-pickup-hours></div>
+                <p class="checkout-clock__label" id="pickup-minute-label">분</p>
+                <div class="checkout-clock__minutes" role="group" aria-labelledby="pickup-minute-label"
+                     data-pickup-minutes></div>
+              </div>
             </div>
+            <p class="checkout-picker__summary" data-pickup-summary aria-live="polite" hidden></p>
+            <p class="form-error" data-pickup-picker-error hidden>픽업 날짜와 시간을 선택해 주세요.</p>
 
-            <fieldset class="pickup-choice"
+            <!--/* 실제로 보내는 픽업 시각 라디오. 스크립트가 돌면 숨긴다(.checkout-picker-ready). */-->
+            <fieldset class="pickup-choice checkout-fallback-times"
                       th:each="pickupDate, dateStat : ${checkout.pickupDates}"
-                      th:attr="data-pickup-time-panel=${pickupDate.date}"
-                      th:hidden="${!dateStat.first}">
-              <legend class="visually-hidden" th:text="|${pickupDate.label} 픽업 시간|">픽업 시간</legend>
+                      th:attr="data-pickup-time-panel=${pickupDate.date},
+                               data-pickup-date-label=${pickupDate.label}">
+              <legend class="form-label" th:text="${pickupDate.label}">8월 5일 (수)</legend>
               <div class="pickup-choice__times checkout-times">
                 <span th:each="pickupTime, timeStat : ${pickupDate.times}">
                   <input class="pickup-choice__input visually-hidden"

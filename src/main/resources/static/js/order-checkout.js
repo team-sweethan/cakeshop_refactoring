@@ -1,27 +1,16 @@
 (function () {
   "use strict";
 
+  // 장바구니 · 주문 제작 주문서: 날짜 선택 상자를 바꾸면 그 날짜의 시각 버튼만 보인다.
   function initializePickupScheduler() {
     const scheduler = document.querySelector("[data-pickup-scheduler]");
     if (!scheduler) return;
 
-    // 날짜는 선택 상자(장바구니 주문서) 또는 가로 날짜 버튼(상품 주문서)으로 고른다.
     const dateSelect = scheduler.querySelector("[data-pickup-date]");
-    const dateButtons = Array.from(
-      scheduler.querySelectorAll("[data-pickup-date-option]")
-    );
     const panels = Array.from(
       scheduler.querySelectorAll("[data-pickup-time-panel]")
     );
-    if ((!dateSelect && !dateButtons.length) || !panels.length) return;
-
-    function markDateButtons(date) {
-      dateButtons.forEach(function (button) {
-        const active = button.dataset.pickupDateOption === date;
-        button.classList.toggle("is-active", active);
-        button.setAttribute("aria-pressed", active ? "true" : "false");
-      });
-    }
+    if (!dateSelect || !panels.length) return;
 
     function showDate(date, clearSelectedTime) {
       panels.forEach(function (panel) {
@@ -44,29 +33,227 @@
     }
 
     const selectedTime = scheduler.querySelector("[name='pickupAt']:checked");
-    const firstDate = dateSelect
-      ? dateSelect.value
-      : dateButtons[0].dataset.pickupDateOption;
     const initialDate = selectedTime
       ? selectedTime.value.substring(0, 10)
-      : firstDate;
-    if (dateSelect) dateSelect.value = initialDate;
-    markDateButtons(initialDate);
+      : dateSelect.value;
+    dateSelect.value = initialDate;
     showDate(initialDate, false);
+    dateSelect.addEventListener("change", function () {
+      showDate(dateSelect.value, true);
+    });
+  }
 
-    if (dateSelect) {
-      dateSelect.addEventListener("change", function () {
-        showDate(dateSelect.value, true);
+  // 상품 주문서: 날짜는 달력, 시간은 시 → 분 버튼으로 고른다.
+  // 서버가 그린 픽업 시각 라디오(data-pickup-time-panel 안의 name=pickupAt)가 가능한 시각의 전부이자 실제로 보내는 값이다.
+  // 이 함수는 그 라디오를 읽어 달력과 버튼을 그리고, 고르면 해당 라디오를 체크한다.
+  function initializePickupPicker() {
+    const picker = document.querySelector("[data-pickup-picker]");
+    if (!picker) return;
+
+    const ui = picker.querySelector("[data-pickup-picker-ui]");
+    const calendar = picker.querySelector("[data-pickup-calendar]");
+    const hoursBox = picker.querySelector("[data-pickup-hours]");
+    const minutesBox = picker.querySelector("[data-pickup-minutes]");
+    const summary = picker.querySelector("[data-pickup-summary]");
+    const error = picker.querySelector("[data-pickup-picker-error]");
+    const panels = Array.from(picker.querySelectorAll("[data-pickup-time-panel]"));
+    if (!ui || !calendar || !hoursBox || !minutesBox || !panels.length) return;
+
+    // 날짜(yyyy-MM-dd) → { label, slots: [{ hour, minute, input }] }
+    const dates = new Map();
+    panels.forEach(function (panel) {
+      const slots = Array.from(panel.querySelectorAll("[name='pickupAt']")).map(function (input) {
+        // 값은 2026-11-05T14:30 모양이다.
+        return { hour: input.value.substring(11, 13), minute: input.value.substring(14, 16), input: input };
+      });
+      if (slots.length) {
+        dates.set(panel.dataset.pickupTimePanel, { label: panel.dataset.pickupDateLabel, slots: slots });
+      }
+    });
+    if (!dates.size) return;
+
+    const dateKeys = Array.from(dates.keys()).sort();
+    // 시 버튼은 모든 날짜의 시를 합쳐 고정해 두고, 고른 날짜에 없는 시는 흐리게 막는다.
+    const allHours = Array.from(new Set(
+      Array.from(dates.values()).flatMap(function (day) {
+        return day.slots.map(function (slot) { return slot.hour; });
+      })
+    )).sort();
+    const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+    const checked = picker.querySelector("[name='pickupAt']:checked");
+    let selectedDate = checked ? checked.value.substring(0, 10) : dateKeys[0];
+    let selectedHour = checked ? checked.value.substring(11, 13) : null;
+    let selectedMinute = checked ? checked.value.substring(14, 16) : null;
+    let viewMonth = selectedDate.substring(0, 7);
+
+    function pad(value) { return String(value).padStart(2, "0"); }
+    function monthOf(key) { return key.substring(0, 7); }
+    function shiftMonth(month, delta) {
+      const year = Number(month.substring(0, 4));
+      const index = Number(month.substring(5, 7)) - 1 + delta;
+      const date = new Date(year, index, 1);
+      return date.getFullYear() + "-" + pad(date.getMonth() + 1);
+    }
+    function button(className, text) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = className;
+      element.textContent = text;
+      return element;
+    }
+
+    function slotsOf(date) { return dates.get(date) ? dates.get(date).slots : []; }
+
+    function selectedSlot() {
+      if (!selectedHour || !selectedMinute) return null;
+      return slotsOf(selectedDate).find(function (slot) {
+        return slot.hour === selectedHour && slot.minute === selectedMinute;
+      }) || null;
+    }
+
+    function syncRadio() {
+      picker.querySelectorAll("[name='pickupAt']").forEach(function (input) { input.checked = false; });
+      const slot = selectedSlot();
+      if (slot) slot.input.checked = true;
+      if (summary) {
+        summary.hidden = !slot;
+        summary.textContent = slot
+          ? "선택한 픽업 일시: " + dates.get(selectedDate).label + " " + slot.hour + ":" + slot.minute
+          : "";
+      }
+      if (slot && error) error.hidden = true;
+    }
+
+    function renderCalendar() {
+      calendar.replaceChildren();
+      const head = document.createElement("div");
+      head.className = "checkout-calendar__head";
+      const title = document.createElement("strong");
+      title.textContent = viewMonth.substring(0, 4) + "년 " + Number(viewMonth.substring(5, 7)) + "월";
+      const previous = button("checkout-calendar__nav", "‹");
+      const next = button("checkout-calendar__nav", "›");
+      previous.setAttribute("aria-label", "이전 달");
+      next.setAttribute("aria-label", "다음 달");
+      previous.disabled = viewMonth <= monthOf(dateKeys[0]);
+      next.disabled = viewMonth >= monthOf(dateKeys[dateKeys.length - 1]);
+      previous.addEventListener("click", function () { viewMonth = shiftMonth(viewMonth, -1); renderCalendar(); });
+      next.addEventListener("click", function () { viewMonth = shiftMonth(viewMonth, 1); renderCalendar(); });
+      head.append(title, previous, next);
+
+      const grid = document.createElement("div");
+      grid.className = "checkout-calendar__grid";
+      grid.setAttribute("role", "group");
+      grid.setAttribute("aria-label", title.textContent + " 픽업 날짜");
+      WEEKDAYS.forEach(function (weekday) {
+        const cell = document.createElement("span");
+        cell.className = "checkout-calendar__weekday";
+        cell.textContent = weekday;
+        cell.setAttribute("aria-hidden", "true");
+        grid.append(cell);
+      });
+
+      const year = Number(viewMonth.substring(0, 4));
+      const month = Number(viewMonth.substring(5, 7));
+      const leading = new Date(year, month - 1, 1).getDay();
+      const lastDay = new Date(year, month, 0).getDate();
+      for (let i = 0; i < leading; i++) {
+        grid.append(document.createElement("span"));
+      }
+      for (let day = 1; day <= lastDay; day++) {
+        const key = viewMonth + "-" + pad(day);
+        const available = dates.has(key);
+        if (!available) {
+          const cell = document.createElement("span");
+          cell.className = "checkout-calendar__day is-unavailable";
+          cell.textContent = String(day);
+          cell.setAttribute("aria-hidden", "true");
+          grid.append(cell);
+          continue;
+        }
+        const dayButton = button("checkout-calendar__day", String(day));
+        const active = key === selectedDate;
+        dayButton.classList.toggle("is-active", active);
+        dayButton.setAttribute("aria-pressed", String(active));
+        dayButton.setAttribute("aria-label", dates.get(key).label);
+        dayButton.addEventListener("click", function () {
+          if (key === selectedDate) return;
+          selectedDate = key;
+          // 날짜가 바뀌면 같은 시 · 분이 그날에도 있을 때만 유지한다.
+          if (!selectedSlot()) { selectedHour = null; selectedMinute = null; }
+          renderAll();
+        });
+        grid.append(dayButton);
+      }
+      calendar.append(head, grid);
+    }
+
+    function renderHours() {
+      hoursBox.replaceChildren();
+      const available = new Set(slotsOf(selectedDate).map(function (slot) { return slot.hour; }));
+      allHours.forEach(function (hour) {
+        const hourButton = button("checkout-clock__option", String(Number(hour)) + "시");
+        const active = hour === selectedHour;
+        hourButton.disabled = !available.has(hour);
+        hourButton.classList.toggle("is-active", active);
+        hourButton.setAttribute("aria-pressed", String(active));
+        hourButton.addEventListener("click", function () {
+          selectedHour = hour;
+          const minutes = slotsOf(selectedDate).filter(function (slot) { return slot.hour === hour; });
+          // 그 시에 고를 분이 하나뿐이면 바로 고르고, 아니면 분을 직접 고르게 비워 둔다.
+          selectedMinute = minutes.length === 1 ? minutes[0].minute : null;
+          renderAll();
+        });
+        hoursBox.append(hourButton);
       });
     }
-    dateButtons.forEach(function (button) {
-      button.addEventListener("click", function () {
-        if (button.getAttribute("aria-pressed") === "true") return;
-        const date = button.dataset.pickupDateOption;
-        markDateButtons(date);
-        showDate(date, true);
+
+    function renderMinutes() {
+      minutesBox.replaceChildren();
+      if (!selectedHour) {
+        const hint = document.createElement("span");
+        hint.className = "checkout-clock__hint";
+        hint.textContent = "시를 먼저 고르세요.";
+        minutesBox.append(hint);
+        return;
+      }
+      slotsOf(selectedDate)
+        .filter(function (slot) { return slot.hour === selectedHour; })
+        .forEach(function (slot) {
+          const minuteButton = button("checkout-clock__option", slot.minute + "분");
+          const active = slot.minute === selectedMinute;
+          minuteButton.classList.toggle("is-active", active);
+          minuteButton.setAttribute("aria-pressed", String(active));
+          minuteButton.addEventListener("click", function () {
+            selectedMinute = slot.minute;
+            renderAll();
+          });
+          minutesBox.append(minuteButton);
+        });
+    }
+
+    function renderAll() {
+      renderCalendar();
+      renderHours();
+      renderMinutes();
+      syncRadio();
+    }
+
+    // 고르지 않고 제출하면 막고 안내한다. 숨긴 라디오의 브라우저 기본 안내는 위치가 어색해 쓰지 않는다.
+    picker.querySelectorAll("[name='pickupAt']").forEach(function (input) { input.required = false; });
+    const form = picker.closest("form");
+    if (form) {
+      form.addEventListener("submit", function (event) {
+        if (selectedSlot()) return;
+        event.preventDefault();
+        if (error) error.hidden = false;
+        picker.scrollIntoView({ block: "center", behavior: "smooth" });
       });
-    });
+    }
+
+    picker.classList.add("checkout-picker-ready");
+    ui.hidden = false;
+    renderAll();
   }
 
   function initializeOrdererContact() {
@@ -115,7 +302,9 @@
     );
     if (!form) return;
 
-    form.addEventListener("submit", function () {
+    form.addEventListener("submit", function (event) {
+      // 픽업 일시를 고르지 않아 앞에서 막힌 제출이면 버튼을 잠그지 않는다.
+      if (event.defaultPrevented) return;
       if (form.dataset.submitting === "true") return;
       form.dataset.submitting = "true";
       const submitButton = form.querySelector("button[type='submit']");
@@ -166,6 +355,8 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     initializePickupScheduler();
+    // 픽업 일시 제출 검사를 한 번만 제출 처리보다 먼저 등록한다.
+    initializePickupPicker();
     initializeOrdererContact();
     initializeSingleSubmit();
     initializeCouponAmountDisplay();
