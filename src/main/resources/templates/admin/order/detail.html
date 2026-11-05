@@ -6,6 +6,7 @@
   <title>주문 상세 | 관리자</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <link rel="stylesheet" th:href="@{/css/admin-order.css}">
+  <script defer th:src="@{/js/order-live-status.js}"></script>
 </head>
 <body>
 <div class="admin-layout">
@@ -18,6 +19,7 @@
     <!--/* 맨 위 요약(주문번호 · 상태 · 픽업 · 주문자 · 금액 · 바로 할 일), 그 아래 정보 카드 3개(주문자·픽업 · 주문 상품 · 결제 금액).
            결제 확인 중이면 노란 안내 상자, 관리자 취소는 맨 아래에 접어 둔다. */-->
     <main class="admin-content admin-order admin-order-detail"
+          data-live-orders="admin" th:attr="data-live-order-id=${order.orderId}"
           th:with="s=${order.status.name()}, closed=${s == 'CANCELED' or s == 'REJECTED' or s == 'EXPIRED'},
                    hasCustomRequest=${order.orderType.name() == 'CUSTOM'},
                    fromFulfillment=${param.from != null and param.from[0] == 'fulfillment'},
@@ -31,6 +33,8 @@
          th:href="@{/admin/fulfillment}">&lt; 주문 처리</a>
       <a class="admin-order-back" th:unless="${fromFulfillment}" th:href="@{/admin/orders}">&lt; 전체 주문</a>
 
+      <!--/* 요약부터 접힌 취소까지는 돈워리 판정으로 이 주문 상태가 바뀌면 자동으로 다시 그린다(order-live-status.js) */-->
+      <div id="admin-order-live" class="admin-order-detail" data-live-region>
       <section class="admin-order-summary" aria-labelledby="admin-order-number">
         <div class="admin-order-summary__main">
           <div class="admin-order-summary__head">
@@ -197,6 +201,7 @@
                   data-confirm="주문과 결제를 취소하시겠습니까?">주문·결제 취소</button>
         </form>
       </details>
+      </div>
     </main>
   </div>
 </div>

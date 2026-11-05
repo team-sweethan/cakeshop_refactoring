@@ -4,7 +4,10 @@
   // 관리자 전체 주문(/admin/orders)의 상태 탭. 서버가 준 목록을 화면에서만 나눠 보인다.
   // 각 행의 data-order-status-group(템플릿이 정함: 주문 상태 이름, 취소 · 반려 · 만료는 CLOSED)으로 거른다.
   // 스크립트가 없으면 전체 목록이 그대로 보인다.
-  document.addEventListener("DOMContentLoaded", function () {
+  // 주문 상태 자동 반영(order-live-status.js)으로 표가 바뀌면 다시 묶고, 고르던 탭을 유지한다.
+  let currentFilter = "all";
+
+  function init() {
     const tabsRoot = document.querySelector("[data-admin-order-tabs]");
     if (!tabsRoot) return;
 
@@ -24,6 +27,7 @@
     });
 
     function apply(filter) {
+      currentFilter = filter;
       let visible = 0;
       rows.forEach(function (row) {
         const show = matches(row, filter);
@@ -43,5 +47,10 @@
         apply(tab.dataset.orderFilter);
       });
     });
-  });
+
+    if (currentFilter !== "all") apply(currentFilter);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("cakeshop:live-updated", init);
 })();

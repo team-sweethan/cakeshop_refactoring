@@ -5,7 +5,10 @@
   //   all: 전체, active: 진행 중(결제 대기 · 주문 확인 중 · 제작 중 · 픽업 준비),
   //   done: 완료(픽업 완료), closed: 취소 · 반려 · 만료
   // 묶음은 각 카드의 data-order-group(템플릿에서 정함)을 따른다. 스크립트가 없으면 전체 목록이 그대로 보인다.
-  document.addEventListener("DOMContentLoaded", function () {
+  // 주문 상태 자동 반영(order-live-status.js)으로 목록이 바뀌면 다시 묶고, 고르던 탭을 유지한다.
+  let currentFilter = "all";
+
+  function init() {
     const list = document.querySelector("[data-order-list]");
     if (!list) return;
 
@@ -26,6 +29,7 @@
     });
 
     function apply(filter) {
+      currentFilter = filter;
       let visible = 0;
       rows.forEach(function (row) {
         const show = filter === "all" || row.dataset.orderGroup === filter;
@@ -45,5 +49,10 @@
         apply(tab.dataset.orderFilter);
       });
     });
-  });
+
+    if (currentFilter !== "all") apply(currentFilter);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("cakeshop:live-updated", init);
 })();
