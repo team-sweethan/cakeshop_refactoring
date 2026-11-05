@@ -736,7 +736,10 @@ class ScreenRenderingTests {
             .andExpect(status().isOk())
             .andExpect(content().string(containsString("주문 처리")))
             .andExpect(content().string(containsString("검토 대기")))
-            .andExpect(content().string(containsString("모든 단계의 주문을 기간 제한 없이 확인합니다.")))
+            .andExpect(content().string(containsString("처리할 주문")))
+            .andExpect(content().string(containsString("픽업 완료 주문은 픽업 완료 탭에서 확인합니다.")))
+            .andExpect(content().string(containsString("픽업 임박순")))
+            .andExpect(content().string(containsString("최근 주문순")))
             .andExpect(content().string(not(containsString("name=\"pickupDate\""))))
             .andExpect(content().string(containsString(
                 pickupAt.format(java.time.format.DateTimeFormatter.ofPattern("MM.dd HH:mm"))

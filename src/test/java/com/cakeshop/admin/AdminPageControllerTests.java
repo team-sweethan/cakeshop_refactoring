@@ -297,13 +297,40 @@ class AdminPageControllerTests {
                 .contains("name=\"returnTo\" value=\"detail\"")
                 .contains("th:action=\"@{/admin/fulfillment/{id}/pickup(id=${f.orderId})}\"")
                 .contains("&lt; 주문 처리")
+                .contains("th:href=\"${donWorryOwnerCasesUrl}\"")
                 .doesNotContain("쿠폰 적용");
         assertThat(fulfillment)
                 .contains("class=\"admin-order-alert\"")
                 .contains("class=\"fulfillment-info\"")
                 .contains("class=\"admin-order-request\"")
                 .contains("주문 상세 보기")
-                .doesNotContain("전체 주문 보기");
+                .doesNotContain("전체 주문 보기")
+                // 탭 건수는 이름으로 꺼낸다. T(OrderStatus) 같은 클래스 참조는 로컬 개발 서버(devtools 재시작)에서
+                // 다른 클래스로 잡혀 화면이 500이 난다(2026-11-05 확인).
+                .contains("fulfillment.countOfStatus('UNDER_REVIEW')")
+                // 결제 확인 중 안내의 돈워리 오너 화면 링크(설정이 있을 때만, 새 탭)
+                .contains("th:if=\"${donWorryOwnerCasesUrl != null}\"")
+                .contains("rel=\"noopener noreferrer\"")
+                .doesNotContain("T(com.");
         assertThat(appStyles).doesNotContain(".admin-order-");
+    }
+
+    // 관리자 상단은 계정 메뉴 하나로 모은다: 이메일은 펼쳤을 때만, 쇼핑몰 보기는 새 탭, 로그아웃은 POST 폼.
+    // 알림 스크립트가 쓰는 계정 표시(data-account-identity)는 메뉴 안에 그대로 둔다.
+    @Test
+    void adminHeader_groupsAccountActionsIntoOneMenu() throws java.io.IOException {
+        String header = new ClassPathResource("templates/fragments/admin/header.html")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThat(header)
+                .contains("<details class=\"admin-account\" data-admin-account-menu>")
+                .containsSubsequence(
+                        "class=\"admin-account__email\" data-account-identity",
+                        ">쇼핑몰 보기 ↗</a>",
+                        "th:action=\"@{/logout}\" method=\"post\"",
+                        ">로그아웃</button>")
+                .contains("target=\"_blank\" rel=\"noopener noreferrer\"")
+                .contains("th:src=\"@{/js/admin-header.js}\"")
+                .doesNotContain(">고객 화면</a>");
     }
 }

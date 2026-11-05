@@ -82,12 +82,19 @@ public interface OrderMapper {
             @Param("orderIds") java.util.Collection<Long> orderIds
     );
 
-    /** 작업 단계에 맞는 제작·픽업 대상 주문 수를 조회한다. */
+    /** 작업 단계에 맞는 제작·픽업 대상 주문 수를 조회한다. status가 null이면 처리할 주문(검토 · 제작 · 픽업 대기)이다. */
     long countFulfillmentOrders(@Param("status") OrderStatus status);
 
-    /** 제작·픽업 대상 주문을 작업 단계와 픽업 시각 순서로 페이지 조회한다. */
+    /** 주문 처리 탭에 보일 작업 단계별 주문 수를 조회한다. */
+    List<com.cakeshop.domain.order.dto.view.admin.FulfillmentStatusCount> countFulfillmentOrdersByStatus();
+
+    /**
+     * 제작·픽업 대상 주문을 정렬 기준대로 페이지 조회한다.
+     * PICKUP_SOON: 작업 단계 → 픽업 시각, RECENT_ORDER: 주문 시각 최신, RECENT_PICKED_UP: 픽업 완료 시각 최신
+     */
     List<Order> findFulfillmentOrders(
             @Param("status") OrderStatus status,
+            @Param("sort") com.cakeshop.domain.order.dto.form.admin.FulfillmentSort sort,
             @Param("size") int size,
             @Param("offset") int offset
     );

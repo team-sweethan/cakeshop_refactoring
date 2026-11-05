@@ -12,7 +12,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cakeshop.domain.order.dto.form.admin.FulfillmentSearchCondition;
+import com.cakeshop.domain.order.dto.form.admin.FulfillmentSort;
 import com.cakeshop.domain.order.dto.view.admin.FulfillmentListView;
+import com.cakeshop.domain.order.dto.view.admin.FulfillmentStatusCount;
 import com.cakeshop.domain.order.entity.Order;
 import com.cakeshop.domain.order.entity.OrderItem;
 import com.cakeshop.domain.order.entity.OrderItemOption;
@@ -87,7 +89,7 @@ class FulfillmentServiceTests {
         order.setRequestMessage("초는 하늘색으로");
         item.setRequirements("생일 축하해");
         when(orderMapper.countFulfillmentOrders(null)).thenReturn(1L);
-        when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
+        when(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 20, 0)).thenReturn(List.of(order));
         when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of(item));
         when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of(option));
 
@@ -123,7 +125,7 @@ class FulfillmentServiceTests {
         Order order = order(OrderStatus.READY_FOR_PICKUP);
         order.setPickupAt(NOW.plusHours(1));
         when(orderMapper.countFulfillmentOrders(null)).thenReturn(1L);
-        when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
+        when(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 20, 0)).thenReturn(List.of(order));
         when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
         when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
 
@@ -137,7 +139,7 @@ class FulfillmentServiceTests {
     void getFulfillments_requestedCancellation_doesNotExposeCompletionAction() {
         Order order = order(OrderStatus.READY_FOR_PICKUP);
         when(orderMapper.countFulfillmentOrders(null)).thenReturn(1L);
-        when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
+        when(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 20, 0)).thenReturn(List.of(order));
         when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
         when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
         when(orderMapper.hasRequestedRefundCancellation(10L)).thenReturn(true);
@@ -211,7 +213,7 @@ class FulfillmentServiceTests {
     void getFulfillments_heldGeneralOrder_exposesReviewBadgeAndReadyAction() {
         Order order = order(OrderStatus.UNDER_REVIEW);
         when(orderMapper.countFulfillmentOrders(null)).thenReturn(1L);
-        when(orderMapper.findFulfillmentOrders(null, 20, 0)).thenReturn(List.of(order));
+        when(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 20, 0)).thenReturn(List.of(order));
         when(orderMapper.findOrderItemsByOrderId(10L)).thenReturn(List.of());
         when(orderMapper.findOrderItemOptionsByOrderId(10L)).thenReturn(List.of());
         when(paymentOrderQueryService.isUnderGatewayReview(10L)).thenReturn(true);
@@ -236,6 +238,37 @@ class FulfillmentServiceTests {
         int page = fulfillmentService.getFulfillmentPage(10L, OrderStatus.READY_FOR_PICKUP);
 
         assertThat(page).isEqualTo(2);
+    }
+
+    // 처리할 주문은 픽업 임박순이 기본이고 최근 주문순을 고를 수 있다. 픽업 완료에 픽업 임박순을 요청하면 최근 완료순으로 바꾼다.
+    // 탭 건수는 단계별 주문 수로 채운다.
+    @Test
+    void getFulfillments_sortAndStatusCounts_resolveByStage() {
+        when(orderMapper.countFulfillmentOrders(null)).thenReturn(0L);
+        when(orderMapper.countFulfillmentOrders(OrderStatus.PICKED_UP)).thenReturn(0L);
+        when(orderMapper.countFulfillmentOrdersByStatus()).thenReturn(List.of(
+                new FulfillmentStatusCount(OrderStatus.UNDER_REVIEW, 1L),
+                new FulfillmentStatusCount(OrderStatus.READY_FOR_PICKUP, 3L),
+                new FulfillmentStatusCount(OrderStatus.PICKED_UP, 40L)
+        ));
+
+        FulfillmentSearchCondition recent = new FulfillmentSearchCondition();
+        recent.setSort(FulfillmentSort.RECENT_ORDER);
+        FulfillmentListView active = fulfillmentService.getFulfillments(recent, new PageRequest(null, null));
+
+        assertThat(active.selectedSort()).isEqualTo(FulfillmentSort.RECENT_ORDER);
+        assertThat(active.activeCount()).isEqualTo(4L);
+        assertThat(active.countOf(OrderStatus.IN_PRODUCTION)).isZero();
+        assertThat(active.countOf(OrderStatus.PICKED_UP)).isEqualTo(40L);
+
+        FulfillmentSearchCondition pickedUp = new FulfillmentSearchCondition();
+        pickedUp.setStatus(OrderStatus.PICKED_UP);
+        pickedUp.setSort(FulfillmentSort.PICKUP_SOON);
+        FulfillmentListView done = fulfillmentService.getFulfillments(pickedUp, new PageRequest(null, null));
+
+        assertThat(done.selectedSort()).isEqualTo(FulfillmentSort.RECENT_PICKED_UP);
+        assertThat(done.sortOptions())
+                .containsExactly(FulfillmentSort.RECENT_PICKED_UP, FulfillmentSort.RECENT_ORDER);
     }
 
     // 주문 상세에 처리 버튼을 보이기 위한 주문 하나의 처리 정보: 목록과 같은 규칙으로 계산한다.

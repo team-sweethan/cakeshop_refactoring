@@ -1,5 +1,7 @@
 package com.cakeshop.domain.order.mapper;
 
+import com.cakeshop.domain.order.dto.form.admin.FulfillmentSort;
+import com.cakeshop.domain.order.dto.view.admin.FulfillmentStatusCount;
 import com.cakeshop.domain.order.entity.Order;
 import com.cakeshop.domain.order.entity.OrderItem;
 import com.cakeshop.domain.order.entity.OrderItemImage;
@@ -146,20 +148,30 @@ class OrderMapperTests {
         futureInProduction.setPickupAt(LocalDateTime.of(2026, 8, 12, 11, 0));
         orderMapper.insertOrder(futureInProduction);
 
-        assertThat(orderMapper.countFulfillmentOrders(null)).isEqualTo(5L);
-        assertThat(orderMapper.findFulfillmentOrders(null, 2, 0))
+        // 단계를 고르지 않으면 처리할 주문(검토 · 제작 · 픽업 대기)만: 픽업 완료는 빠진다
+        assertThat(orderMapper.countFulfillmentOrders(null)).isEqualTo(4L);
+        assertThat(orderMapper.countFulfillmentOrders(OrderStatus.PICKED_UP)).isEqualTo(1L);
+        assertThat(orderMapper.countFulfillmentOrdersByStatus())
+                .extracting(FulfillmentStatusCount::status, FulfillmentStatusCount::count)
+                .contains(
+                        org.assertj.core.groups.Tuple.tuple(OrderStatus.UNDER_REVIEW, 1L),
+                        org.assertj.core.groups.Tuple.tuple(OrderStatus.IN_PRODUCTION, 1L),
+                        org.assertj.core.groups.Tuple.tuple(OrderStatus.READY_FOR_PICKUP, 2L),
+                        org.assertj.core.groups.Tuple.tuple(OrderStatus.PICKED_UP, 1L)
+                );
+        assertThat(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 2, 0))
                 .extracting(Order::getId)
                 .containsExactly(
                         futureUnderReview.getId(),
                         futureInProduction.getId()
                 );
-        assertThat(orderMapper.findFulfillmentOrders(null, 2, 2))
+        assertThat(orderMapper.findFulfillmentOrders(null, FulfillmentSort.PICKUP_SOON, 2, 2))
                 .extracting(Order::getId)
                 .containsExactly(
                         laterReady.getId(),
                         anotherDate.getId()
                 );
-        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.READY_FOR_PICKUP, 20, 0))
+        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.READY_FOR_PICKUP, FulfillmentSort.PICKUP_SOON, 20, 0))
                 .extracting(Order::getId)
                 .containsExactly(laterReady.getId(), anotherDate.getId());
         assertThat(orderMapper.findFulfillmentPage(
@@ -167,12 +179,24 @@ class OrderMapperTests {
                 OrderStatus.READY_FOR_PICKUP,
                 1
         )).isEqualTo(2);
-        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.UNDER_REVIEW, 20, 0))
+        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.UNDER_REVIEW, FulfillmentSort.PICKUP_SOON, 20, 0))
                 .extracting(Order::getId)
                 .containsExactly(futureUnderReview.getId());
-        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.IN_PRODUCTION, 20, 0))
+        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.IN_PRODUCTION, FulfillmentSort.PICKUP_SOON, 20, 0))
                 .extracting(Order::getId)
                 .containsExactly(futureInProduction.getId());
+        // 최근 주문순: 나중에 들어온 주문이 위(주문 시각 → 번호 역순)
+        assertThat(orderMapper.findFulfillmentOrders(null, FulfillmentSort.RECENT_ORDER, 20, 0))
+                .extracting(Order::getId)
+                .containsExactly(
+                        futureInProduction.getId(),
+                        futureUnderReview.getId(),
+                        anotherDate.getId(),
+                        laterReady.getId()
+                );
+        assertThat(orderMapper.findFulfillmentOrders(OrderStatus.PICKED_UP, FulfillmentSort.RECENT_PICKED_UP, 20, 0))
+                .extracting(Order::getId)
+                .containsExactly(earlierPickedUp.getId());
     }
 
     @Test

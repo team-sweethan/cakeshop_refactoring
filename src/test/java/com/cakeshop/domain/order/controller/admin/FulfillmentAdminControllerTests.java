@@ -187,6 +187,18 @@ class FulfillmentAdminControllerTests {
         verify(refundFacade).rejectCustomOrder(7L, 10L, "제작 일정이 부족합니다.");
     }
 
+    // 처리 뒤 목록으로 돌아갈 때 고른 정렬을 유지한다.
+    @Test
+    void markPickedUp_keepsSelectedSortOnRedirect() throws Exception {
+        authenticateAdmin();
+
+        mockMvc.perform(post("/admin/fulfillment/10/pickup")
+                        .param("status", "READY_FOR_PICKUP")
+                        .param("sort", "RECENT_ORDER"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/fulfillment?status=READY_FOR_PICKUP&sort=RECENT_ORDER"));
+    }
+
     // 주문 상세에서 누른 처리 버튼은 처리 뒤 그 주문 상세로 돌아간다. 주문 처리에서 들어온 상세면 돌아가기 정보도 유지한다.
     @Test
     void markPickedUp_fromDetail_redirectsBackToOrderDetail() throws Exception {

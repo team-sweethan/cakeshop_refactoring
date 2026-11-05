@@ -3,12 +3,21 @@
   <meta name="_csrf" th:content="${_csrf?.token}"/>
   <meta name="_csrf_header" th:content="${_csrf?.headerName}"/>
   <strong class="admin-header__title" th:text="${title}">관리자 화면</strong>
-  <div class="cluster">
-    <a class="btn" th:href="@{/}">고객 화면</a>
-    <span class="note" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}" sec:authentication="name">관리자</span>
-    <form th:action="@{/logout}" method="post">
-      <button class="btn" type="submit">로그아웃</button>
-    </form>
-  </div>
+  <!--/* 계정 메뉴: 계정 이메일 · 쇼핑몰 보기 · 로그아웃을 하나로 모은다. 이메일은 펼쳤을 때만 보인다(화면 공유 때 노출 줄이기).
+         쇼핑몰 보기는 관리자 화면을 떠나지 않게 새 탭으로 연다. 바깥을 누르거나 Esc를 누르면 닫힌다(admin-header.js). */-->
+  <details class="admin-account" data-admin-account-menu>
+    <summary class="admin-account__toggle" aria-label="계정 메뉴">
+      <span class="admin-account__name">관리자</span>
+      <span class="admin-account__caret" aria-hidden="true">▾</span>
+    </summary>
+    <div class="admin-account__panel">
+      <p class="admin-account__email" data-account-identity th:data-member-id="${#authentication?.principal != null and #authentication.principal.toString().contains('MemberDetails') ? #authentication.principal.memberId : null}" sec:authentication="name">관리자</p>
+      <a class="admin-account__item" th:href="@{/}" target="_blank" rel="noopener noreferrer">쇼핑몰 보기 ↗</a>
+      <form th:action="@{/logout}" method="post">
+        <button class="admin-account__item" type="submit">로그아웃</button>
+      </form>
+    </div>
+  </details>
   <script defer th:src="@{/js/admin-mockup.js}"></script>
+  <script defer th:src="@{/js/admin-header.js}"></script>
 </header>
