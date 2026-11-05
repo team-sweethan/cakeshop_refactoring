@@ -306,6 +306,36 @@ class CustomerPageControllerTests {
                 .contains("@container (max-width: 620px)");
     }
 
+    // 결제 수단은 결제 화면에서 바로 고르고(돈워리 추천), 결제하기를 누르면 고른 결제사로 바로 진행한다.
+    // 고른 결제사를 저장하는 요청(CSRF 폼)과 돈워리 결제창 모달은 그대로 쓴다. 결제 화면 전용 스타일은 별도 파일이다.
+    @Test
+    void paymentPage_choosesGatewayOnPageAndShowsRemainingTime() throws IOException {
+        String paymentForm = new ClassPathResource("templates/customer/payment/form.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String paymentScript = new ClassPathResource("static/js/payment.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(paymentForm)
+                .contains("th:href=\"@{/css/payment-checkout.css}\"")
+                .contains("name=\"paymentGateway\"")
+                .contains("value=\"donworry\"")
+                .contains("value=\"toss\"")
+                .contains("class=\"payment-method__badge\"")
+                .contains("id=\"choose-donworry-form\"")
+                .contains("id=\"choose-toss-form\"")
+                .contains("data-payment-timer")
+                .contains("id=\"payment-modal\"")
+                .contains("id=\"donworry-frame\"")
+                .doesNotContain("pg-choice");
+        assertThat(paymentScript)
+                .contains("[data-payment-gateway]:checked")
+                .contains("payWithDonWorry()")
+                .contains("payWithToss()")
+                .contains("event.origin !== checkoutOrigin")
+                .contains("target.origin !== location.origin")
+                .contains("timer.dataset.expiresAt + \"+09:00\"");
+    }
+
     @Test
     void orderDetailShowsPaymentButtonForEveryPendingPaymentFlow() throws IOException {
         String orderDetailTemplate =
