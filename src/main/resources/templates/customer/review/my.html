@@ -5,26 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>내 후기 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/mypage-layout.css}">
   <link rel="stylesheet" th:href="@{/css/review.css}">
   <script defer th:src="@{/js/app.js}"></script>
 </head>
 <body data-page-title="내 후기">
   <header th:replace="~{fragments/common/header :: header}"></header>
 
+  <!--/* 마이페이지 하위 화면: 왼쪽에 마이페이지 메뉴(공용 조각, "작성할 후기"도 여기 있다), 오른쪽에 내가 쓴 후기 */-->
   <main class="page-container">
-    <div class="page-heading cluster cluster--between">
-      <h1>내 후기</h1>
-      <a class="btn" th:href="@{/mypage}">마이페이지로 돌아가기</a>
-    </div>
-
-    <div class="cluster section">
-      <a class="btn" th:href="@{/mypage/reviews/writable}">작성할 후기</a>
-    </div>
+    <h1 class="visually-hidden">내 후기</h1>
+    <div class="layout-sidebar mypage-layout">
+      <nav th:replace="~{fragments/customer/mypage-nav :: mypageNav('reviews')}"></nav>
+      <div class="mypage-content">
 
     <section class="section">
-      <p class="text-muted" th:if="${reviews.content.isEmpty()}">
-        작성한 후기가 없습니다.
-      </p>
+      <div class="mypage-empty" th:if="${reviews.content.isEmpty()}">
+        <p class="mypage-empty__title">작성한 후기가 없습니다.</p>
+        <p class="mypage-empty__desc">픽업을 마친 주문 상품에 후기를 남겨 보세요.</p>
+        <a class="btn" th:href="@{/mypage/reviews/writable}">작성할 후기 보기</a>
+      </div>
 
       <div class="stack" th:unless="${reviews.content.isEmpty()}">
         <div class="panel stack review-row"
@@ -103,6 +103,8 @@
         다음
       </span>
     </nav>
+      </div>
+    </div>
   </main>
 
   <footer th:replace="~{fragments/common/footer :: footer(${store})}"></footer>

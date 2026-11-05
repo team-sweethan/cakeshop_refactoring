@@ -1,10 +1,11 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>마이페이지 | 스윗한 케이크</title>
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/mypage-layout.css}">
   <link rel="stylesheet" th:href="@{/css/member-mypage.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/customer-mockup.js}"></script>
@@ -12,29 +13,14 @@
 <body data-page-title="마이페이지">
 <header th:replace="~{fragments/common/header :: header}"></header>
 <main class="page-container">
-  <h1>마이페이지</h1>
+  <!--/* 화면 제목은 왼쪽 메뉴 맨 위 "마이페이지"가 대신한다. 화면 읽기 도구용 제목만 남긴다. */-->
+  <h1 class="visually-hidden">마이페이지</h1>
   <div th:replace="~{fragments/common/alert :: alert}"></div>
 
   <!--/* 왼쪽은 쇼핑 · 활동 · 계정으로 묶은 메뉴, 오른쪽은 프로필 한 줄 · 요약 숫자 · 최근 주문.
          결제 완료 화면의 "마이페이지 > 주문 내역" 안내를 따라 들어오므로 주문이 첫 화면에 보이게 둔다. */-->
   <div class="layout-sidebar mypage-layout">
-    <nav class="mypage-nav" aria-label="마이페이지 메뉴">
-      <div class="mypage-nav__group">
-        <p class="mypage-nav__title">쇼핑</p>
-        <a class="mypage-nav__link" th:href="@{/orders}">주문 내역</a>
-        <a class="mypage-nav__link" th:href="@{/mypage/coupons}">보유 쿠폰</a>
-      </div>
-      <div class="mypage-nav__group">
-        <p class="mypage-nav__title">활동</p>
-        <a class="mypage-nav__link" th:href="@{/mypage/reviews/writable}">작성할 후기</a>
-        <a class="mypage-nav__link" th:href="@{/mypage/reviews}">내 후기</a>
-        <a class="mypage-nav__link" th:href="@{/chat}">1:1 문의</a>
-      </div>
-      <div class="mypage-nav__group">
-        <p class="mypage-nav__title">계정</p>
-        <a class="mypage-nav__link" th:href="@{/mypage/profile}">회원정보 수정</a>
-      </div>
-    </nav>
+    <nav th:replace="~{fragments/customer/mypage-nav :: mypageNav('home')}"></nav>
 
     <div class="mypage-main">
       <!--/* 프로필 한 줄. 전화번호 · 생년월일 등은 회원정보 수정 화면에서 본다. */-->

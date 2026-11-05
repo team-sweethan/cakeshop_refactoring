@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--/* 마이페이지 왼쪽 메뉴. 마이페이지와 하위 화면(보유 쿠폰 · 작성할 후기 · 내 후기 · 회원정보 수정)이 같이 쓴다.
+       active: 지금 화면 키(home · orders · coupons · writable-reviews · reviews · chat · profile). 고른 메뉴를 강조한다.
+       스타일은 /css/mypage-layout.css. */-->
+<nav class="mypage-nav" aria-label="마이페이지 메뉴" th:fragment="mypageNav(active)">
+  <a class="mypage-nav__home"
+     th:classappend="${active == 'home'} ? ' is-active'"
+     th:aria-current="${active == 'home'} ? 'page'"
+     th:href="@{/mypage}">마이페이지</a>
+  <div class="mypage-nav__group">
+    <p class="mypage-nav__title">쇼핑</p>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'orders'} ? ' is-active'"
+       th:aria-current="${active == 'orders'} ? 'page'"
+       th:href="@{/orders}">주문 내역</a>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'coupons'} ? ' is-active'"
+       th:aria-current="${active == 'coupons'} ? 'page'"
+       th:href="@{/mypage/coupons}">보유 쿠폰</a>
+  </div>
+  <div class="mypage-nav__group">
+    <p class="mypage-nav__title">활동</p>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'writable-reviews'} ? ' is-active'"
+       th:aria-current="${active == 'writable-reviews'} ? 'page'"
+       th:href="@{/mypage/reviews/writable}">작성할 후기</a>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'reviews'} ? ' is-active'"
+       th:aria-current="${active == 'reviews'} ? 'page'"
+       th:href="@{/mypage/reviews}">내 후기</a>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'chat'} ? ' is-active'"
+       th:aria-current="${active == 'chat'} ? 'page'"
+       th:href="@{/chat}">1:1 문의</a>
+  </div>
+  <div class="mypage-nav__group">
+    <p class="mypage-nav__title">계정</p>
+    <a class="mypage-nav__link"
+       th:classappend="${active == 'profile'} ? ' is-active'"
+       th:aria-current="${active == 'profile'} ? 'page'"
+       th:href="@{/mypage/profile}">회원정보 수정</a>
+  </div>
+</nav>
+</body>
+</html>
