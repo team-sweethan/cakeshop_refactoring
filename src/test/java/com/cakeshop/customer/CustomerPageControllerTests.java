@@ -355,6 +355,8 @@ class CustomerPageControllerTests {
                 .doesNotContain("픽업 대기");
         assertThat(chatStyles)
                 .contains(".chat-page .chat-layout {")
+                .contains("grid-template-columns: 300px minmax(0, 1fr)")
+                .doesNotContain("max-width: 1040px")
                 .contains(".chat-page .chat-messages { flex: 1; max-height: none")
                 .contains("text-overflow: ellipsis");
     }
