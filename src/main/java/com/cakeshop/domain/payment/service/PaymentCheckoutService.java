@@ -29,6 +29,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentCheckoutService {
 
+    // 0원 주문 완료 때 저장되는 결제 수단 값(PaymentMapper.completeZeroAmountIfReady)
+    private static final String ZERO_AMOUNT_METHOD = "ZERO_AMOUNT";
+
     private final OrderPaymentQueryService orderPaymentQueryService;
     private final MemberService memberService;
     private final PaymentService paymentService;
@@ -150,7 +153,7 @@ public class PaymentCheckoutService {
                 order.orderId(),
                 order.orderNumber(),
                 payment.getAmount(),
-                payment.getMethod(),
+                completionMethod(payment),
                 order.pickupAt(),
                 storeService.getStoreView().pickupPlace(),
                 order.items().stream()
@@ -160,6 +163,19 @@ public class PaymentCheckoutService {
                         ))
                         .toList()
         );
+    }
+
+    // 완료 화면의 결제 수단은 구매자가 결제 화면에서 고른 이름으로 보인다.
+    // 돈워리는 구매자가 직접 고른 안전결제라 그 이름을, 토스는 토스가 알려 준 결제 방식(카드 · 간편결제 등)을 쓴다.
+    // 0원 주문은 결제사를 거치지 않고 완료되므로(method = ZERO_AMOUNT) 결제사와 상관없이 0원 결제로 보인다.
+    private static String completionMethod(Payment payment) {
+        if (ZERO_AMOUNT_METHOD.equals(payment.getMethod())) {
+            return "0원 결제";
+        }
+        if (payment.getProvider() == PaymentProvider.OWN) {
+            return "돈워리 안전결제";
+        }
+        return payment.getMethod();
     }
 
     private void validatePaymentOrder(PaymentOrder order) {

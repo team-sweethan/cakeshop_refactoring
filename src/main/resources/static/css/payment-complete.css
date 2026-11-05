@@ -1,0 +1,26 @@
+/* 결제 완료 화면(customer/order/complete.html) 전용 스타일. 공통 app.css 다음에 불러온다.
+   단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
+
+.payment-complete { background: #fff; border: 1px solid #e6d5c9; border-radius: var(--radius-lg); box-shadow: 0 10px 28px rgba(68, 43, 34, .07); padding: 36px 32px 28px; text-align: center }
+
+/* 완료 표시: 연한 분홍 원 안의 체크 */
+.payment-complete__icon { align-items: center; background: var(--color-brand-soft); border-radius: 50%; color: var(--color-brand); display: inline-flex; height: 56px; justify-content: center; margin-bottom: 14px; width: 56px }
+.payment-complete__title { font-size: 22px; margin: 0 }
+.payment-complete__guide { color: var(--color-muted); font-size: var(--font-sm); line-height: 1.7; margin: 8px 0 0 }
+.payment-complete__guide strong { color: var(--color-text) }
+
+/* 결제 정보: 항목 이름 · 값 두 칸. 주문번호는 맨 아래에 작게 */
+.payment-complete__info { border-top: 1px solid var(--color-border-light); margin: 24px 0 0; padding-top: 6px; text-align: left }
+.payment-complete__row { border-bottom: 1px solid var(--color-border-light); display: grid; gap: 12px; grid-template-columns: 96px minmax(0, 1fr); padding: 11px 0 }
+.payment-complete__row dt { color: var(--color-muted); font-size: var(--font-xs); font-weight: 700 }
+.payment-complete__row dd { color: var(--color-text); font-size: var(--font-sm); margin: 0; overflow-wrap: anywhere }
+.payment-complete__row dd.payment-complete__amount { color: var(--color-brand); font-weight: 700 }
+.payment-complete__row--sub { border-bottom: 0 }
+.payment-complete__row--sub dd { color: var(--color-muted); font-size: var(--font-xs) }
+
+.payment-complete__actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px }
+.payment-complete__actions .btn { min-width: 132px }
+
+@media (max-width: 767px) {
+    .payment-complete { padding: 28px 18px 22px }
+}
