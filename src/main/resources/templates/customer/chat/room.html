@@ -19,7 +19,7 @@
          채팅 두 칸은 화면 높이에 맞춘 고정 높이다(chat-room.css). 메시지와 주문 목록은 각자 안에서 스크롤하고,
          입력창은 늘 채팅창 맨 아래에 있다. 페이지가 대화 길이에 따라 늘어나지 않는다. */-->
   <main class="page-container chat-page">
-    <h1>1:1 채팅 문의</h1>
+    <h1 class="visually-hidden">1:1 채팅 문의</h1>
     <div class="layout-sidebar mypage-layout">
     <nav th:replace="~{fragments/customer/mypage-nav :: mypageNav('chat')}"></nav>
     <div class="mypage-content">

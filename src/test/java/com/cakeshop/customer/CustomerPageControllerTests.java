@@ -387,7 +387,9 @@ class CustomerPageControllerTests {
                     .contains("th:href=\"@{/css/mypage-layout.css}\"")
                     .contains("mypageNav('" + subpage.getValue() + "')")
                     .contains("class=\"layout-sidebar mypage-layout\"")
-                    .doesNotContain("마이페이지로 돌아가기");
+                    .doesNotContain("마이페이지로 돌아가기")
+                    // 화면 제목은 왼쪽 메뉴 강조가 대신하고, 화면 읽기 도구용 제목만 남긴다.
+                    .contains("<h1 class=\"visually-hidden\">");
         }
         assertThat(new ClassPathResource("templates/customer/member/profile-edit.html")
                 .getContentAsString(StandardCharsets.UTF_8))
