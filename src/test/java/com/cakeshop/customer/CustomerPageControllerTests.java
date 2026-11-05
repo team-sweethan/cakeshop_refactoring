@@ -377,7 +377,8 @@ class CustomerPageControllerTests {
                 "templates/customer/review/writable.html", "writable-reviews",
                 "templates/customer/review/my.html", "reviews",
                 "templates/customer/member/profile-edit.html", "profile",
-                "templates/customer/chat/room.html", "chat");
+                "templates/customer/chat/room.html", "chat",
+                "templates/customer/order/detail.html", "orders");
 
         for (Map.Entry<String, String> subpage : subpages.entrySet()) {
             String template = new ClassPathResource(subpage.getKey())
@@ -389,7 +390,7 @@ class CustomerPageControllerTests {
                     .contains("class=\"layout-sidebar mypage-layout\"")
                     .doesNotContain("마이페이지로 돌아가기")
                     // 화면 제목은 왼쪽 메뉴 강조가 대신하고, 화면 읽기 도구용 제목만 남긴다.
-                    .contains("<h1 class=\"visually-hidden\">");
+                    .contains("<h1 class=\"visually-hidden\"");
         }
         assertThat(new ClassPathResource("templates/customer/member/profile-edit.html")
                 .getContentAsString(StandardCharsets.UTF_8))
@@ -453,6 +454,31 @@ class CustomerPageControllerTests {
                         .getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(orderDetailTemplate).contains("order.paymentPending");
+    }
+
+    // 주문 내역은 목록(상태 탭 · 한 줄 카드)과 상세(상태 카드 · 정보 카드 · 결제 정보)를 order 유무로 나눠 그린다.
+    // 상세에는 1:1 문의하기가 있고, 주문 취소는 접어 두며, 할인 금액은 있을 때만 보인다.
+    @Test
+    void orderHistory_splitsListAndDetailWithStatusTabs() throws IOException {
+        String orderTemplate = new ClassPathResource("templates/customer/order/detail.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String orderScript = new ClassPathResource("static/js/order-history.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(orderTemplate)
+                .contains("th:href=\"@{/css/order-history.css}\"")
+                .contains("th:if=\"${order == null}\"")
+                .contains("th:if=\"${order != null}\"")
+                .contains("data-order-filter=\"active\"")
+                .contains("data-order-filter=\"done\"")
+                .contains("data-order-filter=\"closed\"")
+                .contains("th:href=\"@{/chat}\">1:1 문의하기</a>")
+                .contains("<details class=\"order-cancel\"")
+                .contains("th:if=\"${order.discountAmount.signum() > 0}\"")
+                .doesNotContain("왼쪽 목록에서 확인할 주문을 선택해 주세요.");
+        assertThat(orderScript)
+                .contains("data-order-filter")
+                .contains("row.dataset.orderGroup === filter");
     }
 
     @Test
