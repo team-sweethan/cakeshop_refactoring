@@ -258,4 +258,47 @@ class AdminPageControllerTests {
                 .isTrue()
         );
     }
+
+    // 관리자 주문 화면 세 곳(전체 주문 · 주문 상세 · 주문 처리)은 같은 전용 CSS와 상태 색을 쓴다.
+    // 전체 주문은 상태 탭 7개(전체 · 결제 대기 · 주문 확인 중 · 제작 중 · 픽업 준비 · 픽업 완료 · 취소·반려·만료)로 거른다.
+    // 주문 상세는 맨 위 요약 · 정보 카드 3개 · 접힌 관리자 취소, 주문 처리는 펼친 내용을 경고 · 정보 · 제작 요청 상자로 나눈다.
+    @Test
+    void adminOrderScreens_statusTabsSummaryAndColoredSections() throws java.io.IOException {
+        String list = new ClassPathResource("templates/admin/order/list.html")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String detail = new ClassPathResource("templates/admin/order/detail.html")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String fulfillment = new ClassPathResource("templates/admin/fulfillment/list.html")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String script = new ClassPathResource("static/js/admin-order-list.js")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        String appStyles = new ClassPathResource("static/css/app.css")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+
+        for (String template : java.util.List.of(list, detail, fulfillment)) {
+            assertThat(template).contains("th:href=\"@{/css/admin-order.css}\"");
+        }
+        assertThat(list)
+                .containsSubsequence(
+                        "data-order-filter=\"all\"",
+                        "data-order-filter=\"PENDING_PAYMENT\"",
+                        "data-order-filter=\"UNDER_REVIEW\"",
+                        "data-order-filter=\"IN_PRODUCTION\"",
+                        "data-order-filter=\"READY_FOR_PICKUP\"",
+                        "data-order-filter=\"PICKED_UP\"",
+                        "data-order-filter=\"CLOSED\"")
+                .contains("data-order-status-group")
+                .contains("badge--muted");
+        assertThat(script).contains("row.dataset.orderStatusGroup === filter");
+        assertThat(detail)
+                .contains("admin-order-summary")
+                .contains("admin-order-cards")
+                .contains("<details class=\"admin-order-cancel\"")
+                .doesNotContain("쿠폰 적용");
+        assertThat(fulfillment)
+                .contains("class=\"admin-order-alert\"")
+                .contains("class=\"fulfillment-info\"")
+                .contains("class=\"admin-order-request\"");
+        assertThat(appStyles).doesNotContain(".admin-order-");
+    }
 }

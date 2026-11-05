@@ -1014,9 +1014,11 @@ class ScreenRenderingTests {
             .andExpect(content().string(containsString(
                 "/admin/orders/" + orderId + "/cancel"
             )))
-            .andExpect(content().string(containsString("쿠폰 적용")))
-            .andExpect(content().string(containsString("적용")))
+            // 쿠폰 "적용/미적용" 줄은 없애고, 할인이 있을 때만 할인 금액 줄을 보인다. 관리자 취소는 접어 둔다.
+            .andExpect(content().string(not(containsString("쿠폰 적용"))))
             .andExpect(content().string(containsString("쿠폰 할인 금액")))
+            .andExpect(content().string(containsString("<details class=\"admin-order-cancel\"")))
+            .andExpect(content().string(containsString("admin-order-summary")))
             .andExpect(content().string(containsString("-5,000원")))
             .andExpect(content().string(containsString("name=\"_csrf\"")));
     }

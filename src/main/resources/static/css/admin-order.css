@@ -1,0 +1,80 @@
+/* 관리자 주문 화면(admin/order/list · admin/order/detail · admin/fulfillment/list) 전용 스타일. app.css 다음에 불러온다.
+   세 화면이 같은 상태 색 · 경고 상자 · 제작 요청 강조 상자를 쓴다.
+   상태 색: 결제 대기 노랑(badge--warning) · 진행 중 파랑(badge--info) · 픽업 완료 초록(badge--success) · 취소 · 반려 · 만료 흐린 회색(badge--muted)
+   단일 화면 스타일은 app.css에 넣지 않는다(docs/frontend-template-format.md 6절). */
+
+.admin-order [hidden] { display: none !important }
+.admin-order .badge--muted { border-color: var(--color-border-light); color: var(--color-muted) }
+
+/* 결제 확인 중 경고(노랑) */
+.admin-order-alert { background: #fffbeb; border: 1px solid #f5d77a; border-left: 4px solid #eab308; border-radius: var(--radius-sm); color: #713f12; padding: 12px 16px }
+.admin-order-alert strong { display: block; font-size: var(--font-sm); margin-bottom: 4px }
+.admin-order-alert p { font-size: var(--font-xs); line-height: 1.6; margin: 0 }
+.admin-order-alert__sub { color: #92400e; margin-top: 4px !important }
+
+/* 제작 요청 · 레터링(크림색 강조, 주문 제작만) */
+.admin-order-request { background: #fff8ec; border: 1px solid #f1dcb8; border-radius: var(--radius-sm); display: grid; gap: 10px; padding: 12px 16px }
+.admin-order-request__title { color: #9a5b13; font-size: 12px; font-weight: 700; margin: 0 0 4px }
+.admin-order-request p { font-size: var(--font-sm); margin: 0 }
+
+/* ── 전체 주문: 상태 탭 · 표 ── */
+.admin-order-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px }
+.admin-order-tabs__tab { background: #fff; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text); cursor: pointer; font-size: var(--font-xs); padding: 7px 14px; transition: background .15s ease, border-color .15s ease, color .15s ease }
+.admin-order-tabs__tab:hover { border-color: var(--color-brand); color: var(--color-brand) }
+.admin-order-tabs__tab.is-active { background: var(--color-brand); border-color: var(--color-brand); color: #fff }
+.admin-order-tabs__tab:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px }
+.admin-order-tabs__tab [data-order-filter-count] { opacity: .8 }
+.admin-order-table__number { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap }
+.admin-order-table__row--closed td { color: var(--color-muted) }
+.admin-order-table__filtered-empty td { color: var(--color-muted); padding: 24px; text-align: center }
+
+/* ── 주문 상세: 요약 · 카드 3개 · 접힌 취소 ── */
+.admin-order-detail { display: grid; gap: 14px }
+.admin-order-back { color: var(--color-muted); font-size: var(--font-xs); justify-self: start }
+.admin-order-back:hover { color: var(--color-brand) }
+
+.admin-order-summary { align-items: center; background: #fff; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: space-between; padding: 16px 20px }
+.admin-order-summary__main { display: grid; gap: 6px; min-width: 0 }
+.admin-order-summary__head { align-items: center; display: flex; flex-wrap: wrap; gap: 8px }
+.admin-order-summary__number { font-size: 18px; margin: 0; overflow-wrap: anywhere }
+.admin-order-summary__type { color: var(--color-muted); font-size: var(--font-xs) }
+.admin-order-summary__meta { color: var(--color-text); display: flex; flex-wrap: wrap; font-size: var(--font-sm); gap: 6px; margin: 0 }
+.admin-order-summary__meta strong { color: var(--color-brand) }
+.admin-order-summary__actions { display: flex; flex-wrap: wrap; gap: 8px }
+
+.admin-order-cards { align-items: stretch; display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)) }
+.admin-order-card { background: #fff; border: 1px solid var(--color-border-light); border-radius: var(--radius-md); display: grid; align-content: start; gap: 2px; min-width: 0; padding: 14px 18px }
+.admin-order-card__title { color: var(--color-muted); font-size: 12px; font-weight: 700; margin: 0 0 6px }
+.admin-order-card__total { align-items: baseline; border-top: 1px solid var(--color-border-light); display: flex; font-weight: 700; justify-content: space-between; margin-top: 8px; padding-top: 10px }
+.admin-order-card__total strong { color: var(--color-brand); font-size: 18px }
+.admin-order-card .admin-order-request { margin-top: 10px }
+.admin-order-item + .admin-order-item { border-top: 1px solid var(--color-border-light); margin-top: 8px; padding-top: 8px }
+.admin-order-item__head { align-items: baseline; display: flex; font-size: var(--font-sm); gap: 10px; justify-content: space-between }
+
+.admin-order-cancel { background: #fff; border: 1px dashed var(--color-border); border-radius: var(--radius-md); padding: 10px 16px }
+.admin-order-cancel > summary { color: var(--color-muted); cursor: pointer; font-size: var(--font-xs); list-style: none }
+.admin-order-cancel > summary::-webkit-details-marker { display: none }
+.admin-order-cancel > summary::after { content: " ▾" }
+.admin-order-cancel[open] > summary::after { content: " ▴" }
+.admin-order-cancel > summary:hover { color: var(--color-danger) }
+.admin-order-cancel[open] > summary { margin-bottom: 10px }
+
+/* ── 주문 처리: 펼친 내용 ── */
+.admin-fulfillment .fulfillment-order[open] { border-color: var(--color-border); box-shadow: 0 6px 18px rgba(68, 43, 34, .06) }
+.admin-fulfillment .fulfillment-order__body { gap: 12px; grid-template-columns: 1fr }
+.fulfillment-info { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) }
+.fulfillment-info__block { background: var(--color-background-faint); border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); min-width: 0; padding: 10px 14px }
+.fulfillment-info__block p { margin: 2px 0 0 }
+.fulfillment-label { color: var(--color-muted); font-size: 12px; font-weight: 700; margin: 0 0 6px }
+.admin-fulfillment .admin-order-request { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+/* 버튼 줄: 구분선 아래, "전체 주문 보기"는 왼쪽, 다음 단계 버튼은 오른쪽 */
+.admin-fulfillment .fulfillment-order__actions { border-top: 1px solid var(--color-border-light); flex-wrap: wrap; padding-top: 12px }
+.admin-fulfillment .fulfillment-order__actions > a.btn:first-child { margin-right: auto }
+
+@media (max-width: 1100px) {
+    .admin-order-cards { grid-template-columns: 1fr }
+}
+
+@media (max-width: 720px) {
+    .fulfillment-info, .admin-fulfillment .admin-order-request { grid-template-columns: 1fr }
+}
