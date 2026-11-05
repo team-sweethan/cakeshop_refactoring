@@ -169,36 +169,10 @@
         상품 설명
       </p>
 
-      <!--/* 상품 안내: 픽업 가능일 · 취소 가능 기간 · 판매 상태 · 재고를 아이콘이 붙은 줄로 차례로 둔다.
+      <!--/* 상품 안내: 판매 상태 · 재고 · 취소 가능 기간 · 픽업 가능일 순서로 둔다.
+             짧은 배지 줄을 위에, 긴 문장 줄을 아래에 두어 줄 길이가 차례로 늘어나게 한다.
              설명과 아래 주문 상자 사이를 채운다. */-->
       <ul class="product-facts">
-        <li class="product-facts__item">
-          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
-               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 7v5l3 2"/>
-          </svg>
-          <span class="product-facts__label">픽업 가능일</span>
-          <!-- 일반 상품 -->
-          <span th:if="${product.productType.name() == 'GENERAL'}">당일부터 픽업 가능</span>
-          <!-- 주문 제작 상품 -->
-          <span th:if="${product.productType.name() == 'CUSTOM'}"
-                th:text="|관리자 승인일로부터 ${product.preparationDays}일 후 픽업 가능|">
-            관리자 승인일로부터 2일 후 픽업 가능
-          </span>
-        </li>
-        <li class="product-facts__item">
-          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
-               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 12a9 9 0 1 0 3-6.7"/>
-            <path d="M3 4v5h5"/>
-          </svg>
-          <span class="product-facts__label">취소 가능 기간</span>
-          <span th:if="${product.productType.name() == 'GENERAL'}">픽업 예정 시각 전까지 취소 가능</span>
-          <span th:if="${product.productType.name() == 'CUSTOM'}">관리자 승인 전까지 취소 가능</span>
-        </li>
         <!--/* 고객 상품 상세 조회는 ACTIVE 상품만 반환하므로 조회된 상품은 항상 판매 중이다. */-->
         <li class="product-facts__item">
           <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
@@ -223,6 +197,33 @@
           <span class="badge badge--success"
                 th:if="${!product.unlimitedStock and !product.outOfStock}"
                 th:text="|${product.stockQuantity}개 남음|">5개 남음</span>
+        </li>
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 3-6.7"/>
+            <path d="M3 4v5h5"/>
+          </svg>
+          <span class="product-facts__label">취소 가능 기간</span>
+          <span th:if="${product.productType.name() == 'GENERAL'}">픽업 예정 시각 전까지 취소 가능</span>
+          <span th:if="${product.productType.name() == 'CUSTOM'}">관리자 승인 전까지 취소 가능</span>
+        </li>
+        <li class="product-facts__item">
+          <svg class="product-facts__icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"
+               focusable="false" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3 2"/>
+          </svg>
+          <span class="product-facts__label">픽업 가능일</span>
+          <!-- 일반 상품 -->
+          <span th:if="${product.productType.name() == 'GENERAL'}">당일부터 픽업 가능</span>
+          <!-- 주문 제작 상품 -->
+          <span th:if="${product.productType.name() == 'CUSTOM'}"
+                th:text="|관리자 승인일로부터 ${product.preparationDays}일 후 픽업 가능|">
+            관리자 승인일로부터 2일 후 픽업 가능
+          </span>
         </li>
       </ul>
 
