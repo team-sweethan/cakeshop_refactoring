@@ -6,6 +6,7 @@
   <meta name="_csrf" th:content="${_csrf.token}">
   <meta name="_csrf_header" th:content="${_csrf.headerName}">
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/chat-room.css}">
   <script defer th:src="@{/js/app.js}"></script>
   <script defer th:src="@{/js/chat-customer.js}"></script>
   <script defer th:src="@{/js/korea-time.js}"></script>
@@ -13,7 +14,9 @@
 <body data-page-title="1:1 채팅 문의">
   <header th:replace="~{fragments/common/header :: header}"></header>
 
-  <main class="page-container" style="max-width:1040px;">
+  <!--/* 채팅 두 칸은 화면 높이에 맞춘 고정 높이다(chat-room.css). 메시지와 주문 목록은 각자 안에서 스크롤하고,
+         입력창은 늘 채팅창 맨 아래에 있다. 페이지가 대화 길이에 따라 늘어나지 않는다. */-->
+  <main class="page-container chat-page">
     <div class="cluster cluster--between section">
       <h1>1:1 채팅 문의</h1>
       <a class="btn" th:href="@{/mypage}">마이페이지로 돌아가기</a>
@@ -21,13 +24,17 @@
 
     <!-- 2열 레이아웃: 관련 주문 사이드바(좌) + 채팅방 패널(우) -->
     <div class="chat-layout">
-      <!-- 좌측 사이드바: 연동 주문 목록 -->
-      <aside class="panel chat-sidebar">
-        <strong style="display:block; margin-bottom:4px;">연동 주문 내역</strong>
-        <p class="text-muted" style="margin-bottom:12px;">주문 카드를 클릭하면 해당 대화 위치로 이동합니다.</p>
+      <!-- 좌측 사이드바: 연동 주문 목록. 진행 중 주문이 위, 지난 주문은 접어 둔다(chat-customer.js) -->
+      <aside class="panel chat-sidebar" aria-labelledby="chat-orders-title">
+        <div class="chat-sidebar__head">
+          <strong class="chat-sidebar__title" id="chat-orders-title">
+            내 주문 <span class="chat-sidebar__count" data-chat-order-count></span>
+          </strong>
+          <p class="chat-sidebar__hint">카드를 누르면 대화에서 그 주문 위치로 이동합니다.</p>
+        </div>
 
-        <div class="stack">
-          <p class="text-muted" style="font-size:12px;">주문 내역을 불러오는 중입니다...</p>
+        <div class="stack chat-sidebar__list">
+          <p class="chat-sidebar__empty">주문 내역을 불러오는 중입니다...</p>
         </div>
       </aside>
 

@@ -332,6 +332,33 @@ class CustomerPageControllerTests {
         assertThat(appStyles).doesNotContain(".mypage-");
     }
 
+    // 1:1 채팅 문의는 두 칸을 화면 높이에 맞춘 고정 높이로 두고 메시지 · 주문 목록을 각자 안에서 스크롤한다.
+    // 왼쪽 주문 목록은 진행 중 주문을 위에, 지난 주문은 접어 두고, 긴 주문번호는 카드 안에서 말줄임한다.
+    @Test
+    void chatRoom_fixedHeightLayoutAndGroupedOrderCards() throws IOException {
+        String chatRoom = new ClassPathResource("templates/customer/chat/room.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String chatScript = new ClassPathResource("static/js/chat-customer.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String chatStyles = new ClassPathResource("static/css/chat-room.css")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(chatRoom)
+                .contains("th:href=\"@{/css/chat-room.css}\"")
+                .contains("class=\"page-container chat-page\"")
+                .contains("data-chat-order-count")
+                .doesNotContain("max-width:1040px");
+        assertThat(chatScript)
+                .contains("PAST_ORDER_STATUSES")
+                .contains("chat-order-past")
+                .contains("case \"READY_FOR_PICKUP\": return \"픽업 준비\";")
+                .doesNotContain("픽업 대기");
+        assertThat(chatStyles)
+                .contains(".chat-page .chat-layout {")
+                .contains(".chat-page .chat-messages { flex: 1; max-height: none")
+                .contains("text-overflow: ellipsis");
+    }
+
     // 결제 완료 화면은 결제가 끝난 것만 알리고 주문 진행은 주문 내역에서 보게 한다.
     // 결제가 보류(돈워리 확인 중)된 주문도 같은 화면이라 상태나 픽업 방문 안내를 넣지 않는다.
     @Test
