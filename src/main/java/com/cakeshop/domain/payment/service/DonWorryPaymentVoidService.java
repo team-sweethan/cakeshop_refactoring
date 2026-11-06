@@ -1,5 +1,7 @@
 package com.cakeshop.domain.payment.service;
 
+import com.cakeshop.domain.order.dto.OrderLiveStatusEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.cakeshop.domain.order.service.OrderNotificationService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService;
 import com.cakeshop.domain.order.service.payment.OrderPaymentQueryService.GatewayVoidHandling;
@@ -40,6 +42,8 @@ public class DonWorryPaymentVoidService {
     private final OrderNotificationService orderNotificationService;
     private final OrderPaymentQueryService orderPaymentQueryService;
     private final RefundService refundService;
+    // 커밋 뒤 열려 있는 관리자 · 고객 화면을 갱신하게 알린다(OrderLiveStatusBroadcaster)
+    private final ApplicationEventPublisher events;
 
     public enum VoidOutcome {
         // 주문을 취소했다
@@ -64,11 +68,13 @@ public class DonWorryPaymentVoidService {
             // 카드 청구는 이미 풀렸다. 대금 회수 등 후속 처리는 가맹점 몫이다(DonWorry ADR-0064 4-1). 관리자 확인용으로 남긴다
             log.warn("돈워리 승인 취소됐으나 가맹점이 이미 진행한 주문이라 유지(가맹점 부담) orderId={} paymentId={}",
                     payment.getOrderId(), payment.getId());
+            events.publishEvent(new OrderLiveStatusEvent(payment.getOrderId()));
             return VoidOutcome.ORDER_KEPT;
         }
         // 고객 · 관리자 취소나 수제 반려 요청이 PG 응답을 기다리는 중이면, 새 거절 기록을 만들지 않고 그 요청을
         // 돈워리 승인 취소 결과로 완료한다. 결제 · 주문은 요청 종류대로 확정된다(#26 Codex 리뷰). 알림은 주문 상태 알림 배치가 보낸다.
         if (refundService.completeRequestedCancellationByGatewayVoid(payment, canceledAt)) {
+            events.publishEvent(new OrderLiveStatusEvent(payment.getOrderId()));
             return VoidOutcome.ORDER_CANCELED;
         }
         // DONE 결제에만 기록되므로 0이면 이미 반영된 거절이다(웹훅·조회 배치 중복).
@@ -83,6 +89,7 @@ public class DonWorryPaymentVoidService {
         // 픽업 완료 등 되돌릴 수 없는 주문이면 예외로 전체를 되돌리고 관리자 확인으로 넘긴다.
         orderPaymentRecoveryService.cancelAfterPaymentCompensation(payment.getOrderId(), canceledAt, REASON);
         orderNotificationService.notifyOrderCanceled(payment.getOrderId(), memberId);
+        events.publishEvent(new OrderLiveStatusEvent(payment.getOrderId()));
         return VoidOutcome.ORDER_CANCELED;
     }
 }

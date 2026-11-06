@@ -456,6 +456,26 @@ class CustomerPageControllerTests {
         assertThat(orderDetailTemplate).contains("order.paymentPending");
     }
 
+    // 돈워리 판정으로 주문 상태가 바뀌면 고객 주문 내역 · 상세가 새로고침 없이 바뀐다(본인 주문 토픽만 구독).
+    @Test
+    void orderHistory_declaresLiveStatusRegions() throws IOException {
+        String orderTemplate = new ClassPathResource("templates/customer/order/detail.html")
+                .getContentAsString(StandardCharsets.UTF_8);
+        String liveScript = new ClassPathResource("static/js/order-live-status.js")
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(orderTemplate)
+                .contains("th:src=\"@{/js/order-live-status.js}\"")
+                .contains("data-live-orders=\"customer\"")
+                .contains("id=\"order-list-live\" data-live-region")
+                .contains("id=\"order-detail-live\" data-live-region");
+        assertThat(liveScript)
+                .contains("\"/topic/admin/orders\"")
+                .contains("\"/topic/orders/\" + memberId")
+                .contains("cakeshop:live-updated")
+                .contains("isBusy(region)");
+    }
+
     // 주문 내역은 목록(상태 탭 · 한 줄 카드)과 상세(상태 카드 · 정보 카드 · 결제 정보)를 order 유무로 나눠 그린다.
     // 상세에는 1:1 문의하기가 있고, 주문 취소는 접어 두며, 할인 금액은 있을 때만 보인다.
     @Test

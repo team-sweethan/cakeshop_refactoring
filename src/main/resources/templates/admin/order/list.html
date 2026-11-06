@@ -7,13 +7,14 @@
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <link rel="stylesheet" th:href="@{/css/admin-order.css}">
   <script defer th:src="@{/js/admin-order-list.js}"></script>
+  <script defer th:src="@{/js/order-live-status.js}"></script>
 </head>
 <body>
 <div class="admin-layout">
   <aside th:replace="~{fragments/admin/sidebar :: sidebar('orders')}"></aside>
   <div class="admin-main">
     <header th:replace="~{fragments/admin/header :: header('전체 주문')}"></header>
-    <main class="admin-content admin-order">
+    <main class="admin-content admin-order" data-live-orders="admin">
       <div class="admin-content__header">
         <div>
           <p class="admin-page-eyebrow">ORDER DIRECTORY</p>
@@ -24,6 +25,8 @@
 
       <!--/* 상태 탭: 받은 목록을 화면에서만 나눠 보인다(admin-order-list.js). 숫자는 상태별 건수.
              취소 · 반려 · 만료는 한 탭으로 묶는다. 스크립트가 없으면 전체 목록이 그대로 보인다. */-->
+      <!--/* 탭과 표는 돈워리 판정으로 주문 상태가 바뀌면 자동으로 다시 그린다(order-live-status.js) */-->
+      <div id="admin-orders-live" data-live-region>
       <div class="admin-order-tabs" role="group" aria-label="주문 상태로 거르기"
            th:unless="${#lists.isEmpty(orders)}" data-admin-order-tabs>
         <button class="admin-order-tabs__tab is-active" type="button" data-order-filter="all" aria-pressed="true">전체 <span data-order-filter-count></span></button>
@@ -64,6 +67,7 @@
           </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </main>
   </div>

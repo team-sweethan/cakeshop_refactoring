@@ -120,6 +120,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                 throw new AccessDeniedException("올바르지 않은 알림 구독 목적지입니다.");
                             }
                         }
+                        // B-3-1. 주문 상태 실시간 토픽(/topic/orders/{memberId})은 로그인한 본인만 구독한다.
+                        //        돈워리 판정으로 주문 상태가 바뀌면 고객 주문 화면이 갱신된다(OrderLiveStatusBroadcaster).
+                        else if (destination.startsWith("/topic/orders/")) {
+                            String subPath = destination.substring("/topic/orders/".length());
+                            try {
+                                Long targetMemberId = Long.parseLong(subPath);
+                                if (!(principal instanceof Authentication auth
+                                        && auth.getPrincipal() instanceof MemberDetails memberDetails
+                                        && targetMemberId.equals(memberDetails.getMemberId()))) {
+                                    throw new AccessDeniedException("본인의 주문 토픽만 구독할 수 있습니다.");
+                                }
+                            } catch (NumberFormatException e) {
+                                throw new AccessDeniedException("올바르지 않은 주문 구독 목적지입니다.");
+                            }
+                        }
                         // B-4. 그 외 허용되지 않은 상위 와일드카드(/topic/**, /topic/* 등) 구독 전면 차단
                         else {
                             throw new AccessDeniedException("허용되지 않은 구독 목적지입니다.");

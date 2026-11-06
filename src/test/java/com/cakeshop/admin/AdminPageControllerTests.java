@@ -333,4 +333,22 @@ class AdminPageControllerTests {
                 .contains("th:src=\"@{/js/admin-header.js}\"")
                 .doesNotContain(">고객 화면</a>");
     }
+
+    // 돈워리 판정으로 주문 상태가 바뀌면 관리자 주문 화면 세 곳이 새로고침 없이 바뀐다(order-live-status.js).
+    @Test
+    void adminOrderScreens_declareLiveStatusRegions() throws java.io.IOException {
+        for (String path : java.util.List.of(
+                "templates/admin/order/list.html",
+                "templates/admin/order/detail.html",
+                "templates/admin/fulfillment/list.html")) {
+            assertThat(new ClassPathResource(path).getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                    .as(path)
+                    .contains("th:src=\"@{/js/order-live-status.js}\"")
+                    .contains("data-live-orders=\"admin\"")
+                    .contains("data-live-region");
+        }
+        assertThat(new ClassPathResource("templates/admin/order/detail.html")
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("data-live-order-id=${order.orderId}");
+    }
 }

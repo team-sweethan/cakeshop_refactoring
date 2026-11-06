@@ -38,8 +38,10 @@ class DonWorryPaymentVoidServiceTests {
     private final OrderNotificationService notifications = mock(OrderNotificationService.class);
     private final OrderPaymentQueryService orders = mock(OrderPaymentQueryService.class);
     private final RefundService refunds = mock(RefundService.class);
+    private final org.springframework.context.ApplicationEventPublisher events =
+            mock(org.springframework.context.ApplicationEventPublisher.class);
     private final DonWorryPaymentVoidService service =
-            new DonWorryPaymentVoidService(paymentMapper, recovery, notifications, orders, refunds);
+            new DonWorryPaymentVoidService(paymentMapper, recovery, notifications, orders, refunds, events);
 
     // 진행 중인 고객 · 관리자 취소 요청이 있으면 새 거절 기록 없이 그 요청을 완료한다 (#26 Codex 리뷰)
     @Test
@@ -68,6 +70,8 @@ class DonWorryPaymentVoidServiceTests {
         assertThat(service.applyVoid(payment, 10L, AT)).isEqualTo(VoidOutcome.UNCHANGED);
         verify(recovery).cancelAfterPaymentCompensation(5L, AT, DonWorryPaymentVoidService.REASON);
         verify(notifications).notifyOrderCanceled(5L, 10L);
+        // 열려 있는 주문 화면이 새로고침 없이 취소로 바뀌도록 알린다
+        verify(events).publishEvent(new com.cakeshop.domain.order.dto.OrderLiveStatusEvent(5L));
     }
 
     @Test
@@ -93,6 +97,7 @@ class DonWorryPaymentVoidServiceTests {
         assertThat(service.applyVoid(payment, 10L, AT)).isEqualTo(VoidOutcome.UNCHANGED);
         assertThat(service.applyVoid(payment, 10L, AT)).isEqualTo(VoidOutcome.UNCHANGED);
         verify(paymentMapper, never()).markGatewayVoidKept(anyLong(), anyString());
+        verify(events, never()).publishEvent(any(Object.class));
         verify(paymentMapper, never()).insertGatewayVoidCancellation(anyLong(), anyString(), anyString(), any());
     }
 
