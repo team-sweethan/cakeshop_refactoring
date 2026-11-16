@@ -95,6 +95,12 @@ public class NotificationDeliveryService {
     public void recordSkippedAttempt(Long notificationId, String reason) {
         if (notificationId == null) return;
         try {
+            notificationMapper.findNotificationByIdForUpdate(notificationId);
+            if (notificationMapper.hasSentDelivery(notificationId)
+                    || notificationMapper.hasActivePendingDelivery(notificationId)
+                    || notificationMapper.countDeliveryAttempts(notificationId) >= 2) {
+                return;
+            }
             LocalDateTime now = LocalDateTime.now(clock);
             NotificationDelivery delivery = NotificationDelivery.builder()
                     .notificationId(notificationId)

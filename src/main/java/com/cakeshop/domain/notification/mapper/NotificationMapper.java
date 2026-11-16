@@ -69,6 +69,8 @@ public interface NotificationMapper {
     // 실패한 쿠폰 알림 중 재시도(2회 미만) 가능한 알림 목록 조회 (커서 페이징 지원)
     List<Notification> findRetryableCouponNotifications(@Param("lastId") Long lastId, @Param("limit") int limit);
 
+    List<Notification> findRetryableOrderNotifications(@Param("limit") int limit, @Param("since") LocalDateTime since);
+
     // 수신 회원 전화번호 조회 (주문서 작성 번호 우선, 알림톡 발송용)
     String findReceiverPhone(@Param("receiverId") Long receiverId, @Param("orderId") Long orderId); 
 

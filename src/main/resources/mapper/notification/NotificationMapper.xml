@@ -264,6 +264,27 @@
         LIMIT #{limit}
     </select>
 
+    <select id="findRetryableOrderNotifications" resultType="Notification">
+        SELECT n.*
+        FROM notifications n
+        JOIN notification_deliveries d ON d.notification_id = n.id
+        WHERE n.order_id IS NOT NULL
+          AND n.delivery_scope = 'WEB_AND_SMS'
+          AND n.notification_type IN (
+              'ORDER_PAID', 'CUSTOM_ORDER_PAID', 'NEW_ORDER', 'NEW_CUSTOM_ORDER',
+              'CUSTOM_ORDER_IN_PRODUCTION', 'CUSTOM_ORDER_REJECTED', 'ORDER_CANCELED',
+              'ORDER_CANCEL_REQUEST', 'CUSTOMER_PICKUP_REMINDER_TOMORROW',
+              'CUSTOMER_PICKUP_REMINDER_TODAY', 'ADMIN_PICKUP_REMINDER_TOMORROW',
+              'ADMIN_PICKUP_REMINDER_TODAY', 'CUSTOMER_ORDER_PICKED_UP', 'ADMIN_PICKEDUP'
+          )
+          AND n.created_at &gt;= #{since}
+          AND d.status = 'FAILED'
+          AND d.failure_reason = 'Solapi message delivery failed'
+          AND (SELECT COUNT(*) FROM notification_deliveries attempts WHERE attempts.notification_id = n.id) = 1
+        ORDER BY n.id
+        LIMIT #{limit}
+    </select>
+
     <!-- 프로세스 중단 등으로 방치된 오래된 PENDING 발송 이력을 FAILED로 안전하게 확정 종결 (복구 경로) -->
     <update id="updateStalePendingDeliveriesToFailed">
         UPDATE notification_deliveries
